@@ -4,6 +4,7 @@ import json
 from datetime import date
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlencode
 
 from fastapi import FastAPI, Form, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -19,40 +20,41 @@ templates = Jinja2Templates(directory=str(PACKAGE_DIR / "templates"))
 
 TRANSLATIONS: dict[str, dict[str, str]] = {
     "en": {
-        "nav_capture": "Capture",
-        "nav_analysis": "AI Analysis",
-        "nav_insights": "Insights",
-        "nav_local": "Local",
-        "nav_logbook": "Logbook",
+        "nav_dashboard": "Dashboard",
+        "nav_log": "Log",
+        "nav_patterns": "Patterns",
+        "nav_gallery": "Gallery",
         "nav_settings": "Settings",
         "sidebar_count": "dreams stored in your local workspace",
-        "eyebrow": "Local-first dream intelligence",
-        "headline": "Good night, explorer",
-        "tagline": "Your dreams have patterns. DreamLoop finds them locally.",
-        "lede": "Record a dream, then ask a local or opt-in model to extract emotions, symbols, themes, and a concise summary.",
-        "log_dream": "Log Dream",
-        "local_write": "local write",
+        "dashboard_eyebrow": "Local-first dream intelligence",
+        "dashboard_title": "DreamLoop Dashboard",
+        "dashboard_tagline": "Your dreams have patterns. DreamLoop finds them locally.",
+        "dashboard_lede": "A six-page loop for private capture, structured AI analysis, pattern discovery, visual memory, and trust settings.",
+        "dashboard_cta": "Log a Dream",
+        "quick_loop": "Dashboard -> Log -> Detail -> Patterns -> Gallery -> Settings",
+        "log_eyebrow": "High-frequency capture",
+        "log_title": "Log Dream",
+        "log_lede": "Write the dream first. Ask AI to analyze it. Save only after you like the draft result.",
+        "local_write": "analysis-first workflow",
         "content_placeholder": "Record a dream before it fades...",
-        "tags_placeholder": "water, door",
-        "mood_placeholder": "mood",
-        "save_locally": "Save locally",
         "analyze_dream": "AI Analysis",
         "save_without_ai": "Save without AI",
         "draft_analysis": "Draft analysis",
         "draft_not_saved": "Not saved yet",
         "save_analysis": "Save locally",
         "discard": "Discard",
-        "generate_language_analysis": "Generate this language analysis",
         "generate_chinese_analysis": "Generate Chinese analysis",
         "generate_english_analysis": "Analyze now",
-        "cli_first": "CLI-first capture",
+        "generate_dream_image": "Generate dream image",
+        "visual_memory_note": "Opt-in visual memory. v0.1 keeps this as a local placeholder and never calls an image API by default.",
         "ai_analysis": "AI Analysis",
+        "ai_insight": "AI Insight",
         "no_dream": "Record a dream to unlock AI analysis.",
         "latest_dream": "Latest dream",
         "pending_analysis": "Pending analysis",
-        "analyze_now": "Analyze now",
+        "missing_analysis": "Missing analysis",
         "analysis_ready": "Structured analysis",
-        "analysis_unavailable": "AI analysis is optional. Configure Ollama, DeepSeek, or OpenAI when you want model output.",
+        "analysis_unavailable": "AI analysis is optional. Configure Ollama, DeepSeek, OpenAI, or a custom endpoint when you want model output.",
         "analysis_unavailable_before_save": "AI is not ready. You can still save the dream locally without analysis.",
         "analysis_failed": "Analysis failed. Nothing was saved yet.",
         "emotional_tone": "Emotional tone",
@@ -62,6 +64,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "confidence": "Confidence",
         "raw_json": "Raw JSON",
         "local_dreams": "Local dreams",
+        "analyzed": "Analyzed",
         "ai_provider": "AI provider",
         "analysis_queue": "Analysis queue",
         "privacy_mode": "Privacy mode",
@@ -69,27 +72,29 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "pending_entries": "pending entries",
         "data_never_leaves": "data never leaves this machine",
         "pattern_map": "Pattern map",
-        "dream_constellation": "Dream constellation",
+        "dream_calendar": "Dream calendar",
         "open_dream_day": "Click a date to open that day in the log.",
         "no_heatmap": "No dreams yet.",
         "signals": "Signals",
         "mood_spectrum": "Mood spectrum",
-        "no_moods": "Manual moods appear here after capture.",
+        "no_moods": "Moods appear here after saved analysis or manual capture.",
         "structured_output": "Structured output",
-        "ai_insight": "AI Insight",
         "most_recurring": "Most recurring symbol across analyzed dreams.",
         "no_symbols": "No recurring symbols yet",
+        "pattern_summary": "Pattern summary",
+        "theme_trends": "Theme trends",
         "runtime": "Runtime",
-        "local_runtime": "Starlit local runtime",
+        "local_runtime": "Local runtime",
         "data_dir": "Data dir",
-        "ollama_optional": "Ollama optional",
-        "obsidian_roadmap": "roadmap",
         "provider_configured": "Provider configured. Secrets are stored locally and never rendered.",
         "local_logbook": "Local logbook",
         "dreamscape_log": "Dreamscape log",
         "first_dream_waiting": "Your first dream is waiting.",
         "no_mood": "no mood",
         "no_tags": "no tags",
+        "filter": "Filter",
+        "clear_filter": "Clear filter",
+        "recent_dreams": "Recent dreams",
         "back_dashboard": "Back to dashboard",
         "day_context": "Day context",
         "calendar_weather": "Calendar / Weather",
@@ -97,6 +102,10 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "weather": "Weather",
         "no_calendar": "No imported calendar events.",
         "no_weather": "No weather synced for this day.",
+        "gallery_title": "Dream Gallery",
+        "gallery_eyebrow": "Visual memory",
+        "gallery_empty": "Generate or save a visual memory from a dream detail page first.",
+        "gallery_note": "v0.1 shows local visual cards derived from saved dreams. Full image generation remains opt-in.",
         "settings_title": "AI Provider",
         "settings_eyebrow": "Local model settings",
         "settings_copy": "Choose Ollama for local zero-cost analysis, use DeepSeek/OpenAI, or connect any OpenAI-compatible endpoint. Secrets stay in .dreamloop/secrets.env and are never rendered back.",
@@ -110,43 +119,44 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "settings_secret_note": "Existing keys are hidden. Leave API Key blank to keep the current secret.",
         "provider_status": "Provider status",
         "developer_note": "Developer note",
-        "cli_note": "The CLI demo is useful for README screenshots and developer onboarding, but it no longer competes with the main dream analysis workflow.",
+        "cli_note": "Start DreamLoop with dreamloop web or scripts/start-dreamloop.cmd. A native desktop shell is on the roadmap, not part of v0.1.",
     },
     "zh": {
-        "nav_capture": "记录",
-        "nav_analysis": "AI 分析",
-        "nav_insights": "洞察",
-        "nav_local": "本地",
-        "nav_logbook": "日志",
+        "nav_dashboard": "总览",
+        "nav_log": "录入",
+        "nav_patterns": "规律",
+        "nav_gallery": "记忆",
         "nav_settings": "设置",
         "sidebar_count": "条梦境保存在本地工作区",
-        "eyebrow": "本地优先梦境智能",
-        "headline": "晚安，探索者",
-        "tagline": "你的梦有模式。DreamLoop 在本地发现它们。",
-        "lede": "先记录梦境，再让本地或显式启用的模型提取情绪、符号、主题和摘要。",
-        "log_dream": "记录梦境",
-        "local_write": "本地写入",
+        "dashboard_eyebrow": "本地优先的梦境智能",
+        "dashboard_title": "DreamLoop 总览",
+        "dashboard_tagline": "你的梦有模式。DreamLoop 在本地发现它们。",
+        "dashboard_lede": "六页闭环：记录、分析、发现规律、沉淀视觉记忆，并用设置页托底隐私信任。",
+        "dashboard_cta": "记录梦境",
+        "quick_loop": "总览 -> 录入 -> 详情 -> 规律 -> 记忆 -> 设置",
+        "log_eyebrow": "高频录入",
+        "log_title": "记录梦境",
+        "log_lede": "先写梦境，再让 AI 分析。满意草稿后，再由你决定是否保存到本地。",
+        "local_write": "先分析后保存",
         "content_placeholder": "趁梦还没散，先记下来...",
-        "tags_placeholder": "水, 门",
-        "mood_placeholder": "情绪",
-        "save_locally": "保存到本地",
         "analyze_dream": "AI 分析",
         "save_without_ai": "无 AI 保存",
         "draft_analysis": "草稿分析",
         "draft_not_saved": "尚未保存",
         "save_analysis": "保存到本地",
         "discard": "放弃",
-        "generate_language_analysis": "生成当前语言分析",
         "generate_chinese_analysis": "生成中文分析",
         "generate_english_analysis": "生成英文分析",
-        "cli_first": "CLI 优先记录",
+        "generate_dream_image": "生成梦境画面",
+        "visual_memory_note": "可选视觉记忆。v0.1 只保留本地占位入口，默认不会调用图像 API。",
         "ai_analysis": "AI 分析",
+        "ai_insight": "AI 洞察",
         "no_dream": "先记录一条梦境，就可以开始 AI 分析。",
         "latest_dream": "最新梦境",
         "pending_analysis": "等待分析",
-        "analyze_now": "立即分析",
+        "missing_analysis": "缺少当前语言分析",
         "analysis_ready": "结构化分析",
-        "analysis_unavailable": "AI 分析是可选功能。需要模型输出时，再配置 Ollama、DeepSeek 或 OpenAI。",
+        "analysis_unavailable": "AI 分析是可选功能。需要模型输出时，再配置 Ollama、DeepSeek、OpenAI 或自定义端点。",
         "analysis_unavailable_before_save": "AI 暂不可用，你仍可先把梦境保存到本地。",
         "analysis_failed": "分析失败。当前内容尚未保存。",
         "emotional_tone": "情绪基调",
@@ -156,6 +166,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "confidence": "置信度",
         "raw_json": "原始 JSON",
         "local_dreams": "本地梦境",
+        "analyzed": "已分析",
         "ai_provider": "AI 提供方",
         "analysis_queue": "分析队列",
         "privacy_mode": "隐私模式",
@@ -163,27 +174,29 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "pending_entries": "条待分析",
         "data_never_leaves": "数据默认不离机",
         "pattern_map": "模式地图",
-        "dream_constellation": "梦境星图",
+        "dream_calendar": "梦境日历",
         "open_dream_day": "点击日期，查看当天梦境记录。",
         "no_heatmap": "还没有梦境。",
         "signals": "信号",
         "mood_spectrum": "情绪光谱",
-        "no_moods": "记录手动情绪后会出现在这里。",
+        "no_moods": "保存分析或手动记录后，情绪会出现在这里。",
         "structured_output": "结构化输出",
-        "ai_insight": "AI 洞察",
         "most_recurring": "分析结果里最常出现的符号。",
         "no_symbols": "还没有反复出现的符号",
+        "pattern_summary": "模式摘要",
+        "theme_trends": "主题趋势",
         "runtime": "运行状态",
         "local_runtime": "本地运行环境",
         "data_dir": "数据目录",
-        "ollama_optional": "Ollama 可选",
-        "obsidian_roadmap": "路线图",
         "provider_configured": "模型已配置。密钥只保存在本地，不会渲染到页面。",
         "local_logbook": "本地日志",
         "dreamscape_log": "梦境记录",
         "first_dream_waiting": "第一条梦境正在等你。",
         "no_mood": "无情绪",
         "no_tags": "无标签",
+        "filter": "筛选",
+        "clear_filter": "清除筛选",
+        "recent_dreams": "最近梦境",
         "back_dashboard": "返回工作台",
         "day_context": "当天上下文",
         "calendar_weather": "日历 / 天气",
@@ -191,6 +204,10 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "weather": "天气",
         "no_calendar": "没有导入的日历事件。",
         "no_weather": "这一天还没有同步天气。",
+        "gallery_title": "梦境画廊",
+        "gallery_eyebrow": "视觉记忆",
+        "gallery_empty": "先在梦境详情页生成或保存视觉记忆。",
+        "gallery_note": "v0.1 展示由已保存梦境生成的本地视觉卡片；完整图像生成仍然是可选路线。",
         "settings_title": "AI 提供方",
         "settings_eyebrow": "本地模型设置",
         "settings_copy": "选择 Ollama 可以零成本本地分析；也可以使用 DeepSeek/OpenAI，或连接任意 OpenAI-compatible 端点。密钥只写入 .dreamloop/secrets.env，不会回显到页面。",
@@ -204,7 +221,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "settings_secret_note": "已有密钥会隐藏。API Key 留空表示保留当前密钥。",
         "provider_status": "模型状态",
         "developer_note": "开发者说明",
-        "cli_note": "CLI 演示更适合 README 截图和开发者上手，不再占用梦境分析主流程。",
+        "cli_note": "当前用 dreamloop web 或 scripts/start-dreamloop.cmd 启动。原生桌面壳在路线图里，不进入 v0.1。",
     },
 }
 
@@ -212,14 +229,14 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
 def _mood_spectrum(dreams: list[dict[str, Any]]) -> list[dict[str, Any]]:
     counts: dict[str, int] = {}
     for dream in dreams:
-        mood = (dream.get("manual_mood") or "").strip()
+        analysis = dream.get("analysis") or {}
+        mood = (dream.get("manual_mood") or analysis.get("emotional_tone") or "").strip()
         if mood:
             counts[mood] = counts.get(mood, 0) + 1
 
-    if not counts:
-        return []
-
     total = sum(counts.values())
+    if not total:
+        return []
     return [
         {"name": name, "count": count, "percent": max(12, round(count / total * 100))}
         for name, count in sorted(counts.items(), key=lambda item: (-item[1], item[0]))
@@ -230,20 +247,87 @@ def _lang(value: str | None) -> str:
     return value if value in TRANSLATIONS else "en"
 
 
-def _home_url(lang: str, **params: str) -> str:
-    query = {"lang": _lang(lang), **{key: val for key, val in params.items() if val}}
-    return "/?" + "&".join(f"{key}={value}" for key, value in query.items())
-
-
 def _page_url(page: str, lang: str, **params: str) -> str:
-    path = "/" if page == "capture" else f"/{page}"
+    path = "/" if page in {"", "dashboard"} else f"/{page}"
     query = {"lang": _lang(lang), **{key: val for key, val in params.items() if val}}
-    return path + "?" + "&".join(f"{key}={value}" for key, value in query.items())
+    return path + "?" + urlencode(query)
+
+
+def _dream_url(dream_id: int, lang: str) -> str:
+    return f"/dreams/{dream_id}?" + urlencode({"lang": _lang(lang)})
 
 
 def _analyzer_override(app: FastAPI) -> Analyzer | None:
     analyzer = getattr(app.state, "analyzer", None)
     return analyzer if analyzer is not None else None
+
+
+def _analysis_terms(dream: dict[str, Any], key: str) -> set[str]:
+    analysis = dream.get("analysis") or {}
+    return {str(item).lower() for item in analysis.get(key, [])}
+
+
+def _matches_log_filter(
+    dream: dict[str, Any],
+    *,
+    date_filter: str = "",
+    symbol_filter: str = "",
+    theme_filter: str = "",
+) -> bool:
+    if date_filter and dream["dreamed_on"] != date_filter:
+        return False
+    if symbol_filter:
+        symbol = symbol_filter.lower()
+        tag_terms = {str(tag).lower() for tag in dream.get("tags", [])}
+        if symbol not in _analysis_terms(dream, "symbols") and symbol not in tag_terms:
+            return False
+    if theme_filter and theme_filter.lower() not in _analysis_terms(dream, "themes"):
+        return False
+    return True
+
+
+def _dashboard_insight(dreams: list[dict[str, Any]], trends: dict[str, list[dict[str, Any]]], lang: str) -> dict[str, str]:
+    t = TRANSLATIONS[lang]
+    if dreams and dreams[0]["analysis"] is None:
+        body = (
+            "The latest saved dream has no analysis in this language yet. Open Detail to generate it."
+            if lang == "en"
+            else "最新保存的梦境还没有当前语言分析。打开详情页即可生成。"
+        )
+        return {"title": t["missing_analysis"], "body": body}
+    if trends["symbols"]:
+        symbol = trends["symbols"][0]
+        body = (
+            f"{symbol['name']} appears {symbol['count']} time(s) across analyzed dreams."
+            if lang == "en"
+            else f"{symbol['name']} 在已分析梦境中出现了 {symbol['count']} 次。"
+        )
+        return {"title": str(symbol["name"]), "body": body}
+    if dreams:
+        body = (
+            f"{len(dreams)} local dream(s) are stored. More analysis will make recurring patterns visible."
+            if lang == "en"
+            else f"本地已保存 {len(dreams)} 条梦境。分析越多，反复出现的模式会越清楚。"
+        )
+        return {"title": t["local_dreams"], "body": body}
+    body = (
+        "Start with one dream. DreamLoop will keep the text local and build insight from there."
+        if lang == "en"
+        else "先记录一条梦境。DreamLoop 会把原文留在本地，再从那里生长出洞察。"
+    )
+    return {"title": t["ai_insight"], "body": body}
+
+
+def _dashboard_stats(dreams: list[dict[str, Any]], trends: dict[str, list[dict[str, Any]]], ai: Any, lang: str) -> list[dict[str, str]]:
+    t = TRANSLATIONS[lang]
+    analyzed = sum(1 for dream in dreams if dream["analysis"])
+    top_symbol = trends["symbols"][0]["name"] if trends["symbols"] else "-"
+    return [
+        {"label": t["local_dreams"], "value": str(len(dreams)), "detail": t["sqlite_journal"]},
+        {"label": t["analyzed"], "value": str(analyzed), "detail": t["structured_output"]},
+        {"label": t["ai_provider"], "value": str(ai.provider), "detail": ai.model or "capture only"},
+        {"label": t["privacy_mode"], "value": "opt-in", "detail": f"{t['data_never_leaves']} / {top_symbol}"},
+    ]
 
 
 class DreamCreate(BaseModel):
@@ -269,34 +353,53 @@ def create_app(root: str | Path | None = None) -> FastAPI:
         request: Request,
         lang: str = "en",
         *,
-        page: str = "capture",
+        page: str = "dashboard",
         analysis_error: bool = False,
         draft: dict[str, Any] | None = None,
         draft_content: str = "",
         settings_saved: bool = False,
         date_filter: str = "",
+        symbol_filter: str = "",
+        theme_filter: str = "",
     ) -> Any:
         lang = _lang(lang)
-        dreams = loop.list_dreams()
-        localized_dreams = [loop.get_dream(dream["id"], language=lang) for dream in dreams]
+        raw_dreams = loop.list_dreams()
+        localized_dreams = [loop.get_dream(dream["id"], language=lang) for dream in raw_dreams]
+        trends = loop.trends(language=lang)
+        ai_payload = ai_status(loop.root)
         log_dreams = [
-            dream for dream in localized_dreams if not date_filter or dream["dreamed_on"] == date_filter
+            dream
+            for dream in localized_dreams
+            if _matches_log_filter(
+                dream,
+                date_filter=date_filter,
+                symbol_filter=symbol_filter,
+                theme_filter=theme_filter,
+            )
         ]
-        latest_dream = localized_dreams[0] if localized_dreams else None
+        filtered_log = bool(date_filter or symbol_filter or theme_filter)
+        if page == "log" and filtered_log:
+            latest_dream = log_dreams[0] if log_dreams else None
+        else:
+            latest_dream = localized_dreams[0] if localized_dreams else None
         return templates.TemplateResponse(
             request,
             "index.html",
             {
                 "dreams": localized_dreams,
                 "log_dreams": log_dreams,
+                "recent_dreams": localized_dreams[:3],
+                "gallery_cards": localized_dreams,
                 "latest_dream": latest_dream,
                 "heatmap": loop.heatmap(),
-                "ai": ai_status(loop.root),
+                "ai": ai_payload,
                 "ai_config": load_ai_config(loop.root),
-                "trends": loop.trends(language=lang),
+                "trends": trends,
+                "dashboard_insight": _dashboard_insight(localized_dreams, trends, lang),
+                "dashboard_stats": _dashboard_stats(localized_dreams, trends, ai_payload, lang),
                 "data_dir": loop.data_dir,
                 "pending_count": sum(1 for dream in localized_dreams if dream["analysis"] is None),
-                "mood_spectrum": _mood_spectrum(dreams),
+                "mood_spectrum": _mood_spectrum(localized_dreams),
                 "lang": lang,
                 "page": page,
                 "t": TRANSLATIONS[lang],
@@ -305,20 +408,43 @@ def create_app(root: str | Path | None = None) -> FastAPI:
                 "draft_content": draft_content,
                 "settings_saved": settings_saved,
                 "date_filter": date_filter,
+                "symbol_filter": symbol_filter,
+                "theme_filter": theme_filter,
             },
         )
 
     @app.get("/", response_class=HTMLResponse)
-    def home(request: Request, lang: str = "en", analysis_error: str = "") -> Any:
-        return render_home(request, lang, analysis_error=bool(analysis_error))
+    def dashboard(request: Request, lang: str = "en", analysis_error: str = "") -> Any:
+        return render_home(request, lang, page="dashboard", analysis_error=bool(analysis_error))
 
-    @app.get("/insights", response_class=HTMLResponse)
-    def insights(request: Request, lang: str = "en") -> Any:
-        return render_home(request, lang, page="insights")
+    @app.get("/patterns", response_class=HTMLResponse)
+    def patterns(request: Request, lang: str = "en") -> Any:
+        return render_home(request, lang, page="patterns")
+
+    @app.get("/insights")
+    def insights(lang: str = "en") -> RedirectResponse:
+        return RedirectResponse(_page_url("patterns", lang), status_code=status.HTTP_307_TEMPORARY_REDIRECT)
+
+    @app.get("/gallery", response_class=HTMLResponse)
+    def gallery(request: Request, lang: str = "en") -> Any:
+        return render_home(request, lang, page="gallery")
 
     @app.get("/log", response_class=HTMLResponse)
-    def logbook(request: Request, lang: str = "en", date: str = "") -> Any:
-        return render_home(request, lang, page="log", date_filter=date)
+    def logbook(
+        request: Request,
+        lang: str = "en",
+        date: str = "",
+        symbol: str = "",
+        theme: str = "",
+    ) -> Any:
+        return render_home(
+            request,
+            lang,
+            page="log",
+            date_filter=date,
+            symbol_filter=symbol,
+            theme_filter=theme,
+        )
 
     @app.get("/settings", response_class=HTMLResponse)
     def settings(request: Request, lang: str = "en", saved: str = "") -> Any:
@@ -353,24 +479,25 @@ def create_app(root: str | Path | None = None) -> FastAPI:
         manual_mood: str = Form(""),
     ) -> RedirectResponse:
         tag_list = [tag.strip() for tag in tags.split(",") if tag.strip()]
-        loop.add_dream(content, tags=tag_list, mood=manual_mood or None)
-        return RedirectResponse(_home_url(lang), status_code=status.HTTP_303_SEE_OTHER)
+        dream_id = loop.add_dream(content, tags=tag_list, mood=manual_mood or None)
+        return RedirectResponse(_dream_url(dream_id, lang), status_code=status.HTTP_303_SEE_OTHER)
 
     @app.post("/drafts/analyze", response_class=HTMLResponse)
     def analyze_draft(request: Request, lang: str = "en", content: str = Form(...)) -> Any:
         lang = _lang(lang)
         analyzer = _analyzer_override(request.app) or build_analyzer(loop.root)
         if analyzer is None:
-            return render_home(request, lang, analysis_error=True, draft_content=content)
+            return render_home(request, lang, page="log", analysis_error=True, draft_content=content)
 
         try:
             normalized = normalize_analysis(analyzer.analyze(content, language=lang))
         except Exception:
-            return render_home(request, lang, analysis_error=True, draft_content=content)
+            return render_home(request, lang, page="log", analysis_error=True, draft_content=content)
 
         return render_home(
             request,
             lang,
+            page="log",
             draft={
                 "content": content.strip(),
                 "analysis": normalized,
@@ -390,8 +517,8 @@ def create_app(root: str | Path | None = None) -> FastAPI:
             analysis = json.loads(analysis_json)
         except json.JSONDecodeError as exc:
             raise HTTPException(status_code=400, detail="Invalid analysis JSON") from exc
-        loop.add_dream_with_analysis(content, analysis, language=_lang(analysis_language))
-        return RedirectResponse(_home_url(lang), status_code=status.HTTP_303_SEE_OTHER)
+        dream_id = loop.add_dream_with_analysis(content, analysis, language=_lang(analysis_language))
+        return RedirectResponse(_dream_url(dream_id, lang), status_code=status.HTTP_303_SEE_OTHER)
 
     @app.post("/dreams/{dream_id}/analyze")
     def analyze_dream_form(request: Request, dream_id: int, lang: str = "en") -> RedirectResponse:
@@ -401,10 +528,10 @@ def create_app(root: str | Path | None = None) -> FastAPI:
             loop.analyze_dream(dream_id, analyzer, language=lang)
         except Exception:
             return RedirectResponse(
-                _home_url(lang, analysis_error="1"),
+                _page_url("dashboard", lang, analysis_error="1"),
                 status_code=status.HTTP_303_SEE_OTHER,
             )
-        return RedirectResponse(_home_url(lang), status_code=status.HTTP_303_SEE_OTHER)
+        return RedirectResponse(_dream_url(dream_id, lang), status_code=status.HTTP_303_SEE_OTHER)
 
     @app.get("/dreams/{dream_id}", response_class=HTMLResponse)
     def dream_detail(request: Request, dream_id: int, lang: str = "en") -> Any:
@@ -475,8 +602,13 @@ def create_app(root: str | Path | None = None) -> FastAPI:
     @app.post("/api/analyze/pending")
     def api_analyze_pending(lang: str = "en") -> dict[str, Any]:
         analyzed = loop.analyze_pending(language=_lang(lang))
-        status = ai_status(loop.root)
-        return {"analyzed": analyzed, "ai_configured": status.ready, "provider": status.provider, "language": _lang(lang)}
+        status_payload = ai_status(loop.root)
+        return {
+            "analyzed": analyzed,
+            "ai_configured": status_payload.ready,
+            "provider": status_payload.provider,
+            "language": _lang(lang),
+        }
 
     @app.post("/api/import/ics")
     def api_import_ics(path: str) -> dict[str, int]:

@@ -1,0 +1,167 @@
+# DreamLoop
+
+[English](README.md) | [中文](README.zh-CN.md)
+
+![DreamLoop hero dashboard](docs/assets/hero-dashboard.svg)
+
+**你的梦有模式。DreamLoop 在本地发现它们。**
+
+- 完全本地优先。梦境数据默认不离开你的机器。
+- 支持 Ollama 零成本运行；需要云模型时再显式配置 DeepSeek、OpenAI 或 Custom OpenAI-compatible。
+- CLI 优先、易 fork、适合 Obsidian 式知识工作流。
+
+```bash
+pipx install dreamloop
+dreamloop init
+dreamloop add "我梦见海底有一扇蓝色的门。"
+```
+
+DreamLoop 是一个面向梦境记录爱好者、开发者和知识工作者的本地优先 AI 梦境日志。它不是云端日记应用，而是一个可以被检查、扩展、fork 的个人工具。
+
+## 为什么做它
+
+很多梦境类 App 把 AI 分析包成订阅功能，也默认把非常私密的文本送进云端。DreamLoop 的方向相反：数据先在本地落地，AI 是可替换层，用户明确选择后才使用云模型。
+
+默认推荐路径是 Ollama，本机即可零成本分析。DeepSeek、OpenAI 和 Custom OpenAI-compatible 端点都是可选增强，适合想要更强模型或自建网关的人。
+
+## 快速开始
+
+```bash
+pipx install dreamloop
+dreamloop init
+dreamloop add "我飞过一片很暗的海。"
+```
+
+启动本地 Web：
+
+```bash
+dreamloop web
+```
+
+浏览器打开 `http://127.0.0.1:8765`。Windows 开发环境也可以运行：
+
+```text
+scripts\start-dreamloop.cmd
+```
+
+## 六页闭环
+
+DreamLoop v0.1 的产品逻辑是一个完整闭环：
+
+- Dashboard 总览：首页和 README 截图位，展示 AI 洞察、热力图、四格统计和最近梦境。
+- Log 录入：高频输入页，先写梦境，再点 AI 分析，满意草稿后再保存到本地。
+- Detail 分析：查看梦境原文、结构化 AI 分析、原始 JSON，并预留可选梦境画面入口。
+- Patterns 规律：可点击梦境日历、符号趋势、主题趋势，所有图表都能跳回 Log 过滤记录。
+- Gallery 记忆：v0.1 先展示本地视觉卡片；真实图像生成是 opt-in 路线，不默认调用付费 API。
+- Settings 信任托底：配置模型提供方、查看本地数据目录、确认密钥不会回显。
+
+## 隐私承诺
+
+- 梦境文本存储在 `.dreamloop/dreamloop.sqlite3`。
+- `.dreamloop/` 会自动写入 `.gitignore`，避免误提交私密数据。
+- 默认不会上传梦境。
+- Ollama 路径保持本机分析。
+- DeepSeek/OpenAI/Custom 只有在你显式配置后才会使用。
+- API Key 写入 `.dreamloop/secrets.env`，不会进入源码、README、测试或页面 HTML。
+
+## AI Provider
+
+可用命令：
+
+```bash
+dreamloop ai status
+dreamloop ai use ollama --model qwen3:8b
+dreamloop ai use deepseek --model deepseek-v4-flash
+dreamloop ai use openai --model gpt-4.1-mini
+dreamloop ai use custom --model local-model --base-url http://localhost:1234/v1
+dreamloop ai test
+```
+
+Provider 说明：
+
+- `ollama`：本地优先，默认 `http://localhost:11434/v1`，推荐零成本路径。
+- `deepseek`：可选云模型，默认 `deepseek-v4-flash`。
+- `openai`：可选 OpenAI 云模型。
+- `custom`：任意 OpenAI-compatible `/v1` 端点，包括本地网关。
+- `none`：只记录和浏览，不做 AI 分析。
+
+## CLI 与 Obsidian 路线
+
+DreamLoop 保持 CLI 优先：
+
+```text
+$ dreamloop add "A door opened under the sea."
+saved locally -> .dreamloop/dreamloop.sqlite3
+analysis -> pending
+```
+
+Obsidian 路线图：
+
+- v0.2：Markdown export，带 frontmatter 和分析摘要。
+- v0.3：Obsidian vault sync。
+- v0.4：社区插件，支持捕获、双链和本地 Dashboard 启动。
+
+## 本地数据模型
+
+```text
+.dreamloop/
+  dreamloop.sqlite3
+  config.json
+  secrets.env
+  chroma/
+  exports/
+  imports/
+```
+
+SQLite 保存梦境、分析结果、日历事件和天气摘要。ChromaDB 是可选增强，用于后续更强的相似梦境和聚类能力。
+
+## Roadmap
+
+### v0.1
+
+- CLI 和轻量 Web 六页闭环。
+- SQLite 本地存储。
+- Ollama 优先的 provider 设置。
+- 可选 DeepSeek/OpenAI/Custom 结构化分析。
+- 可点击热力图、符号趋势、主题趋势、详情页分析。
+- Gallery 最小视觉记忆闭环。
+
+### v0.2
+
+- Markdown/Obsidian 导出。
+- 更漂亮的 README 截图和 CLI GIF。
+- ChromaDB 聚类与 recurring theme insight。
+- 备份和恢复流程。
+
+### v0.3+
+
+- Obsidian vault sync。
+- Obsidian community plugin。
+- 本地保存的 opt-in 梦境插画。
+- 原生桌面壳或更顺手的本地启动器。
+
+## 贡献
+
+这个项目刻意保持小而可 fork。适合贡献的方向：
+
+- 改进本地模型 prompt
+- 补充 `.ics` fixture
+- 打磨 Dashboard 可访问性
+- 扩展 Markdown/Obsidian 导出
+- 制作终端演示资产
+
+运行测试：
+
+```bash
+uv run --extra dev pytest
+```
+
+构建：
+
+```bash
+uv build
+```
+
+## License
+
+MIT

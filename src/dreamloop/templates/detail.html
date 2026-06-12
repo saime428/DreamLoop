@@ -14,9 +14,10 @@
           <strong>DreamLoop</strong>
         </a>
         <nav class="side-nav">
-          <a href="/?lang={{ lang }}" class="active">{{ t.nav_capture }}</a>
-          <a href="/insights?lang={{ lang }}">{{ t.nav_insights }}</a>
-          <a href="/log?lang={{ lang }}">{{ t.nav_logbook }}</a>
+          <a href="/?lang={{ lang }}">{{ t.nav_dashboard }}</a>
+          <a href="/log?lang={{ lang }}" class="active">{{ t.nav_log }}</a>
+          <a href="/patterns?lang={{ lang }}">{{ t.nav_patterns }}</a>
+          <a href="/gallery?lang={{ lang }}">{{ t.nav_gallery }}</a>
           <a href="/settings?lang={{ lang }}">{{ t.nav_settings }}</a>
         </nav>
         <div class="side-note">
@@ -40,6 +41,10 @@
             {% else %}
               <span>{{ t.no_tags }}</span>
             {% endfor %}
+          </div>
+          <div class="visual-memory-action">
+            <button type="button" class="secondary-button">{{ t.generate_dream_image }}</button>
+            <p>{{ t.visual_memory_note }}</p>
           </div>
         </article>
 

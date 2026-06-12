@@ -14,9 +14,10 @@
           <strong>DreamLoop</strong>
         </a>
         <nav class="side-nav">
-          <a href="/?lang={{ lang }}" class="{{ 'active' if page == 'capture' else '' }}">{{ t.nav_capture }}</a>
-          <a href="/insights?lang={{ lang }}" class="{{ 'active' if page == 'insights' else '' }}">{{ t.nav_insights }}</a>
-          <a href="/log?lang={{ lang }}" class="{{ 'active' if page == 'log' else '' }}">{{ t.nav_logbook }}</a>
+          <a href="/?lang={{ lang }}" class="{{ 'active' if page == 'dashboard' else '' }}">{{ t.nav_dashboard }}</a>
+          <a href="/log?lang={{ lang }}" class="{{ 'active' if page == 'log' else '' }}">{{ t.nav_log }}</a>
+          <a href="/patterns?lang={{ lang }}" class="{{ 'active' if page == 'patterns' else '' }}">{{ t.nav_patterns }}</a>
+          <a href="/gallery?lang={{ lang }}" class="{{ 'active' if page == 'gallery' else '' }}">{{ t.nav_gallery }}</a>
           <a href="/settings?lang={{ lang }}" class="{{ 'active' if page == 'settings' else '' }}">{{ t.nav_settings }}</a>
         </nav>
         <div class="side-note">
@@ -28,9 +29,27 @@
       <main class="dashboard">
         <header class="topbar">
           <div>
-            <p class="eyebrow">{{ t.eyebrow }}</p>
-            <h1>{{ t.headline }}</h1>
-            <p class="tagline">{{ t.tagline }}</p>
+            {% if page == "dashboard" %}
+              <p class="eyebrow">{{ t.dashboard_eyebrow }}</p>
+              <h1>{{ t.dashboard_title }}</h1>
+              <p class="tagline">{{ t.dashboard_tagline }}</p>
+            {% elif page == "log" %}
+              <p class="eyebrow">{{ t.log_eyebrow }}</p>
+              <h1>{{ t.log_title }}</h1>
+              <p class="tagline">{{ t.log_lede }}</p>
+            {% elif page == "patterns" %}
+              <p class="eyebrow">{{ t.pattern_map }}</p>
+              <h1>{{ t.nav_patterns }}</h1>
+              <p class="tagline">{{ t.open_dream_day }}</p>
+            {% elif page == "gallery" %}
+              <p class="eyebrow">{{ t.gallery_eyebrow }}</p>
+              <h1>{{ t.gallery_title }}</h1>
+              <p class="tagline">{{ t.gallery_note }}</p>
+            {% else %}
+              <p class="eyebrow">{{ t.settings_eyebrow }}</p>
+              <h1>{{ t.settings_title }}</h1>
+              <p class="tagline">{{ t.settings_copy }}</p>
+            {% endif %}
           </div>
           <nav class="language-toggle" aria-label="Language">
             <a href="?lang=zh" data-lang="zh" class="{{ 'active' if lang == 'zh' else '' }}">中文</a>
@@ -38,16 +57,84 @@
           </nav>
         </header>
 
-        {% if page == "capture" %}
+        {% if page == "dashboard" %}
+        <section class="dashboard-hero constellation-sky">
+          <div class="star-field" aria-hidden="true"></div>
+          <article class="hero-copy">
+            <p class="eyebrow">{{ t.quick_loop }}</p>
+            <h2>{{ t.dashboard_tagline }}</h2>
+            <p class="lede">{{ t.dashboard_lede }}</p>
+            <div class="hero-actions">
+              <a class="primary-cta" href="/log?lang={{ lang }}">{{ t.dashboard_cta }}</a>
+              <span>{{ t.data_never_leaves }}</span>
+            </div>
+          </article>
+          <article class="insight-card">
+            <div class="section-title">
+              <span>{{ t.structured_output }}</span>
+              <h2>{{ t.ai_insight }}</h2>
+            </div>
+            <strong>{{ dashboard_insight.title }}</strong>
+            <p>{{ dashboard_insight.body }}</p>
+          </article>
+        </section>
+
+        <section class="status-strip dashboard-stats">
+          {% for stat in dashboard_stats[:4] %}
+            <div>
+              <span>{{ stat.label }}</span>
+              <strong>{{ stat.value }}</strong>
+              <small>{{ stat.detail }}</small>
+            </div>
+          {% endfor %}
+        </section>
+
+        <section class="dashboard-grid">
+          <article class="panel">
+            <div class="section-title">
+              <span>{{ t.pattern_map }}</span>
+              <h2>{{ t.dream_calendar }}</h2>
+            </div>
+            <div class="constellation-map mini-heatmap" aria-label="Dream heatmap">
+              {% for day in heatmap %}
+                <a class="heat-cell heat-level-{{ day.count if day.count < 4 else 4 }}" href="/log?lang={{ lang }}&date={{ day.date }}" title="{{ day.date }}: {{ day.count }} dream(s)">
+                  <span>{{ day.date[5:] }}</span>
+                  <strong>{{ day.count }}</strong>
+                </a>
+              {% else %}
+                <p class="empty-state">{{ t.no_heatmap }}</p>
+              {% endfor %}
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="section-title">
+              <span>{{ t.local_logbook }}</span>
+              <h2>{{ t.recent_dreams }}</h2>
+            </div>
+            <div class="recent-list">
+              {% for dream in recent_dreams %}
+                <a class="recent-row" href="/dreams/{{ dream.id }}?lang={{ lang }}">
+                  <span>#{{ dream.id }} / {{ dream.dreamed_on }}</span>
+                  <strong>{{ dream.content }}</strong>
+                </a>
+              {% else %}
+                <p class="empty-state">{{ t.first_dream_waiting }}</p>
+              {% endfor %}
+            </div>
+          </article>
+        </section>
+
+        {% elif page == "log" %}
         <section class="primary-workbench">
           <div class="star-field" aria-hidden="true"></div>
 
-          <article class="dream-compose" id="capture">
+          <article class="dream-compose">
             <div class="section-title">
               <span>{{ t.local_write }}</span>
-              <h2>{{ t.log_dream }}</h2>
+              <h2>{{ t.log_title }}</h2>
             </div>
-            <p class="lede">{{ t.lede }}</p>
+            <p class="lede">{{ t.log_lede }}</p>
             <form method="post" action="/drafts/analyze?lang={{ lang }}" class="quick-capture hero-quick-capture">
               <textarea name="content" placeholder="{{ t.content_placeholder }}" required autofocus>{{ draft.content if draft else draft_content }}</textarea>
               {% if analysis_error %}
@@ -65,7 +152,7 @@
             </form>
           </article>
 
-          <article class="analysis-panel" id="analysis">
+          <article class="analysis-panel">
             <div class="section-title">
               <span>{{ t.structured_output }}</span>
               <h2>{{ t.ai_analysis }}</h2>
@@ -89,7 +176,7 @@
                 <input type="hidden" name="analysis_language" value="{{ draft.language }}">
                 <textarea name="analysis_json" hidden>{{ draft.analysis_json }}</textarea>
                 <button type="submit">{{ t.save_analysis }}</button>
-                <a href="/?lang={{ lang }}" class="secondary-link">{{ t.discard }}</a>
+                <a href="/log?lang={{ lang }}" class="secondary-link">{{ t.discard }}</a>
               </form>
               <details>
                 <summary>{{ t.raw_json }}</summary>
@@ -97,48 +184,67 @@
               </details>
             {% elif not latest_dream %}
               <p class="empty-state">{{ t.no_dream }}</p>
-            {% else %}
+            {% elif latest_dream.analysis %}
               <div class="latest-dream-preview">
                 <span>{{ t.latest_dream }} / #{{ latest_dream.id }} / {{ latest_dream.dreamed_on }}</span>
                 <p>{{ latest_dream.content }}</p>
               </div>
-
-              {% if latest_dream.analysis %}
-                <div class="analysis-status ready">{{ t.analysis_ready }}</div>
-                <dl class="analysis-list">
-                  <div><dt>{{ t.emotional_tone }}</dt><dd>{{ latest_dream.analysis.emotional_tone }}</dd></div>
-                  <div><dt>{{ t.symbols }}</dt><dd>{{ ", ".join(latest_dream.analysis.symbols) or "-" }}</dd></div>
-                  <div><dt>{{ t.themes }}</dt><dd>{{ ", ".join(latest_dream.analysis.themes) or "-" }}</dd></div>
-                  <div><dt>{{ t.confidence }}</dt><dd>{{ "%.0f"|format(latest_dream.analysis.confidence * 100) }}%</dd></div>
-                </dl>
-                <p class="analysis-summary">{{ latest_dream.analysis.summary }}</p>
-                <details>
-                  <summary>{{ t.raw_json }}</summary>
-                  <pre><code>{{ latest_dream.analysis.raw_json }}</code></pre>
-                </details>
-              {% elif ai.ready %}
-                <div class="analysis-status pending">{{ t.pending_analysis }}</div>
-                <form method="post" action="/dreams/{{ latest_dream.id }}/analyze?lang={{ lang }}" class="analyze-form">
-                  <button type="submit">{{ t.generate_chinese_analysis if lang == "zh" else t.generate_english_analysis }}</button>
-                </form>
-                <p class="runtime-note">{{ ai.provider }} / {{ ai.model or "model" }}</p>
-              {% else %}
-                <div class="analysis-status unavailable">{{ t.pending_analysis }}</div>
-                <p class="empty-state">{{ t.analysis_unavailable }}</p>
-                {% if ai.warning %}
-                  <p class="runtime-note">{{ ai.warning }}</p>
-                {% endif %}
-              {% endif %}
+              <div class="analysis-status ready">{{ t.analysis_ready }}</div>
+              <dl class="analysis-list">
+                <div><dt>{{ t.emotional_tone }}</dt><dd>{{ latest_dream.analysis.emotional_tone }}</dd></div>
+                <div><dt>{{ t.symbols }}</dt><dd>{{ ", ".join(latest_dream.analysis.symbols) or "-" }}</dd></div>
+                <div><dt>{{ t.themes }}</dt><dd>{{ ", ".join(latest_dream.analysis.themes) or "-" }}</dd></div>
+                <div><dt>{{ t.confidence }}</dt><dd>{{ "%.0f"|format(latest_dream.analysis.confidence * 100) }}%</dd></div>
+              </dl>
+              <p class="analysis-summary">{{ latest_dream.analysis.summary }}</p>
+            {% elif ai.ready %}
+              <div class="latest-dream-preview">
+                <span>{{ t.latest_dream }} / #{{ latest_dream.id }} / {{ latest_dream.dreamed_on }}</span>
+                <p>{{ latest_dream.content }}</p>
+              </div>
+              <div class="analysis-status pending">{{ t.missing_analysis }}</div>
+              <form method="post" action="/dreams/{{ latest_dream.id }}/analyze?lang={{ lang }}" class="analyze-form">
+                <button type="submit">{{ t.generate_chinese_analysis if lang == "zh" else t.generate_english_analysis }}</button>
+              </form>
+            {% else %}
+              <div class="analysis-status unavailable">{{ t.pending_analysis }}</div>
+              <p class="empty-state">{{ t.analysis_unavailable }}</p>
             {% endif %}
           </article>
         </section>
 
-        {% elif page == "insights" %}
-        <section class="work-grid" id="insights">
+        {% if log_dreams %}
+        <section class="log-page-grid">
+          <article class="panel">
+            <div class="section-title">
+              <span>{{ t.local_logbook }}</span>
+              <h2>{{ t.dreamscape_log }}{% if date_filter or symbol_filter or theme_filter %} / {{ t.filter }}{% endif %}</h2>
+            </div>
+            {% if date_filter or symbol_filter or theme_filter %}
+              <p class="filter-badge">
+                {{ date_filter or symbol_filter or theme_filter }}
+                <a href="/log?lang={{ lang }}">{{ t.clear_filter }}</a>
+              </p>
+            {% endif %}
+            <div class="dream-grid">
+              {% for dream in log_dreams %}
+                <a class="dream-card" href="/dreams/{{ dream.id }}?lang={{ lang }}">
+                  <span>#{{ dream.id }} / {{ dream.dreamed_on }}</span>
+                  <strong>{{ dream.content }}</strong>
+                  <small>{{ dream.manual_mood or (dream.analysis.emotional_tone if dream.analysis else t.no_mood) }} / {{ ", ".join(dream.tags) or t.no_tags }}</small>
+                </a>
+              {% endfor %}
+            </div>
+          </article>
+        </section>
+        {% endif %}
+
+        {% elif page == "patterns" %}
+        <section class="pattern-grid">
           <article class="panel panel-wide">
             <div class="section-title">
               <span>{{ t.pattern_map }}</span>
-              <h2>{{ t.dream_constellation }}</h2>
+              <h2>{{ t.dream_calendar }}</h2>
             </div>
             <div class="constellation-map" aria-label="Dream heatmap">
               {% for day in heatmap %}
@@ -174,45 +280,66 @@
           <article class="panel">
             <div class="section-title">
               <span>{{ t.structured_output }}</span>
-              <h2>{{ t.ai_insight }}</h2>
+              <h2>{{ t.symbols }}</h2>
             </div>
-            {% if trends.symbols %}
-              <div class="insight-callout">
-                <strong>{{ trends.symbols[0].name }}</strong>
-                <p>{{ t.most_recurring }}</p>
-              </div>
-            {% else %}
-              <p class="empty-state">{{ t.no_symbols }}</p>
-            {% endif %}
             <div class="symbol-stack">
-              {% for item in trends.symbols[:5] %}
-                <div class="symbol-row"><span>{{ item.name }}</span><i style="width: {{ item.percent or 36 }}%"></i><strong>{{ item.count }}</strong></div>
+              {% for item in trends.symbols[:7] %}
+                <a class="symbol-row trend-link" href="/log?lang={{ lang }}&symbol={{ item.name }}">
+                  <span>{{ item.name }}</span><i style="width: {{ item.percent or 36 }}%"></i><strong>{{ item.count }}</strong>
+                </a>
               {% else %}
                 <div class="symbol-row muted-row"><span>{{ t.no_symbols }}</span><i></i><strong>0</strong></div>
               {% endfor %}
             </div>
           </article>
-        </section>
 
-        {% elif page == "log" %}
-        <section class="log-page-grid">
-          <article class="panel" id="log">
+          <article class="panel">
             <div class="section-title">
-              <span>{{ t.local_logbook }}</span>
-              <h2>{{ t.dreamscape_log }}{% if date_filter %} / {{ date_filter }}{% endif %}</h2>
+              <span>{{ t.theme_trends }}</span>
+              <h2>{{ t.themes }}</h2>
             </div>
-            <div class="dream-grid">
-              {% for dream in log_dreams %}
-                <a class="dream-card" href="/dreams/{{ dream.id }}?lang={{ lang }}">
-                  <span>#{{ dream.id }} / {{ dream.dreamed_on }}</span>
-                  <strong>{{ dream.content }}</strong>
-                  <small>{{ dream.manual_mood or t.no_mood }} / {{ ", ".join(dream.tags) or t.no_tags }}</small>
+            <div class="symbol-stack">
+              {% for item in trends.themes[:7] %}
+                <a class="symbol-row trend-link" href="/log?lang={{ lang }}&theme={{ item.name }}">
+                  <span>{{ item.name }}</span><i style="width: {{ item.percent or 36 }}%"></i><strong>{{ item.count }}</strong>
                 </a>
               {% else %}
-                <p class="empty-state">{{ t.first_dream_waiting }}</p>
+                <div class="symbol-row muted-row"><span>{{ t.no_symbols }}</span><i></i><strong>0</strong></div>
               {% endfor %}
             </div>
           </article>
+
+          <article class="panel">
+            <div class="section-title">
+              <span>{{ t.ai_insight }}</span>
+              <h2>{{ t.pattern_summary }}</h2>
+            </div>
+            <div class="insight-callout">
+              <strong>{{ dashboard_insight.title }}</strong>
+              <p>{{ dashboard_insight.body }}</p>
+            </div>
+          </article>
+        </section>
+
+        {% elif page == "gallery" %}
+        <section class="gallery-grid">
+          {% for dream in gallery_cards %}
+            <a class="gallery-card constellation-sky" href="/dreams/{{ dream.id }}?lang={{ lang }}">
+              <div class="star-field" aria-hidden="true"></div>
+              <span>#{{ dream.id }} / {{ dream.dreamed_on }}</span>
+              <strong>{{ dream.analysis.summary if dream.analysis else dream.content }}</strong>
+              <small>{{ ", ".join(dream.analysis.symbols[:3]) if dream.analysis else t.visual_memory_note }}</small>
+            </a>
+          {% else %}
+            <article class="panel empty-gallery">
+              <div class="section-title">
+                <span>{{ t.gallery_eyebrow }}</span>
+                <h2>{{ t.gallery_title }}</h2>
+              </div>
+              <p class="empty-state">{{ t.gallery_empty }}</p>
+              <a class="primary-cta" href="/log?lang={{ lang }}">{{ t.dashboard_cta }}</a>
+            </article>
+          {% endfor %}
         </section>
 
         {% elif page == "settings" %}
@@ -254,7 +381,7 @@
             </form>
           </article>
 
-          <article class="panel" id="runtime">
+          <article class="panel">
             <div class="section-title">
               <span>{{ t.provider_status }}</span>
               <h2>{{ t.local_runtime }}</h2>

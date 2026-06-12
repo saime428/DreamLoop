@@ -59,24 +59,26 @@ def test_web_home_renders_without_ai_key(tmp_path, monkeypatch):
     response = client.get("/")
 
     assert response.status_code == 200
-    assert "Good night, explorer" in response.text
+    assert "DreamLoop Dashboard" in response.text
     assert "Your dreams have patterns. DreamLoop finds them locally." in response.text
     assert "data never leaves this machine" in response.text
     assert "DreamLoop" in response.text
-    assert 'href="/insights?lang=en"' in response.text
+    assert 'href="/patterns?lang=en"' in response.text
+    assert 'href="/gallery?lang=en"' in response.text
     assert 'href="/log?lang=en"' in response.text
     assert 'href="/settings?lang=en"' in response.text
     assert 'href="#log"' not in response.text
     assert 'href="#insights"' not in response.text
     assert "CLI-first capture" not in response.text
     assert "Analysis queue" not in response.text
+    assert 'action="/drafts/analyze?lang=en"' not in response.text
 
 
-def test_web_home_prioritizes_capture_and_ai_analysis(tmp_path):
+def test_log_prioritizes_capture_and_ai_analysis(tmp_path):
     app = create_app(tmp_path)
     client = TestClient(app)
 
-    response = client.get("/?lang=en")
+    response = client.get("/log?lang=en")
 
     assert response.status_code == 200
     assert 'class="primary-workbench"' in response.text
@@ -87,11 +89,11 @@ def test_web_home_prioritizes_capture_and_ai_analysis(tmp_path):
     assert 'name="tags"' not in response.text
     assert 'name="manual_mood"' not in response.text
     assert "AI Analysis</button>" in response.text
-    assert "Dream constellation" not in response.text
+    assert "Dream calendar" not in response.text
     assert "Dreamscape log" not in response.text
 
 
-def test_web_home_shows_current_language_analyze_button_for_pending_dream(tmp_path):
+def test_dashboard_shows_rule_based_insight_and_recent_dreams(tmp_path):
     app = create_app(tmp_path)
     client = TestClient(app)
     client.post("/api/dreams", json={"content": "A river crossed the station.", "tags": ["river"]})
@@ -99,9 +101,10 @@ def test_web_home_shows_current_language_analyze_button_for_pending_dream(tmp_pa
     response = client.get("/?lang=en")
 
     assert response.status_code == 200
-    assert "Pending analysis" in response.text
-    assert "Analyze now" in response.text
-    assert "/dreams/1/analyze?lang=en" in response.text
+    assert "AI Insight" in response.text
+    assert "A river crossed the station." in response.text
+    assert "Log a Dream" in response.text
+    assert "/log?lang=en" in response.text
 
 
 def test_draft_analyze_does_not_persist_until_save(tmp_path):
@@ -140,7 +143,7 @@ def test_draft_save_creates_dream_with_language_analysis(tmp_path):
     )
 
     assert response.status_code == 303
-    assert response.headers["location"] == "/?lang=zh"
+    assert response.headers["location"] == "/dreams/1?lang=zh"
     dream = client.get("/api/dreams/1?lang=zh").json()
     assert dream["content"] == "我打开了一扇发光的门。"
     assert dream["analysis"]["summary"] == "一场关于发现隐藏之门的梦。"
@@ -156,13 +159,13 @@ def test_web_single_dream_analysis_route_preserves_language(tmp_path):
     response = client.post(f"/dreams/{dream_id}/analyze?lang=zh", follow_redirects=False)
 
     assert response.status_code == 303
-    assert response.headers["location"] == "/?lang=zh"
+    assert response.headers["location"] == f"/dreams/{dream_id}?lang=zh"
     dream = client.get(f"/api/dreams/{dream_id}?lang=zh").json()
     assert dream["analysis_status"] == "analyzed"
     assert dream["analysis"]["summary"] == "一场关于发现隐藏之门的梦。"
     assert client.get(f"/api/dreams/{dream_id}?lang=en").json()["analysis"] is None
     home = client.get("/?lang=en")
-    assert "Pending analysis" in home.text
+    assert "Missing analysis" in home.text
     assert "一场关于发现隐藏之门的梦。" not in home.text
 
 
@@ -210,37 +213,52 @@ def test_home_supports_english_and_chinese_language_toggle(tmp_path):
     english = client.get("/?lang=en")
     chinese = client.get("/?lang=zh")
 
-    assert "Log Dream" in english.text
-    assert "AI Analysis" in english.text
-    assert "记录梦境" in chinese.text
-    assert "AI 分析" in chinese.text
+    assert "DreamLoop Dashboard" in english.text
+    assert "AI Insight" in english.text
+    assert "DreamLoop 总览" in chinese.text
+    assert "AI 洞察" in chinese.text
     assert 'data-lang="zh"' in english.text
     assert 'data-lang="en"' in chinese.text
 
 
-def test_insights_log_and_settings_are_real_pages(tmp_path):
+def test_patterns_log_gallery_and_settings_are_real_pages(tmp_path):
     app = create_app(tmp_path)
     client = TestClient(app)
     client.post("/api/dreams", json={"content": "Water covered the old city.", "tags": ["water"]})
 
-    insights = client.get("/insights?lang=en")
+    patterns = client.get("/patterns?lang=en")
     log = client.get("/log?lang=en")
+    gallery = client.get("/gallery?lang=en")
     settings = client.get("/settings?lang=en")
 
-    assert insights.status_code == 200
-    assert "Dream constellation" in insights.text
-    assert 'href="/log?lang=en&date=' in insights.text
-    assert "Mood spectrum" in insights.text
-    assert "AI Insight" in insights.text
-    assert "Log Dream" not in insights.text
+    assert patterns.status_code == 200
+    assert "Dream calendar" in patterns.text
+    assert 'href="/log?lang=en&date=' in patterns.text
+    assert "Mood spectrum" in patterns.text
+    assert "Pattern summary" in patterns.text
+    assert "Log Dream" not in patterns.text
     assert log.status_code == 200
+    assert "Log Dream" in log.text
     assert "Dreamscape log" in log.text
     assert "Water covered the old city." in log.text
     assert "CLI-first capture" not in log.text
+    assert gallery.status_code == 200
+    assert "Dream Gallery" in gallery.text
+    assert "Water covered the old city." in gallery.text
     assert settings.status_code == 200
     assert "AI Provider" in settings.text
     assert "API Key" in settings.text
     assert "Custom OpenAI-compatible" in settings.text
+
+
+def test_insights_redirects_to_patterns(tmp_path):
+    app = create_app(tmp_path)
+    client = TestClient(app)
+
+    response = client.get("/insights?lang=zh", follow_redirects=False)
+
+    assert response.status_code == 307
+    assert response.headers["location"] == "/patterns?lang=zh"
 
 
 def test_log_page_can_filter_by_heatmap_date(tmp_path):
@@ -255,6 +273,30 @@ def test_log_page_can_filter_by_heatmap_date(tmp_path):
     assert "2026-06-10" in response.text
     assert "Water covered the old city." in response.text
     assert "I flew over rooftops." not in response.text
+
+
+def test_patterns_symbol_links_filter_log(tmp_path):
+    app = create_app(tmp_path)
+    app.state.analyzer = StaticAnalyzer(
+        {
+            "emotional_tone": "uneasy",
+            "symbols": ["water"],
+            "themes": ["transition"],
+            "summary": "A water dream about transition.",
+            "confidence": 0.8,
+        }
+    )
+    client = TestClient(app)
+    water = client.post("/api/dreams", json={"content": "Water covered the old city."}).json()["id"]
+    client.post("/api/dreams", json={"content": "I flew over rooftops."})
+    client.post(f"/api/dreams/{water}/analyze?lang=en")
+
+    patterns = client.get("/patterns?lang=en")
+    filtered = client.get("/log?lang=en&symbol=water")
+
+    assert 'href="/log?lang=en&symbol=water"' in patterns.text
+    assert "Water covered the old city." in filtered.text
+    assert "I flew over rooftops." not in filtered.text
 
 
 def test_settings_updates_ai_provider_without_leaking_secret(tmp_path, monkeypatch):
@@ -322,7 +364,7 @@ def test_create_dream_form_preserves_language(tmp_path):
     )
 
     assert response.status_code == 303
-    assert response.headers["location"] == "/?lang=zh"
+    assert response.headers["location"] == "/dreams/1?lang=zh"
 
 
 def test_detail_page_supports_chinese_language(tmp_path):
@@ -335,6 +377,18 @@ def test_detail_page_supports_chinese_language(tmp_path):
     assert response.status_code == 200
     assert "返回工作台" in response.text
     assert "AI 分析" in response.text
+    assert "生成梦境画面" in response.text
+
+
+def test_gallery_empty_state_explains_detail_driven_visual_memory(tmp_path):
+    app = create_app(tmp_path)
+    client = TestClient(app)
+
+    response = client.get("/gallery?lang=zh")
+
+    assert response.status_code == 200
+    assert "梦境画廊" in response.text
+    assert "先在梦境详情页生成或保存视觉记忆" in response.text
 
 
 def test_web_home_shows_provider_without_leaking_secret(tmp_path, monkeypatch):

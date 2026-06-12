@@ -185,6 +185,9 @@ a {
 }
 
 .hero-panel,
+.dashboard-hero,
+.insight-card,
+.gallery-card,
 .detail-hero,
 .panel,
 .stat-card,
@@ -230,6 +233,139 @@ a {
   gap: 24px;
   min-height: 260px;
   padding: clamp(24px, 4vw, 42px);
+}
+
+.dashboard-hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 0.46fr);
+  gap: 18px;
+  min-height: 320px;
+  padding: clamp(24px, 5vw, 46px);
+}
+
+.dashboard-hero .hero-copy {
+  align-self: center;
+}
+
+.dashboard-hero h2 {
+  max-width: 780px;
+  font-size: clamp(34px, 5vw, 64px);
+  line-height: 0.95;
+}
+
+.insight-card {
+  align-self: stretch;
+  display: grid;
+  align-content: center;
+  min-width: 0;
+  padding: 20px;
+  background: rgba(9, 7, 19, 0.62);
+}
+
+.insight-card strong {
+  display: block;
+  color: var(--text);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(28px, 4vw, 44px);
+  line-height: 1;
+  overflow-wrap: anywhere;
+}
+
+.insight-card p {
+  margin: 12px 0 0;
+  color: var(--muted);
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.primary-cta {
+  min-height: 42px;
+  border-radius: 6px;
+  background: var(--text);
+  color: var(--night);
+  display: inline-grid;
+  place-items: center;
+  font-family: "Cascadia Mono", "JetBrains Mono", Consolas, monospace;
+  font-size: 13px;
+  font-weight: 800;
+  padding: 0 16px;
+  text-decoration: none;
+}
+
+.hero-actions span,
+.filter-badge {
+  color: var(--muted);
+  font-family: "Cascadia Mono", "JetBrains Mono", Consolas, monospace;
+  font-size: 12px;
+}
+
+.dashboard-grid,
+.pattern-grid,
+.gallery-grid {
+  display: grid;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.dashboard-grid {
+  grid-template-columns: minmax(0, 1.2fr) minmax(300px, 0.8fr);
+}
+
+.pattern-grid {
+  grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+}
+
+.gallery-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.recent-list {
+  display: grid;
+  gap: 9px;
+}
+
+.recent-row {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  text-decoration: none;
+}
+
+.recent-row:hover,
+.trend-link:hover,
+.gallery-card:hover {
+  border-color: var(--line-strong);
+  background: rgba(142, 99, 255, 0.12);
+}
+
+.recent-row span {
+  color: var(--muted);
+  font-family: "Cascadia Mono", "JetBrains Mono", Consolas, monospace;
+  font-size: 11px;
+}
+
+.recent-row strong {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 18px;
+  line-height: 1.18;
+}
+
+.mini-heatmap {
+  max-height: 300px;
+  overflow: auto;
 }
 
 .primary-workbench {
@@ -643,6 +779,14 @@ button,
   align-items: center;
 }
 
+.trend-link {
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: inherit;
+  padding: 7px;
+  text-decoration: none;
+}
+
 .spectrum-row span,
 .symbol-row span,
 .runtime-list dt {
@@ -1019,6 +1163,68 @@ button {
   padding: 6px 9px;
 }
 
+.gallery-card {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-height: 230px;
+  display: grid;
+  align-content: end;
+  gap: 10px;
+  color: var(--text);
+  padding: 18px;
+  text-decoration: none;
+}
+
+.gallery-card span,
+.gallery-card small {
+  color: var(--muted);
+  font-family: "Cascadia Mono", "JetBrains Mono", Consolas, monospace;
+  font-size: 12px;
+}
+
+.gallery-card strong {
+  color: var(--text);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 24px;
+  line-height: 1.12;
+}
+
+.empty-gallery {
+  grid-column: 1 / -1;
+}
+
+.visual-memory-action {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-top: 18px;
+}
+
+.visual-memory-action p {
+  flex: 1 1 260px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.filter-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  margin-top: -4px;
+  padding: 7px 10px;
+}
+
+.filter-badge a {
+  color: var(--cyan);
+  text-decoration: none;
+}
+
 details {
   border-top: 1px solid var(--line);
   margin-top: 18px;
@@ -1065,10 +1271,14 @@ summary {
   }
 
   .hero-panel,
+  .dashboard-hero,
   .primary-workbench,
   .capture-log-grid,
   .detail-grid,
-  .settings-grid {
+  .settings-grid,
+  .dashboard-grid,
+  .pattern-grid,
+  .gallery-grid {
     grid-template-columns: 1fr;
   }
 
@@ -1080,6 +1290,8 @@ summary {
 
 @media (max-width: 760px) {
   .hero-panel,
+  .dashboard-hero,
+  .insight-card,
   .dream-compose,
   .analysis-panel,
   .panel,
@@ -1156,6 +1368,7 @@ summary {
   .stat-strip,
   .status-strip,
   .dream-grid,
+  .gallery-grid,
   .form-row {
     grid-template-columns: 1fr;
   }

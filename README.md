@@ -1,5 +1,7 @@
 # DreamLoop
 
+[English](README.md) | [中文](README.zh-CN.md)
+
 ![DreamLoop hero dashboard](docs/assets/hero-dashboard.svg)
 
 **Your dreams have patterns. DreamLoop finds them locally.**
@@ -14,7 +16,7 @@ dreamloop init
 dreamloop add "I found a blue door under the sea."
 ```
 
-DreamLoop is a local-first dream journal for people who want fast capture, private storage, and pattern discovery without renting their inner life to another subscription app.
+DreamLoop is a local-first dream journal for people who want fast capture, private storage, and pattern discovery without renting their inner life to another subscription app. The web app now follows a six-page loop: Dashboard -> Log -> Detail -> Patterns -> Gallery -> Settings.
 
 ## Why This Project
 
@@ -89,18 +91,18 @@ Provider defaults:
 - `custom`: any OpenAI-compatible `/v1` endpoint, including local gateways
 - `none`: capture-only local journal mode
 
-## Web Dashboard
+## Web App Loop
 
 The FastAPI/Jinja dashboard is intentionally lightweight:
 
-- draft-first dream capture and AI analysis
-- page-based navigation for capture, insights, log, and settings
+- Dashboard: README-ready overview with AI Insight, heatmap, stats, and recent dreams
+- Log: draft-first dream capture and AI analysis before saving
+- Detail: original dream text, structured analysis, raw JSON, and an opt-in visual-memory entry point
+- Patterns: clickable calendar, recurring symbols, theme trends, and filters back into Log
+- Gallery: v0.1 local visual cards derived from saved dreams; image generation remains opt-in
+- Settings: provider selection, launch notes, local data directory, and privacy status
 - model/provider settings without rendering secrets
 - privacy contract
-- clickable dream calendar
-- recurring symbol trends
-- recent dream log
-- detail pages with structured analysis and raw JSON
 
 DreamLoop is currently launched with `dreamloop web` or the lightweight Windows launcher in `scripts\start-dreamloop.cmd`. A native desktop app is a later packaging task; v0.1 stays lightweight so the local-first core remains easy to inspect and fork.
 
