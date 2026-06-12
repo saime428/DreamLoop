@@ -10,11 +10,150 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 
-from .analysis import ai_status
+from .analysis import Analyzer, ai_status
 from .core import DreamLoop
 
 PACKAGE_DIR = Path(__file__).parent
 templates = Jinja2Templates(directory=str(PACKAGE_DIR / "templates"))
+
+TRANSLATIONS: dict[str, dict[str, str]] = {
+    "en": {
+        "nav_capture": "Capture",
+        "nav_analysis": "AI Analysis",
+        "nav_insights": "Insights",
+        "nav_local": "Local",
+        "nav_logbook": "Logbook",
+        "sidebar_count": "dreams stored in your local workspace",
+        "eyebrow": "Local-first dream intelligence",
+        "headline": "Good night, explorer",
+        "tagline": "Your dreams have patterns. DreamLoop finds them locally.",
+        "lede": "Record a dream, then ask a local or opt-in model to extract emotions, symbols, themes, and a concise summary.",
+        "log_dream": "Log Dream",
+        "local_write": "local write",
+        "content_placeholder": "Record a dream before it fades...",
+        "tags_placeholder": "water, door",
+        "mood_placeholder": "mood",
+        "save_locally": "Save locally",
+        "cli_first": "CLI-first capture",
+        "ai_analysis": "AI Analysis",
+        "no_dream": "Record a dream to unlock AI analysis.",
+        "latest_dream": "Latest dream",
+        "pending_analysis": "Pending analysis",
+        "analyze_now": "Analyze now",
+        "analysis_ready": "Structured analysis",
+        "analysis_unavailable": "AI analysis is optional. Configure Ollama, DeepSeek, or OpenAI when you want model output.",
+        "analysis_failed": "Analysis failed. Your dream is still saved locally.",
+        "emotional_tone": "Emotional tone",
+        "symbols": "Symbols",
+        "themes": "Themes",
+        "summary": "Summary",
+        "confidence": "Confidence",
+        "raw_json": "Raw JSON",
+        "local_dreams": "Local dreams",
+        "ai_provider": "AI provider",
+        "analysis_queue": "Analysis queue",
+        "privacy_mode": "Privacy mode",
+        "sqlite_journal": "SQLite journal",
+        "pending_entries": "pending entries",
+        "data_never_leaves": "data never leaves this machine",
+        "pattern_map": "Pattern map",
+        "dream_constellation": "Dream constellation",
+        "no_heatmap": "No dreams yet.",
+        "signals": "Signals",
+        "mood_spectrum": "Mood spectrum",
+        "no_moods": "Manual moods appear here after capture.",
+        "structured_output": "Structured output",
+        "ai_insight": "AI Insight",
+        "most_recurring": "Most recurring symbol across analyzed dreams.",
+        "no_symbols": "No recurring symbols yet",
+        "runtime": "Runtime",
+        "local_runtime": "Starlit local runtime",
+        "data_dir": "Data dir",
+        "ollama_optional": "Ollama optional",
+        "obsidian_roadmap": "roadmap",
+        "provider_configured": "Provider configured. Secrets are stored locally and never rendered.",
+        "local_logbook": "Local logbook",
+        "dreamscape_log": "Dreamscape log",
+        "first_dream_waiting": "Your first dream is waiting.",
+        "no_mood": "no mood",
+        "no_tags": "no tags",
+        "back_dashboard": "Back to dashboard",
+        "day_context": "Day context",
+        "calendar_weather": "Calendar / Weather",
+        "calendar": "Calendar",
+        "weather": "Weather",
+        "no_calendar": "No imported calendar events.",
+        "no_weather": "No weather synced for this day.",
+    },
+    "zh": {
+        "nav_capture": "记录",
+        "nav_analysis": "AI 分析",
+        "nav_insights": "洞察",
+        "nav_local": "本地",
+        "nav_logbook": "日志",
+        "sidebar_count": "条梦境保存在本地工作区",
+        "eyebrow": "本地优先梦境智能",
+        "headline": "晚安，探索者",
+        "tagline": "你的梦有模式。DreamLoop 在本地发现它们。",
+        "lede": "先记录梦境，再让本地或显式启用的模型提取情绪、符号、主题和摘要。",
+        "log_dream": "记录梦境",
+        "local_write": "本地写入",
+        "content_placeholder": "趁梦还没散，先记下来...",
+        "tags_placeholder": "水, 门",
+        "mood_placeholder": "情绪",
+        "save_locally": "保存到本地",
+        "cli_first": "CLI 优先记录",
+        "ai_analysis": "AI 分析",
+        "no_dream": "先记录一条梦境，就可以开始 AI 分析。",
+        "latest_dream": "最新梦境",
+        "pending_analysis": "等待分析",
+        "analyze_now": "立即分析",
+        "analysis_ready": "结构化分析",
+        "analysis_unavailable": "AI 分析是可选功能。需要模型输出时，再配置 Ollama、DeepSeek 或 OpenAI。",
+        "analysis_failed": "分析失败。梦境仍已保存在本地。",
+        "emotional_tone": "情绪基调",
+        "symbols": "符号",
+        "themes": "主题",
+        "summary": "摘要",
+        "confidence": "置信度",
+        "raw_json": "原始 JSON",
+        "local_dreams": "本地梦境",
+        "ai_provider": "AI 提供方",
+        "analysis_queue": "分析队列",
+        "privacy_mode": "隐私模式",
+        "sqlite_journal": "SQLite 日志",
+        "pending_entries": "条待分析",
+        "data_never_leaves": "数据默认不离机",
+        "pattern_map": "模式地图",
+        "dream_constellation": "梦境星图",
+        "no_heatmap": "还没有梦境。",
+        "signals": "信号",
+        "mood_spectrum": "情绪光谱",
+        "no_moods": "记录手动情绪后会出现在这里。",
+        "structured_output": "结构化输出",
+        "ai_insight": "AI 洞察",
+        "most_recurring": "分析结果里最常出现的符号。",
+        "no_symbols": "还没有反复出现的符号",
+        "runtime": "运行状态",
+        "local_runtime": "本地运行环境",
+        "data_dir": "数据目录",
+        "ollama_optional": "Ollama 可选",
+        "obsidian_roadmap": "路线图",
+        "provider_configured": "模型已配置。密钥只保存在本地，不会渲染到页面。",
+        "local_logbook": "本地日志",
+        "dreamscape_log": "梦境记录",
+        "first_dream_waiting": "第一条梦境正在等你。",
+        "no_mood": "无情绪",
+        "no_tags": "无标签",
+        "back_dashboard": "返回工作台",
+        "day_context": "当天上下文",
+        "calendar_weather": "日历 / 天气",
+        "calendar": "日历",
+        "weather": "天气",
+        "no_calendar": "没有导入的日历事件。",
+        "no_weather": "这一天还没有同步天气。",
+    },
+}
 
 
 def _mood_spectrum(dreams: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -32,6 +171,20 @@ def _mood_spectrum(dreams: list[dict[str, Any]]) -> list[dict[str, Any]]:
         {"name": name, "count": count, "percent": max(12, round(count / total * 100))}
         for name, count in sorted(counts.items(), key=lambda item: (-item[1], item[0]))
     ]
+
+
+def _lang(value: str | None) -> str:
+    return value if value in TRANSLATIONS else "en"
+
+
+def _home_url(lang: str, **params: str) -> str:
+    query = {"lang": _lang(lang), **{key: val for key, val in params.items() if val}}
+    return "/?" + "&".join(f"{key}={value}" for key, value in query.items())
+
+
+def _analyzer_override(app: FastAPI) -> Analyzer | None:
+    analyzer = getattr(app.state, "analyzer", None)
+    return analyzer if analyzer is not None else None
 
 
 class DreamCreate(BaseModel):
@@ -54,34 +207,54 @@ def create_app(root: str | Path | None = None) -> FastAPI:
     app.mount("/static", StaticFiles(directory=str(PACKAGE_DIR / "static")), name="static")
 
     @app.get("/", response_class=HTMLResponse)
-    def home(request: Request) -> Any:
+    def home(request: Request, lang: str = "en", analysis_error: str = "") -> Any:
+        lang = _lang(lang)
         dreams = loop.list_dreams()
+        latest_dream = loop.get_dream(dreams[0]["id"]) if dreams else None
         return templates.TemplateResponse(
             request,
             "index.html",
             {
                 "dreams": dreams,
+                "latest_dream": latest_dream,
                 "heatmap": loop.heatmap(),
                 "ai": ai_status(loop.root),
                 "trends": loop.trends(),
                 "data_dir": loop.data_dir,
                 "pending_count": sum(1 for dream in dreams if dream["analysis_status"] == "pending"),
                 "mood_spectrum": _mood_spectrum(dreams),
+                "lang": lang,
+                "t": TRANSLATIONS[lang],
+                "analysis_error": bool(analysis_error),
             },
         )
 
     @app.post("/dreams")
     def create_dream_form(
+        lang: str = "en",
         content: str = Form(...),
         tags: str = Form(""),
         manual_mood: str = Form(""),
     ) -> RedirectResponse:
         tag_list = [tag.strip() for tag in tags.split(",") if tag.strip()]
         loop.add_dream(content, tags=tag_list, mood=manual_mood or None)
-        return RedirectResponse("/", status_code=status.HTTP_303_SEE_OTHER)
+        return RedirectResponse(_home_url(lang), status_code=status.HTTP_303_SEE_OTHER)
+
+    @app.post("/dreams/{dream_id}/analyze")
+    def analyze_dream_form(request: Request, dream_id: int, lang: str = "en") -> RedirectResponse:
+        analyzer = _analyzer_override(request.app)
+        try:
+            loop.analyze_dream(dream_id, analyzer)
+        except Exception:
+            return RedirectResponse(
+                _home_url(lang, analysis_error="1"),
+                status_code=status.HTTP_303_SEE_OTHER,
+            )
+        return RedirectResponse(_home_url(lang), status_code=status.HTTP_303_SEE_OTHER)
 
     @app.get("/dreams/{dream_id}", response_class=HTMLResponse)
-    def dream_detail(request: Request, dream_id: int) -> Any:
+    def dream_detail(request: Request, dream_id: int, lang: str = "en") -> Any:
+        lang = _lang(lang)
         try:
             dream = loop.get_dream(dream_id)
         except KeyError as exc:
@@ -94,6 +267,8 @@ def create_app(root: str | Path | None = None) -> FastAPI:
                 "dream": dream,
                 "context": context,
                 "ai": ai_status(loop.root),
+                "lang": lang,
+                "t": TRANSLATIONS[lang],
             },
         )
 
@@ -124,6 +299,22 @@ def create_app(root: str | Path | None = None) -> FastAPI:
             return loop.similar_dreams(dream_id)
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="Dream not found") from exc
+
+    @app.post("/api/dreams/{dream_id}/analyze")
+    def api_analyze_dream(request: Request, dream_id: int) -> dict[str, Any]:
+        analyzer = _analyzer_override(request.app)
+        status_payload = ai_status(loop.root)
+        if analyzer is None and not status_payload.ready:
+            raise HTTPException(status_code=409, detail=status_payload.warning or "AI provider is not ready.")
+        try:
+            analyzed = loop.analyze_dream(dream_id, analyzer)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="Dream not found") from exc
+        return {
+            "analyzed": analyzed,
+            "ai_configured": True,
+            "provider": "test" if analyzer is not None else status_payload.provider,
+        }
 
     @app.post("/api/analyze/pending")
     def api_analyze_pending() -> dict[str, Any]:

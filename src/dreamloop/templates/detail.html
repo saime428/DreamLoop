@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="{{ lang }}">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -9,23 +9,23 @@
   <body>
     <div class="app-frame detail-frame">
       <aside class="sidebar" aria-label="DreamLoop navigation">
-        <a class="brand-mark" href="/" aria-label="DreamLoop home">
+        <a class="brand-mark" href="/?lang={{ lang }}" aria-label="DreamLoop home">
           <span class="brand-orbit"></span>
           <strong>DreamLoop</strong>
         </a>
         <nav class="side-nav">
-          <a href="/" class="active">Dashboard</a>
-          <a href="#analysis">Analysis</a>
-          <a href="#context">Context</a>
+          <a href="/?lang={{ lang }}" class="active">{{ t.nav_capture }}</a>
+          <a href="#analysis">{{ t.nav_analysis }}</a>
+          <a href="#context">{{ t.day_context }}</a>
         </nav>
         <div class="side-note">
           <span>#{{ dream.id }}</span>
-          <p>{{ dream.analysis_status }} analysis state</p>
+          <p>{{ dream.analysis_status }}</p>
         </div>
       </aside>
 
       <main class="dashboard detail-dashboard">
-        <a class="back-link" href="/">Back to dashboard</a>
+        <a class="back-link" href="/?lang={{ lang }}">{{ t.back_dashboard }}</a>
 
         <article class="detail-hero constellation-sky">
           <div class="star-field" aria-hidden="true"></div>
@@ -33,11 +33,11 @@
           <h1>Dream #{{ dream.id }}</h1>
           <p class="dream-text">{{ dream.content }}</p>
           <div class="tag-shelf">
-            <span>{{ dream.manual_mood or "no mood" }}</span>
+            <span>{{ dream.manual_mood or t.no_mood }}</span>
             {% for tag in dream.tags %}
               <span>{{ tag }}</span>
             {% else %}
-              <span>no tags</span>
+              <span>{{ t.no_tags }}</span>
             {% endfor %}
           </div>
         </article>
@@ -45,8 +45,8 @@
         <section class="detail-grid">
           <article class="panel" id="analysis">
             <div class="section-title">
-              <span>Structured output</span>
-              <h2>AI Insight</h2>
+              <span>{{ t.structured_output }}</span>
+              <h2>{{ t.ai_analysis }}</h2>
             </div>
             {% if dream.analysis %}
               <div class="tag-shelf">
@@ -60,32 +60,32 @@
               </div>
               <p>{{ dream.analysis.summary }}</p>
               <details>
-                <summary>Raw JSON</summary>
+                <summary>{{ t.raw_json }}</summary>
                 <pre><code>{{ dream.analysis.raw_json }}</code></pre>
               </details>
             {% elif ai.ready %}
-              <p class="empty-state">Analysis is pending for {{ ai.provider }} / {{ ai.model }}.</p>
+              <p class="empty-state">{{ t.pending_analysis }}: {{ ai.provider }} / {{ ai.model }}</p>
             {% else %}
-              <p class="empty-state">AI is optional. Use Ollama locally or configure DeepSeek when you want structured analysis.</p>
+              <p class="empty-state">{{ t.analysis_unavailable }}</p>
             {% endif %}
           </article>
 
           <article class="panel quiet-panel" id="context">
             <div class="section-title">
-              <span>Day context</span>
-              <h2>Calendar / Weather</h2>
+              <span>{{ t.day_context }}</span>
+              <h2>{{ t.calendar_weather }}</h2>
             </div>
-            <h3>Calendar</h3>
+            <h3>{{ t.calendar }}</h3>
             {% for event in context.events %}
               <p>{{ event.summary }}</p>
             {% else %}
-              <p class="empty-state">No imported calendar events.</p>
+              <p class="empty-state">{{ t.no_calendar }}</p>
             {% endfor %}
-            <h3>Weather</h3>
+            <h3>{{ t.weather }}</h3>
             {% if context.weather %}
               <p>{{ context.weather.temperature_2m_min }}-{{ context.weather.temperature_2m_max }} C, precipitation {{ context.weather.precipitation_sum }} mm</p>
             {% else %}
-              <p class="empty-state">No weather synced for this day.</p>
+              <p class="empty-state">{{ t.no_weather }}</p>
             {% endif %}
           </article>
         </section>

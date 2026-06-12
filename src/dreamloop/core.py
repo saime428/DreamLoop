@@ -101,36 +101,23 @@ class DreamLoop:
         with self._connect() as db:
             rows = db.execute(sql, params).fetchall()
             for row in rows:
-                normalized = normalize_analysis(analyzer.analyze(row["content"]))
-                db.execute(
-                    """
-                    INSERT INTO dream_analyses (
-                        dream_id, emotional_tone, symbols_json, themes_json, summary,
-                        confidence, raw_json
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
-                    ON CONFLICT(dream_id) DO UPDATE SET
-                        emotional_tone = excluded.emotional_tone,
-                        symbols_json = excluded.symbols_json,
-                        themes_json = excluded.themes_json,
-                        summary = excluded.summary,
-                        confidence = excluded.confidence,
-                        raw_json = excluded.raw_json
-                    """,
-                    (
-                        row["id"],
-                        normalized["emotional_tone"],
-                        json.dumps(normalized["symbols"], ensure_ascii=False),
-                        json.dumps(normalized["themes"], ensure_ascii=False),
-                        normalized["summary"],
-                        normalized["confidence"],
-                        normalized["raw_json"],
-                    ),
-                )
-                db.execute(
-                    "UPDATE dreams SET analysis_status = 'analyzed' WHERE id = ?", (row["id"],)
-                )
+                self._write_analysis(db, int(row["id"]), row["content"], analyzer)
                 analyzed.append(int(row["id"]))
         return analyzed
+
+    def analyze_dream(self, dream_id: int, analyzer: Analyzer | None = None) -> int:
+        self.init()
+        if analyzer is None:
+            analyzer = build_analyzer(self.root)
+            if analyzer is None:
+                raise RuntimeError("AI provider is not ready.")
+
+        with self._connect() as db:
+            row = db.execute("SELECT * FROM dreams WHERE id = ?", (dream_id,)).fetchone()
+            if row is None:
+                raise KeyError(f"Dream {dream_id} was not found.")
+            self._write_analysis(db, dream_id, row["content"], analyzer)
+        return dream_id
 
     def import_ics(self, path: str | Path) -> int:
         self.init()
@@ -260,6 +247,40 @@ class DreamLoop:
         db = sqlite3.connect(self.db_path)
         db.row_factory = sqlite3.Row
         return db
+
+    def _write_analysis(
+        self,
+        db: sqlite3.Connection,
+        dream_id: int,
+        content: str,
+        analyzer: Analyzer,
+    ) -> None:
+        normalized = normalize_analysis(analyzer.analyze(content))
+        db.execute(
+            """
+            INSERT INTO dream_analyses (
+                dream_id, emotional_tone, symbols_json, themes_json, summary,
+                confidence, raw_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(dream_id) DO UPDATE SET
+                emotional_tone = excluded.emotional_tone,
+                symbols_json = excluded.symbols_json,
+                themes_json = excluded.themes_json,
+                summary = excluded.summary,
+                confidence = excluded.confidence,
+                raw_json = excluded.raw_json
+            """,
+            (
+                dream_id,
+                normalized["emotional_tone"],
+                json.dumps(normalized["symbols"], ensure_ascii=False),
+                json.dumps(normalized["themes"], ensure_ascii=False),
+                normalized["summary"],
+                normalized["confidence"],
+                normalized["raw_json"],
+            ),
+        )
+        db.execute("UPDATE dreams SET analysis_status = 'analyzed' WHERE id = ?", (dream_id,))
 
     def _migrate(self) -> None:
         with self._connect() as db:

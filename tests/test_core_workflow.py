@@ -63,6 +63,32 @@ def test_analyze_pending_writes_structured_result(tmp_path):
     assert json.loads(dream["analysis"]["raw_json"])["themes"] == ["escape"]
 
 
+def test_analyze_dream_writes_only_requested_dream(tmp_path):
+    loop = DreamLoop(tmp_path)
+    loop.init()
+    first_id = loop.add_dream("I was walking through a quiet library.")
+    second_id = loop.add_dream("A black river crossed the train station.")
+
+    analyzed = loop.analyze_dream(
+        second_id,
+        StaticAnalyzer(
+            {
+                "emotional_tone": "uneasy",
+                "symbols": ["river", "station"],
+                "themes": ["transition"],
+                "summary": "A transition dream marked by a dark river.",
+                "confidence": 0.76,
+            }
+        ),
+    )
+
+    assert analyzed == second_id
+    assert loop.get_dream(first_id)["analysis_status"] == "pending"
+    second = loop.get_dream(second_id)
+    assert second["analysis_status"] == "analyzed"
+    assert second["analysis"]["symbols"] == ["river", "station"]
+
+
 def test_import_ics_and_weather_feed_heatmap_context(tmp_path):
     loop = DreamLoop(tmp_path)
     loop.init()
