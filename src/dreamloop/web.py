@@ -17,6 +17,23 @@ PACKAGE_DIR = Path(__file__).parent
 templates = Jinja2Templates(directory=str(PACKAGE_DIR / "templates"))
 
 
+def _mood_spectrum(dreams: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    counts: dict[str, int] = {}
+    for dream in dreams:
+        mood = (dream.get("manual_mood") or "").strip()
+        if mood:
+            counts[mood] = counts.get(mood, 0) + 1
+
+    if not counts:
+        return []
+
+    total = sum(counts.values())
+    return [
+        {"name": name, "count": count, "percent": max(12, round(count / total * 100))}
+        for name, count in sorted(counts.items(), key=lambda item: (-item[1], item[0]))
+    ]
+
+
 class DreamCreate(BaseModel):
     content: str = Field(min_length=1)
     tags: list[str] = Field(default_factory=list)
@@ -38,15 +55,18 @@ def create_app(root: str | Path | None = None) -> FastAPI:
 
     @app.get("/", response_class=HTMLResponse)
     def home(request: Request) -> Any:
+        dreams = loop.list_dreams()
         return templates.TemplateResponse(
             request,
             "index.html",
             {
-                "dreams": loop.list_dreams(),
+                "dreams": dreams,
                 "heatmap": loop.heatmap(),
                 "ai": ai_status(loop.root),
                 "trends": loop.trends(),
                 "data_dir": loop.data_dir,
+                "pending_count": sum(1 for dream in dreams if dream["analysis_status"] == "pending"),
+                "mood_spectrum": _mood_spectrum(dreams),
             },
         )
 

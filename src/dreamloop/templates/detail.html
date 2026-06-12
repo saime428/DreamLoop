@@ -7,62 +7,89 @@
     <link rel="stylesheet" href="{{ url_for('static', path='/style.css') }}">
   </head>
   <body>
-    <main class="shell detail-shell">
-      <a class="back" href="/">Back to DreamLoop</a>
-      <article class="log-entry">
-        <p class="eyebrow">{{ dream.dreamed_on }} / {{ dream.analysis_status }}</p>
-        <h1>Dream #{{ dream.id }}</h1>
-        <p class="dream-text">{{ dream.content }}</p>
-        <p class="muted">{{ dream.manual_mood or "no mood" }} / {{ ", ".join(dream.tags) or "no tags" }}</p>
-      </article>
+    <div class="app-frame detail-frame">
+      <aside class="sidebar" aria-label="DreamLoop navigation">
+        <a class="brand-mark" href="/" aria-label="DreamLoop home">
+          <span class="brand-orbit"></span>
+          <strong>DreamLoop</strong>
+        </a>
+        <nav class="side-nav">
+          <a href="/" class="active">Dashboard</a>
+          <a href="#analysis">Analysis</a>
+          <a href="#context">Context</a>
+        </nav>
+        <div class="side-note">
+          <span>#{{ dream.id }}</span>
+          <p>{{ dream.analysis_status }} analysis state</p>
+        </div>
+      </aside>
 
-      <section class="insight-grid">
-        <div class="paper-panel">
-          <div class="section-title">
-            <span>structured output</span>
-            <h2>AI analysis</h2>
+      <main class="dashboard detail-dashboard">
+        <a class="back-link" href="/">Back to dashboard</a>
+
+        <article class="detail-hero constellation-sky">
+          <div class="star-field" aria-hidden="true"></div>
+          <p class="eyebrow">{{ dream.dreamed_on }} / {{ dream.analysis_status }}</p>
+          <h1>Dream #{{ dream.id }}</h1>
+          <p class="dream-text">{{ dream.content }}</p>
+          <div class="tag-shelf">
+            <span>{{ dream.manual_mood or "no mood" }}</span>
+            {% for tag in dream.tags %}
+              <span>{{ tag }}</span>
+            {% else %}
+              <span>no tags</span>
+            {% endfor %}
           </div>
-          {% if dream.analysis %}
-            <div class="tag-shelf">
-              <span>{{ dream.analysis.emotional_tone }}</span>
-              {% for symbol in dream.analysis.symbols %}
-                <span>{{ symbol }}</span>
-              {% endfor %}
-              {% for theme in dream.analysis.themes %}
-                <span>{{ theme }}</span>
-              {% endfor %}
+        </article>
+
+        <section class="detail-grid">
+          <article class="panel" id="analysis">
+            <div class="section-title">
+              <span>Structured output</span>
+              <h2>AI Insight</h2>
             </div>
-            <p>{{ dream.analysis.summary }}</p>
-            <details>
-              <summary>Raw JSON</summary>
-              <pre><code>{{ dream.analysis.raw_json }}</code></pre>
-            </details>
-          {% elif ai.ready %}
-            <p class="muted">Analysis is pending for {{ ai.provider }} / {{ ai.model }}.</p>
-          {% else %}
-            <p class="muted">AI is optional. Use Ollama locally or configure DeepSeek when you want structured analysis.</p>
-          {% endif %}
-        </div>
+            {% if dream.analysis %}
+              <div class="tag-shelf">
+                <span>{{ dream.analysis.emotional_tone }}</span>
+                {% for symbol in dream.analysis.symbols %}
+                  <span>{{ symbol }}</span>
+                {% endfor %}
+                {% for theme in dream.analysis.themes %}
+                  <span>{{ theme }}</span>
+                {% endfor %}
+              </div>
+              <p>{{ dream.analysis.summary }}</p>
+              <details>
+                <summary>Raw JSON</summary>
+                <pre><code>{{ dream.analysis.raw_json }}</code></pre>
+              </details>
+            {% elif ai.ready %}
+              <p class="empty-state">Analysis is pending for {{ ai.provider }} / {{ ai.model }}.</p>
+            {% else %}
+              <p class="empty-state">AI is optional. Use Ollama locally or configure DeepSeek when you want structured analysis.</p>
+            {% endif %}
+          </article>
 
-        <div class="paper-panel quiet-panel">
-          <div class="section-title">
-            <span>day context</span>
-            <h2>Calendar / Weather</h2>
-          </div>
-          <h3>Calendar</h3>
-          {% for event in context.events %}
-            <p>{{ event.summary }}</p>
-          {% else %}
-            <p class="muted">No imported calendar events.</p>
-          {% endfor %}
-          <h3>Weather</h3>
-          {% if context.weather %}
-            <p>{{ context.weather.temperature_2m_min }}-{{ context.weather.temperature_2m_max }} C, precipitation {{ context.weather.precipitation_sum }} mm</p>
-          {% else %}
-            <p class="muted">No weather synced for this day.</p>
-          {% endif %}
-        </div>
-      </section>
-    </main>
+          <article class="panel quiet-panel" id="context">
+            <div class="section-title">
+              <span>Day context</span>
+              <h2>Calendar / Weather</h2>
+            </div>
+            <h3>Calendar</h3>
+            {% for event in context.events %}
+              <p>{{ event.summary }}</p>
+            {% else %}
+              <p class="empty-state">No imported calendar events.</p>
+            {% endfor %}
+            <h3>Weather</h3>
+            {% if context.weather %}
+              <p>{{ context.weather.temperature_2m_min }}-{{ context.weather.temperature_2m_max }} C, precipitation {{ context.weather.precipitation_sum }} mm</p>
+            {% else %}
+              <p class="empty-state">No weather synced for this day.</p>
+            {% endif %}
+          </article>
+        </section>
+      </main>
+    </div>
   </body>
 </html>

@@ -7,120 +7,180 @@
     <link rel="stylesheet" href="{{ url_for('static', path='/style.css') }}">
   </head>
   <body>
-    <main class="shell">
-      <header class="hero">
-        <div class="hero-copy">
-          <p class="eyebrow">local-first dream system</p>
-          <h1>Your dreams have patterns. DreamLoop finds them locally.</h1>
-          <p class="lede">CLI-first capture, Ollama optional analysis, and an Obsidian-minded roadmap. Your data never leaves this machine unless you explicitly choose a cloud model.</p>
-          <div class="claim-row">
-            <span>Fully local by default</span>
-            <span>Free with Ollama</span>
-            <span>Forkable Python</span>
-          </div>
+    <div class="app-frame">
+      <aside class="sidebar" aria-label="DreamLoop navigation">
+        <a class="brand-mark" href="/" aria-label="DreamLoop home">
+          <span class="brand-orbit"></span>
+          <strong>DreamLoop</strong>
+        </a>
+        <nav class="side-nav">
+          <a href="#capture" class="active">Capture</a>
+          <a href="#insights">Insights</a>
+          <a href="#runtime">Local</a>
+          <a href="#log">Logbook</a>
+        </nav>
+        <div class="side-note">
+          <span>{{ dreams|length }}</span>
+          <p>dreams stored in your local workspace</p>
         </div>
+      </aside>
 
-        <aside class="runtime-panel" aria-label="Runtime status">
-          <div class="panel-heading">
-            <span>runtime</span>
+      <main class="dashboard">
+        <section class="hero-panel constellation-sky">
+          <div class="star-field" aria-hidden="true"></div>
+          <div class="hero-copy">
+            <p class="eyebrow">Local-first dream intelligence</p>
+            <h1>Good night, explorer</h1>
+            <p class="tagline">Your dreams have patterns. DreamLoop finds them locally.</p>
+            <p class="lede">CLI-first capture, Ollama optional analysis, DeepSeek opt-in, and an Obsidian-minded roadmap. Your data never leaves this machine unless you choose a cloud model.</p>
+          </div>
+          <div class="hero-command" id="capture">
+            <span>$</span>
+            <code>dreamloop add "I found a blue door under the sea."</code>
+          </div>
+        </section>
+
+        <section class="stat-strip" aria-label="Project status">
+          <div class="stat-card">
+            <span>Local dreams</span>
+            <strong>{{ dreams|length }}</strong>
+            <small>SQLite journal</small>
+          </div>
+          <div class="stat-card">
+            <span>AI provider</span>
             <strong>{{ ai.provider }}</strong>
+            <small>{{ ai.model or "capture only" }}</small>
           </div>
-          <dl class="runtime-list">
-            <div><dt>Data</dt><dd>{{ data_dir }}</dd></div>
-            <div><dt>SQLite</dt><dd>local</dd></div>
-            <div><dt>Model</dt><dd>{{ ai.model or "none" }}</dd></div>
-            <div><dt>Mode</dt><dd>{{ ai.mode }}</dd></div>
-            <div><dt>Ollama</dt><dd>Ollama optional</dd></div>
-            <div><dt>Obsidian</dt><dd>roadmap</dd></div>
-          </dl>
-          {% if ai.warning %}
-            <p class="note">{{ ai.warning }}</p>
-          {% else %}
-            <p class="note">Provider configured. Secrets are not rendered in the UI.</p>
-          {% endif %}
-        </aside>
-      </header>
+          <div class="stat-card">
+            <span>Analysis queue</span>
+            <strong>{{ pending_count }}</strong>
+            <small>pending entries</small>
+          </div>
+          <div class="stat-card">
+            <span>Privacy mode</span>
+            <strong>{{ "local" if ai.mode == "local" else "opt-in" }}</strong>
+            <small>data never leaves this machine</small>
+          </div>
+        </section>
 
-      <section class="console-grid">
-        <div class="terminal">
-          <div class="terminal-bar">
-            <span></span><span></span><span></span>
-            <strong>CLI-first capture</strong>
-          </div>
-          <pre><code>$ dreamloop add "I found a blue door under the sea." --tag water --mood curious
+        <section class="work-grid" id="insights">
+          <article class="panel panel-wide">
+            <div class="section-title">
+              <span>Pattern map</span>
+              <h2>Dream constellation</h2>
+            </div>
+            <div class="constellation-map" aria-label="Dream heatmap">
+              {% for day in heatmap %}
+                <a class="heat-cell heat-level-{{ day.count if day.count < 4 else 4 }}" title="{{ day.date }}: {{ day.count }} dream(s)">
+                  <span>{{ day.date[5:] }}</span>
+                  <strong>{{ day.count }}</strong>
+                </a>
+              {% else %}
+                <p class="empty-state">No dreams yet. Add one from the CLI or the capture box.</p>
+              {% endfor %}
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="section-title">
+              <span>Signals</span>
+              <h2>Mood spectrum</h2>
+            </div>
+            <div class="spectrum-list">
+              {% for mood in mood_spectrum %}
+                <div class="spectrum-row">
+                  <span>{{ mood.name }}</span>
+                  <div class="spectrum-track"><i style="width: {{ mood.percent }}%"></i></div>
+                  <strong>{{ mood.count }}</strong>
+                </div>
+              {% else %}
+                <p class="empty-state">Manual moods appear here after capture.</p>
+              {% endfor %}
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="section-title">
+              <span>Structured output</span>
+              <h2>AI Insight</h2>
+            </div>
+            {% if trends.symbols %}
+              <div class="insight-callout">
+                <strong>{{ trends.symbols[0].name }}</strong>
+                <p>Most recurring symbol across analyzed dreams.</p>
+              </div>
+            {% elif ai.ready %}
+              <p class="empty-state">Analysis is ready. Run <code>dreamloop analyze --pending</code> to populate symbols and themes.</p>
+            {% else %}
+              <p class="empty-state">AI is optional. Ollama keeps analysis local; DeepSeek and OpenAI are explicit opt-in providers.</p>
+            {% endif %}
+            <div class="symbol-stack">
+              {% for item in trends.symbols[:5] %}
+                <div class="symbol-row"><span>{{ item.name }}</span><i style="width: {{ item.percent or 36 }}%"></i><strong>{{ item.count }}</strong></div>
+              {% else %}
+                <div class="symbol-row muted-row"><span>No recurring symbols yet</span><i></i><strong>0</strong></div>
+              {% endfor %}
+            </div>
+          </article>
+
+          <article class="panel" id="runtime">
+            <div class="section-title">
+              <span>Runtime</span>
+              <h2>Starlit local runtime</h2>
+            </div>
+            <dl class="runtime-list">
+              <div><dt>SQLite</dt><dd>local</dd></div>
+              <div><dt>Data dir</dt><dd>{{ data_dir }}</dd></div>
+              <div><dt>Ollama</dt><dd>Ollama optional</dd></div>
+              <div><dt>DeepSeek</dt><dd>{{ ai.model if ai.provider == "deepseek" else "opt-in" }}</dd></div>
+              <div><dt>Obsidian</dt><dd>roadmap</dd></div>
+            </dl>
+            {% if ai.warning %}
+              <p class="runtime-note">{{ ai.warning }}</p>
+            {% else %}
+              <p class="runtime-note">Provider configured. Secrets are stored locally and never rendered.</p>
+            {% endif %}
+          </article>
+        </section>
+
+        <section class="capture-log-grid">
+          <article class="panel terminal-panel">
+            <div class="terminal-bar">
+              <span></span><span></span><span></span>
+              <strong>CLI-first capture</strong>
+            </div>
+            <pre><code>$ dreamloop add "I found a blue door under the sea." --tag water --mood curious
 saved locally -> .dreamloop/dreamloop.sqlite3
 analysis -> pending</code></pre>
-          <form method="post" action="/dreams" class="quick-capture">
-            <textarea name="content" placeholder="Record a dream without waiting for AI..." required></textarea>
-            <div class="form-row">
-              <input name="tags" placeholder="water, door">
-              <input name="manual_mood" placeholder="mood">
-              <button type="submit">Save locally</button>
-            </div>
-          </form>
-        </div>
-
-        <div class="paper-panel">
-          <h2>Privacy contract</h2>
-          <p>Dream text is written to a project-local `.dreamloop/` directory. DeepSeek and OpenAI are opt-in; Ollama keeps analysis on your own machine.</p>
-          <ul class="plain-list">
-            <li>data never leaves this machine by default</li>
-            <li>API keys stay in `.dreamloop/secrets.env`</li>
-            <li>designed to be forked, scripted, and extended</li>
-          </ul>
-        </div>
-      </section>
-
-      <section class="insight-grid">
-        <div class="paper-panel">
-          <div class="section-title">
-            <span>pattern map</span>
-            <h2>Emotion heatmap</h2>
-          </div>
-          <div class="heatmap">
-            {% for day in heatmap %}
-              <div class="day" title="{{ day.date }}: {{ day.count }}">
-                <span>{{ day.date[5:] }}</span>
-                <strong>{{ day.count }}</strong>
+            <form method="post" action="/dreams" class="quick-capture">
+              <textarea name="content" placeholder="Record a dream without waiting for AI..." required></textarea>
+              <div class="form-row">
+                <input name="tags" placeholder="water, door">
+                <input name="manual_mood" placeholder="mood">
+                <button type="submit">Save locally</button>
               </div>
-            {% else %}
-              <p class="muted">No dreams yet.</p>
-            {% endfor %}
-          </div>
-        </div>
+            </form>
+          </article>
 
-        <div class="paper-panel">
-          <div class="section-title">
-            <span>recurring symbols</span>
-            <h2>Trends</h2>
-          </div>
-          <div class="trend-list">
-            {% for item in trends.symbols[:5] %}
-              <div class="trend-row"><strong>{{ item.name }}</strong><span>{{ item.count }}</span></div>
-            {% else %}
-              <p class="muted">Symbols appear after dreams are added or analyzed.</p>
-            {% endfor %}
-          </div>
-        </div>
-      </section>
-
-      <section class="paper-panel dreams-section">
-        <div class="section-title">
-          <span>local log</span>
-          <h2>Recent dreams</h2>
-        </div>
-        <div class="dream-list">
-          {% for dream in dreams %}
-            <a class="dream-card" href="/dreams/{{ dream.id }}">
-              <span>#{{ dream.id }} / {{ dream.dreamed_on }} / {{ dream.analysis_status }}</span>
-              <strong>{{ dream.content }}</strong>
-              <small>{{ dream.manual_mood or "no mood" }} / {{ ", ".join(dream.tags) or "no tags" }}</small>
-            </a>
-          {% else %}
-            <p class="muted">Your first dream is waiting.</p>
-          {% endfor %}
-        </div>
-      </section>
-    </main>
+          <article class="panel" id="log">
+            <div class="section-title">
+              <span>Local logbook</span>
+              <h2>Dreamscape log</h2>
+            </div>
+            <div class="dream-grid">
+              {% for dream in dreams[:3] %}
+                <a class="dream-card" href="/dreams/{{ dream.id }}">
+                  <span>#{{ dream.id }} / {{ dream.dreamed_on }}</span>
+                  <strong>{{ dream.content }}</strong>
+                  <small>{{ dream.manual_mood or "no mood" }} / {{ ", ".join(dream.tags) or "no tags" }}</small>
+                </a>
+              {% else %}
+                <p class="empty-state">Your first dream is waiting.</p>
+              {% endfor %}
+            </div>
+          </article>
+        </section>
+      </main>
+    </div>
   </body>
 </html>

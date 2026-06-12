@@ -33,11 +33,17 @@ def test_web_home_renders_without_ai_key(tmp_path, monkeypatch):
     response = client.get("/")
 
     assert response.status_code == 200
+    assert "Good night, explorer" in response.text
     assert "Your dreams have patterns. DreamLoop finds them locally." in response.text
     assert "Ollama optional" in response.text
     assert "CLI-first" in response.text
     assert "Obsidian" in response.text
     assert "data never leaves this machine" in response.text
+    assert "Dream constellation" in response.text
+    assert "Mood spectrum" in response.text
+    assert "AI Insight" in response.text
+    assert "Dreamscape log" in response.text
+    assert "Starlit local runtime" in response.text
     assert "DreamLoop" in response.text
 
 

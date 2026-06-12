@@ -25,3 +25,13 @@ def test_readme_has_privacy_and_obsidian_roadmap_without_secret():
     assert "v0.3" in text
     assert "secrets.env" in text
     assert "sk-" not in text
+
+
+def test_hero_asset_matches_dreamscape_dashboard_direction():
+    svg = Path("docs/assets/hero-dashboard.svg").read_text(encoding="utf-8")
+
+    assert "Good night, explorer" in svg
+    assert "Dream constellation" in svg
+    assert "Mood spectrum" in svg
+    assert "AI Insight" in svg
+    assert "Dreamscape log" in svg
