@@ -2,7 +2,9 @@
 
 [English](README.md) | [中文](README.zh-CN.md)
 
-![DreamLoop hero dashboard](docs/assets/hero-dashboard.svg)
+[![CI](https://github.com/saime428/DreamLoop/actions/workflows/ci.yml/badge.svg)](https://github.com/saime428/DreamLoop/actions/workflows/ci.yml)
+
+![DreamLoop dashboard screenshot](docs/assets/dashboard-screenshot.png)
 
 **Your dreams have patterns. DreamLoop finds them locally.**
 
@@ -11,12 +13,51 @@
 - CLI-first, forkable, and built for Obsidian-minded knowledge workers.
 
 ```bash
-pipx install dreamloop
-dreamloop init
-dreamloop add "I found a blue door under the sea."
+git clone https://github.com/saime428/DreamLoop.git
+cd DreamLoop
+uv sync --extra dev
+uv run dreamloop init
+uv run dreamloop web
 ```
 
-DreamLoop is a local-first dream journal for people who want fast capture, private storage, and pattern discovery without renting their inner life to another subscription app. The web app now follows a six-page loop: Dashboard -> Log -> Detail -> Patterns -> Gallery -> Settings.
+DreamLoop is a local-first dream journal for people who want fast capture, private storage, and pattern discovery without renting their inner life to another subscription app. The web app follows a six-page loop: Dashboard -> Log -> Detail -> Patterns -> Gallery -> Settings.
+
+## Quick Start
+
+### Run locally without AI
+
+```bash
+git clone https://github.com/saime428/DreamLoop.git
+cd DreamLoop
+uv sync --extra dev
+uv run dreamloop init
+uv run dreamloop add "I found a blue door under the sea."
+uv run dreamloop web
+```
+
+Expected result:
+
+```text
+DreamLoop stores the entry in .dreamloop/dreamloop.sqlite3.
+The local dashboard starts at http://127.0.0.1:8765.
+AI analysis stays pending until you configure a provider.
+```
+
+### Enable local Ollama analysis
+
+```bash
+ollama pull qwen3:8b
+uv run dreamloop ai use ollama --model qwen3:8b
+uv run dreamloop ai test
+uv run dreamloop analyze --pending
+```
+
+Expected result:
+
+```text
+Ollama is used through http://localhost:11434/v1.
+DreamLoop writes structured analysis back to local SQLite.
+```
 
 ## Why This Project
 
@@ -24,43 +65,27 @@ Commercial dream apps usually make you pay for analysis and push personal text i
 
 The default path is zero-cost Ollama. DeepSeek, OpenAI, and custom OpenAI-compatible endpoints are optional for people who want stronger hosted models or their own local gateway. The code is small enough to fork and direct enough to extend.
 
-## Quick Start
+## Demo Assets
 
-```bash
-pipx install dreamloop
-dreamloop init
-dreamloop add "I was flying above a dark ocean." --tag water --mood anxious
-```
+- Real dashboard screenshot: `docs/assets/dashboard-screenshot.png`
+- Social preview image: `docs/assets/social-preview.png`
+- Reproducible recording guide: `docs/demo-recording.md`
 
-Then open the local dashboard:
-
-```bash
-dreamloop web
-```
-
-The dashboard starts at `http://127.0.0.1:8765`.
-
-On Windows development checkouts, you can also double-click:
-
-```text
-scripts\start-dreamloop.cmd
-```
+The recording guide covers CLI capture, the Dashboard -> Log -> Detail flow, Patterns filtering, Gallery, and Settings without exposing secrets.
 
 ## CLI Demo
 
 ```text
-$ dreamloop add "A door opened under the sea." --tag water --tag threshold
+$ uv run dreamloop add "A door opened under the sea."
 saved locally -> .dreamloop/dreamloop.sqlite3
 analysis -> pending
 
-$ dreamloop ai use ollama --model qwen3:8b
+$ uv run dreamloop ai use ollama --model qwen3:8b
 AI provider set to ollama (qwen3:8b).
 
-$ dreamloop analyze --pending
+$ uv run dreamloop analyze --pending
 Analyzed pending dreams when a provider is ready.
 ```
-
-Future release assets will include `docs/assets/cli-demo.cast` and `docs/assets/cli-demo.gif`.
 
 ## Privacy Promise
 
@@ -76,11 +101,11 @@ Future release assets will include `docs/assets/cli-demo.cast` and `docs/assets/
 DreamLoop supports provider configuration without changing the journal model:
 
 ```bash
-dreamloop ai status
-dreamloop ai use ollama --model qwen3:8b
-dreamloop ai use deepseek --model deepseek-v4-flash
-dreamloop ai use custom --model local-model --base-url http://localhost:1234/v1
-dreamloop ai test
+uv run dreamloop ai status
+uv run dreamloop ai use ollama --model qwen3:8b
+uv run dreamloop ai use deepseek --model deepseek-v4-flash
+uv run dreamloop ai use custom --model local-model --base-url http://localhost:1234/v1
+uv run dreamloop ai test
 ```
 
 Provider defaults:
@@ -101,10 +126,8 @@ The FastAPI/Jinja dashboard is intentionally lightweight:
 - Patterns: clickable calendar, recurring symbols, theme trends, and filters back into Log
 - Gallery: v0.1 local visual cards derived from saved dreams; image generation remains opt-in
 - Settings: provider selection, launch notes, local data directory, and privacy status
-- model/provider settings without rendering secrets
-- privacy contract
 
-DreamLoop is currently launched with `dreamloop web` or the lightweight Windows launcher in `scripts\start-dreamloop.cmd`. A native desktop app is a later packaging task; v0.1 stays lightweight so the local-first core remains easy to inspect and fork.
+DreamLoop is currently launched with `uv run dreamloop web` from a checkout or `dreamloop web` after package install. A native desktop app is a later packaging task; v0.1 stays lightweight so the local-first core remains easy to inspect and fork.
 
 The same app exposes JSON endpoints:
 
@@ -132,6 +155,17 @@ The same app exposes JSON endpoints:
 
 SQLite stores dreams, analysis results, imported calendar events, and synced weather. ChromaDB remains optional for richer vector search.
 
+## PyPI Release Install
+
+After the v0.1.0 package is published, install it with:
+
+```bash
+pipx install dreamloop
+dreamloop init
+dreamloop add "I was flying above a dark ocean."
+dreamloop web
+```
+
 ## Obsidian Roadmap
 
 - v0.2: Markdown export for dream entries and analysis summaries.
@@ -142,17 +176,18 @@ SQLite stores dreams, analysis results, imported calendar events, and synced wea
 
 ### v0.1
 
-- Local CLI and Web dashboard.
+- Local CLI and six-page Web loop.
 - SQLite storage.
 - Ollama-first provider settings.
 - Optional DeepSeek/OpenAI/custom structured analysis.
 - Heatmap, `.ics` import, weather sync.
 - Similar dreams and basic trends.
+- Real screenshot assets, CI, changelog, and public release packaging.
 
 ### v0.2
 
 - Markdown export.
-- Better screenshots and CLI GIF assets.
+- CLI GIF/cast release assets.
 - ChromaDB-backed clustering and recurring-theme insights.
 - Backup and restore flows.
 
