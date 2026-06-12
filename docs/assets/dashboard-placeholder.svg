@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720" role="img" aria-labelledby="title desc">
+  <title id="title">DreamLoop dashboard placeholder</title>
+  <desc id="desc">A local-first dream journal dashboard placeholder with capture, heatmap, and recent dreams.</desc>
+  <rect width="1200" height="720" fill="#f7f4ee"/>
+  <rect x="70" y="64" width="1060" height="592" rx="18" fill="#fffdf8" stroke="#ded6ca" stroke-width="2"/>
+  <text x="110" y="132" fill="#5c61d6" font-family="Arial, sans-serif" font-size="22" font-weight="700">LOCAL-FIRST DREAM JOURNAL</text>
+  <text x="110" y="184" fill="#25231f" font-family="Arial, sans-serif" font-size="56" font-weight="700">DreamLoop</text>
+  <rect x="110" y="230" width="600" height="150" rx="14" fill="#ffffff" stroke="#ded6ca" stroke-width="2"/>
+  <text x="140" y="278" fill="#716b61" font-family="Arial, sans-serif" font-size="24">Capture a dream...</text>
+  <rect x="140" y="318" width="150" height="34" rx="17" fill="#ececff"/>
+  <text x="165" y="342" fill="#5c61d6" font-family="Arial, sans-serif" font-size="18">water</text>
+  <rect x="308" y="318" width="150" height="34" rx="17" fill="#e5f6ef"/>
+  <text x="333" y="342" fill="#14795b" font-family="Arial, sans-serif" font-size="18">curious</text>
+  <rect x="110" y="420" width="440" height="170" rx="14" fill="#ffffff" stroke="#ded6ca" stroke-width="2"/>
+  <text x="140" y="464" fill="#25231f" font-family="Arial, sans-serif" font-size="26" font-weight="700">Emotion heatmap</text>
+  <g transform="translate(140 500)">
+    <rect width="42" height="42" rx="8" fill="#ececff" stroke="#c8c9f4"/>
+    <rect x="54" width="42" height="42" rx="8" fill="#d7d8ff" stroke="#c8c9f4"/>
+    <rect x="108" width="42" height="42" rx="8" fill="#bfc2ff" stroke="#aeb1f0"/>
+    <rect x="162" width="42" height="42" rx="8" fill="#ececff" stroke="#c8c9f4"/>
+    <rect x="216" width="42" height="42" rx="8" fill="#aeb1f0" stroke="#9da0e1"/>
+  </g>
+  <rect x="750" y="230" width="320" height="360" rx="14" fill="#ffffff" stroke="#ded6ca" stroke-width="2"/>
+  <text x="780" y="274" fill="#25231f" font-family="Arial, sans-serif" font-size="26" font-weight="700">Recent dreams</text>
+  <rect x="780" y="310" width="250" height="62" rx="10" fill="#f7f4ee"/>
+  <rect x="780" y="392" width="250" height="62" rx="10" fill="#f7f4ee"/>
+  <rect x="780" y="474" width="250" height="62" rx="10" fill="#f7f4ee"/>
+  <text x="805" y="348" fill="#716b61" font-family="Arial, sans-serif" font-size="19">#1 ocean, flying</text>
+  <text x="805" y="430" fill="#716b61" font-family="Arial, sans-serif" font-size="19">#2 city, water</text>
+  <text x="805" y="512" fill="#716b61" font-family="Arial, sans-serif" font-size="19">#3 door, sunrise</text>
+</svg>

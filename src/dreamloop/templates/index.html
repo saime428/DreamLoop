@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>DreamLoop</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/style.css') }}">
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Local-first dream journal</p>
+          <h1>DreamLoop</h1>
+        </div>
+        <span class="status {% if ai_configured %}ready{% endif %}">
+          {% if ai_configured %}AI configured{% else %}AI not configured{% endif %}
+        </span>
+      </header>
+
+      <section class="panel compose">
+        <h2>Capture a dream</h2>
+        <form method="post" action="/dreams">
+          <textarea name="content" placeholder="I was flying over the sea..." required></textarea>
+          <div class="form-row">
+            <input name="tags" placeholder="water, flying">
+            <input name="manual_mood" placeholder="mood">
+            <button type="submit">Save</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="grid">
+        <div class="panel">
+          <h2>Emotion heatmap</h2>
+          <div class="heatmap">
+            {% for day in heatmap %}
+              <div class="day" title="{{ day.date }}: {{ day.count }}">
+                <span>{{ day.date[5:] }}</span>
+                <strong>{{ day.count }}</strong>
+              </div>
+            {% else %}
+              <p class="muted">No dreams yet.</p>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="panel">
+          <h2>Recent dreams</h2>
+          <div class="dream-list">
+            {% for dream in dreams %}
+              <a class="dream-card" href="/dreams/{{ dream.id }}">
+                <span>#{{ dream.id }} · {{ dream.dreamed_on }}</span>
+                <strong>{{ dream.content }}</strong>
+                <small>{{ dream.manual_mood or "no mood" }} · {{ ", ".join(dream.tags) or "no tags" }}</small>
+              </a>
+            {% else %}
+              <p class="muted">Your first dream is waiting.</p>
+            {% endfor %}
+          </div>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
