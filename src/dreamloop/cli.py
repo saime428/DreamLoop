@@ -124,3 +124,7 @@ def ai_use(
 @ai_app.command("test")
 def ai_test() -> None:
     typer.echo(test_provider_connection())
+
+
+def main() -> None:
+    app()

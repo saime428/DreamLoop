@@ -1,15 +1,23 @@
-name: CI
+name: Publish to PyPI
 
 on:
-  push:
-    branches: [master]
-  pull_request:
-    branches: [master]
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
-  test:
-    name: Test and build
+  publish:
+    name: Build and publish
     runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/dreamloop
+    permissions:
+      contents: read
+      id-token: write
 
     steps:
       - name: Check out repository
@@ -26,14 +34,11 @@ jobs:
       - name: Install dependencies
         run: uv sync --extra dev
 
-      - name: Verify console script
-        run: uv run dreamloop --help
-
-      - name: Run tests
-        run: uv run --extra dev pytest
-
       - name: Build package
         run: uv build
 
       - name: Check package metadata
         run: uv run --extra dev twine check dist/*
+
+      - name: Publish package distributions to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1

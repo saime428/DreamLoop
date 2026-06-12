@@ -375,7 +375,7 @@ def test_detail_page_supports_chinese_language(tmp_path):
     response = client.get(f"/dreams/{dream_id}?lang=zh")
 
     assert response.status_code == 200
-    assert "返回工作台" in response.text
+    assert "返回总览" in response.text
     assert "AI 分析" in response.text
     assert "生成梦境画面" in response.text
 
