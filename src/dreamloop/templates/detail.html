@@ -65,6 +65,9 @@
               </details>
             {% elif ai.ready %}
               <p class="empty-state">{{ t.pending_analysis }}: {{ ai.provider }} / {{ ai.model }}</p>
+              <form method="post" action="/dreams/{{ dream.id }}/analyze?lang={{ lang }}" class="analyze-form">
+                <button type="submit">{{ t.generate_chinese_analysis if lang == "zh" else t.generate_english_analysis }}</button>
+              </form>
             {% else %}
               <p class="empty-state">{{ t.analysis_unavailable }}</p>
             {% endif %}

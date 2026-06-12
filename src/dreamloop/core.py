@@ -55,13 +55,45 @@ class DreamLoop:
             )
             return int(cursor.lastrowid)
 
+    def add_dream_with_analysis(
+        self,
+        content: str,
+        analysis: dict[str, Any],
+        *,
+        language: str = "en",
+        dreamed_on: date | None = None,
+    ) -> int:
+        self.init()
+        if not content.strip():
+            raise ValueError("Dream content cannot be empty.")
+        dreamed_on = dreamed_on or date.today()
+        with self._connect() as db:
+            cursor = db.execute(
+                """
+                INSERT INTO dreams (
+                    content, created_at, dreamed_on, manual_mood, tags_json, analysis_status
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    content.strip(),
+                    datetime.now().isoformat(timespec="seconds"),
+                    dreamed_on.isoformat(),
+                    None,
+                    "[]",
+                    "analyzed",
+                ),
+            )
+            dream_id = int(cursor.lastrowid)
+            self._store_analysis(db, dream_id, normalize_analysis(analysis), language)
+            return dream_id
+
     def list_dreams(self) -> list[dict[str, Any]]:
         self.init()
         with self._connect() as db:
             rows = db.execute("SELECT * FROM dreams ORDER BY dreamed_on DESC, id DESC").fetchall()
         return [self._dream_from_row(row) for row in rows]
 
-    def get_dream(self, dream_id: int) -> dict[str, Any]:
+    def get_dream(self, dream_id: int, language: str = "en") -> dict[str, Any]:
         self.init()
         with self._connect() as db:
             row = db.execute("SELECT * FROM dreams WHERE id = ?", (dream_id,)).fetchone()
@@ -69,10 +101,12 @@ class DreamLoop:
                 raise KeyError(f"Dream {dream_id} was not found.")
             dream = self._dream_from_row(row)
             analysis = db.execute(
-                "SELECT * FROM dream_analyses WHERE dream_id = ?", (dream_id,)
+                "SELECT * FROM dream_analyses WHERE dream_id = ? AND language = ?",
+                (dream_id, normalize_language(language)),
             ).fetchone()
         if analysis:
             dream["analysis"] = {
+                "language": analysis["language"],
                 "emotional_tone": analysis["emotional_tone"],
                 "symbols": json.loads(analysis["symbols_json"]),
                 "themes": json.loads(analysis["themes_json"]),
@@ -84,7 +118,13 @@ class DreamLoop:
             dream["analysis"] = None
         return dream
 
-    def analyze_pending(self, analyzer: Analyzer | None = None, limit: int | None = None) -> list[int]:
+    def analyze_pending(
+        self,
+        analyzer: Analyzer | None = None,
+        limit: int | None = None,
+        *,
+        language: str = "en",
+    ) -> list[int]:
         self.init()
         if analyzer is None:
             analyzer = build_analyzer(self.root)
@@ -101,11 +141,11 @@ class DreamLoop:
         with self._connect() as db:
             rows = db.execute(sql, params).fetchall()
             for row in rows:
-                self._write_analysis(db, int(row["id"]), row["content"], analyzer)
+                self._write_analysis(db, int(row["id"]), row["content"], analyzer, language)
                 analyzed.append(int(row["id"]))
         return analyzed
 
-    def analyze_dream(self, dream_id: int, analyzer: Analyzer | None = None) -> int:
+    def analyze_dream(self, dream_id: int, analyzer: Analyzer | None = None, *, language: str = "en") -> int:
         self.init()
         if analyzer is None:
             analyzer = build_analyzer(self.root)
@@ -116,7 +156,7 @@ class DreamLoop:
             row = db.execute("SELECT * FROM dreams WHERE id = ?", (dream_id,)).fetchone()
             if row is None:
                 raise KeyError(f"Dream {dream_id} was not found.")
-            self._write_analysis(db, dream_id, row["content"], analyzer)
+            self._write_analysis(db, dream_id, row["content"], analyzer, language)
         return dream_id
 
     def import_ics(self, path: str | Path) -> int:
@@ -226,14 +266,14 @@ class DreamLoop:
                 matches.append(dream)
         return sorted(matches, key=lambda item: item["score"], reverse=True)[:limit]
 
-    def trends(self) -> dict[str, list[dict[str, Any]]]:
+    def trends(self, language: str = "en") -> dict[str, list[dict[str, Any]]]:
         self.init()
         tags: Counter[str] = Counter()
         symbols: Counter[str] = Counter()
         themes: Counter[str] = Counter()
         for dream in self.list_dreams():
             tags.update(dream["tags"])
-            analysis = self.get_dream(dream["id"])["analysis"]
+            analysis = self.get_dream(dream["id"], language=language)["analysis"]
             if analysis:
                 symbols.update(analysis["symbols"])
                 themes.update(analysis["themes"])
@@ -254,15 +294,26 @@ class DreamLoop:
         dream_id: int,
         content: str,
         analyzer: Analyzer,
+        language: str,
     ) -> None:
-        normalized = normalize_analysis(analyzer.analyze(content))
+        normalized = normalize_analysis(analyzer.analyze(content, language=normalize_language(language)))
+        self._store_analysis(db, dream_id, normalized, language)
+
+    def _store_analysis(
+        self,
+        db: sqlite3.Connection,
+        dream_id: int,
+        normalized: dict[str, Any],
+        language: str,
+    ) -> None:
+        language = normalize_language(language)
         db.execute(
             """
             INSERT INTO dream_analyses (
-                dream_id, emotional_tone, symbols_json, themes_json, summary,
+                dream_id, language, emotional_tone, symbols_json, themes_json, summary,
                 confidence, raw_json
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(dream_id) DO UPDATE SET
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(dream_id, language) DO UPDATE SET
                 emotional_tone = excluded.emotional_tone,
                 symbols_json = excluded.symbols_json,
                 themes_json = excluded.themes_json,
@@ -272,6 +323,7 @@ class DreamLoop:
             """,
             (
                 dream_id,
+                language,
                 normalized["emotional_tone"],
                 json.dumps(normalized["symbols"], ensure_ascii=False),
                 json.dumps(normalized["themes"], ensure_ascii=False),
@@ -296,16 +348,6 @@ class DreamLoop:
                     analysis_status TEXT NOT NULL DEFAULT 'pending'
                 );
 
-                CREATE TABLE IF NOT EXISTS dream_analyses (
-                    dream_id INTEGER PRIMARY KEY REFERENCES dreams(id) ON DELETE CASCADE,
-                    emotional_tone TEXT NOT NULL,
-                    symbols_json TEXT NOT NULL DEFAULT '[]',
-                    themes_json TEXT NOT NULL DEFAULT '[]',
-                    summary TEXT NOT NULL DEFAULT '',
-                    confidence REAL NOT NULL DEFAULT 0,
-                    raw_json TEXT NOT NULL
-                );
-
                 CREATE TABLE IF NOT EXISTS calendar_events (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     uid TEXT,
@@ -327,6 +369,72 @@ class DreamLoop:
                 );
                 """
             )
+            self._migrate_analysis_table(db)
+
+    def _migrate_analysis_table(self, db: sqlite3.Connection) -> None:
+        columns = db.execute("PRAGMA table_info(dream_analyses)").fetchall()
+        if not columns:
+            self._create_analysis_table(db)
+            return
+
+        column_names = {column["name"] for column in columns}
+        pk_columns = [
+            column["name"]
+            for column in sorted((column for column in columns if column["pk"]), key=lambda item: item["pk"])
+        ]
+        if "language" in column_names and pk_columns == ["dream_id", "language"]:
+            return
+
+        db.execute("ALTER TABLE dream_analyses RENAME TO dream_analyses_old")
+        self._create_analysis_table(db)
+        required = {
+            "dream_id",
+            "emotional_tone",
+            "symbols_json",
+            "themes_json",
+            "summary",
+            "confidence",
+            "raw_json",
+        }
+        if required.issubset(column_names):
+            language_expression = "language" if "language" in column_names else "'en'"
+            db.execute(
+                f"""
+                INSERT OR REPLACE INTO dream_analyses (
+                    dream_id, language, emotional_tone, symbols_json, themes_json, summary,
+                    confidence, raw_json
+                )
+                SELECT
+                    dream_id,
+                    COALESCE(NULLIF({language_expression}, ''), 'en'),
+                    emotional_tone,
+                    symbols_json,
+                    themes_json,
+                    summary,
+                    confidence,
+                    raw_json
+                FROM dream_analyses_old
+                """
+            )
+        db.execute("DROP TABLE dream_analyses_old")
+
+    @staticmethod
+    def _create_analysis_table(db: sqlite3.Connection) -> None:
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS dream_analyses (
+                dream_id INTEGER NOT NULL REFERENCES dreams(id) ON DELETE CASCADE,
+                language TEXT NOT NULL DEFAULT 'en',
+                emotional_tone TEXT NOT NULL,
+                symbols_json TEXT NOT NULL DEFAULT '[]',
+                themes_json TEXT NOT NULL DEFAULT '[]',
+                summary TEXT NOT NULL DEFAULT '',
+                confidence REAL NOT NULL DEFAULT 0,
+                raw_json TEXT NOT NULL,
+                PRIMARY KEY (dream_id, language)
+            )
+            """
+        )
 
     def _ensure_gitignore(self) -> None:
         gitignore = self.root / ".gitignore"
@@ -345,6 +453,10 @@ class DreamLoop:
 def value_at(payload: dict[str, Any], key: str, index: int) -> Any:
     values = payload.get(key, [])
     return values[index] if index < len(values) else None
+
+
+def normalize_language(language: str | None) -> str:
+    return language if language in {"en", "zh"} else "en"
 
 
 def dream_terms(dream: dict[str, Any]) -> set[str]:

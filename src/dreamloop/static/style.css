@@ -794,6 +794,7 @@ pre {
   border-top: 0;
   display: grid;
   align-content: start;
+  gap: 12px;
 }
 
 textarea,
@@ -833,6 +834,40 @@ button {
   cursor: pointer;
   font-weight: 800;
   padding: 0 14px;
+}
+
+.form-actions,
+.draft-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.form-actions button {
+  min-width: 160px;
+}
+
+.secondary-button {
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--muted);
+}
+
+.secondary-link {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+  font-family: "Cascadia Mono", "JetBrains Mono", Consolas, monospace;
+  font-size: 13px;
+  padding: 9px 12px;
+  text-decoration: none;
+}
+
+.secondary-link:hover,
+.secondary-button:hover {
+  border-color: var(--line-strong);
+  color: var(--text);
 }
 
 .dream-grid {

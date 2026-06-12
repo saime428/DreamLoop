@@ -48,12 +48,18 @@
               <h2>{{ t.log_dream }}</h2>
             </div>
             <p class="lede">{{ t.lede }}</p>
-            <form method="post" action="/dreams?lang={{ lang }}" class="quick-capture hero-quick-capture">
-              <textarea name="content" placeholder="{{ t.content_placeholder }}" required autofocus></textarea>
-              <div class="form-row">
-                <input name="tags" placeholder="{{ t.tags_placeholder }}">
-                <input name="manual_mood" placeholder="{{ t.mood_placeholder }}">
-                <button type="submit">{{ t.save_locally }}</button>
+            <form method="post" action="/drafts/analyze?lang={{ lang }}" class="quick-capture hero-quick-capture">
+              <textarea name="content" placeholder="{{ t.content_placeholder }}" required autofocus>{{ draft.content if draft else draft_content }}</textarea>
+              {% if analysis_error %}
+                <p class="status-message warning">{{ t.analysis_failed }}</p>
+              {% elif not ai.ready %}
+                <p class="status-message warning">{{ t.analysis_unavailable_before_save }}</p>
+              {% endif %}
+              <div class="form-actions">
+                <button type="submit">{{ t.analyze_dream }}</button>
+                {% if analysis_error or not ai.ready %}
+                  <button type="submit" class="secondary-button" formaction="/dreams?lang={{ lang }}" formmethod="post">{{ t.save_without_ai }}</button>
+                {% endif %}
               </div>
             </form>
             <div class="hero-command">
@@ -68,11 +74,31 @@
               <h2>{{ t.ai_analysis }}</h2>
             </div>
 
-            {% if analysis_error %}
-              <p class="status-message warning">{{ t.analysis_failed }}</p>
-            {% endif %}
-
-            {% if not latest_dream %}
+            {% if draft %}
+              <div class="latest-dream-preview">
+                <span>{{ t.draft_analysis }} / {{ draft.language }} / {{ t.draft_not_saved }}</span>
+                <p>{{ draft.content }}</p>
+              </div>
+              <div class="analysis-status ready">{{ t.analysis_ready }}</div>
+              <dl class="analysis-list">
+                <div><dt>{{ t.emotional_tone }}</dt><dd>{{ draft.analysis.emotional_tone }}</dd></div>
+                <div><dt>{{ t.symbols }}</dt><dd>{{ ", ".join(draft.analysis.symbols) or "-" }}</dd></div>
+                <div><dt>{{ t.themes }}</dt><dd>{{ ", ".join(draft.analysis.themes) or "-" }}</dd></div>
+                <div><dt>{{ t.confidence }}</dt><dd>{{ "%.0f"|format(draft.analysis.confidence * 100) }}%</dd></div>
+              </dl>
+              <p class="analysis-summary">{{ draft.analysis.summary }}</p>
+              <form method="post" action="/drafts/save?lang={{ lang }}" class="draft-actions">
+                <input type="hidden" name="content" value="{{ draft.content }}">
+                <input type="hidden" name="analysis_language" value="{{ draft.language }}">
+                <textarea name="analysis_json" hidden>{{ draft.analysis_json }}</textarea>
+                <button type="submit">{{ t.save_analysis }}</button>
+                <a href="/?lang={{ lang }}" class="secondary-link">{{ t.discard }}</a>
+              </form>
+              <details>
+                <summary>{{ t.raw_json }}</summary>
+                <pre><code>{{ draft.analysis.raw_json }}</code></pre>
+              </details>
+            {% elif not latest_dream %}
               <p class="empty-state">{{ t.no_dream }}</p>
             {% else %}
               <div class="latest-dream-preview">
@@ -96,7 +122,7 @@
               {% elif ai.ready %}
                 <div class="analysis-status pending">{{ t.pending_analysis }}</div>
                 <form method="post" action="/dreams/{{ latest_dream.id }}/analyze?lang={{ lang }}" class="analyze-form">
-                  <button type="submit">{{ t.analyze_now }}</button>
+                  <button type="submit">{{ t.generate_chinese_analysis if lang == "zh" else t.generate_english_analysis }}</button>
                 </form>
                 <p class="runtime-note">{{ ai.provider }} / {{ ai.model or "model" }}</p>
               {% else %}

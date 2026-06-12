@@ -17,7 +17,7 @@ DEFAULT_OPENAI_MODEL = "gpt-4.1-mini"
 
 
 class Analyzer(Protocol):
-    def analyze(self, content: str) -> dict[str, Any]:
+    def analyze(self, content: str, language: str = "en") -> dict[str, Any]:
         """Return structured dream analysis for a dream text."""
 
 
@@ -35,7 +35,7 @@ class AIStatus:
 class StaticAnalyzer:
     result: dict[str, Any]
 
-    def analyze(self, content: str) -> dict[str, Any]:
+    def analyze(self, content: str, language: str = "en") -> dict[str, Any]:
         return dict(self.result)
 
 
@@ -47,12 +47,13 @@ class OpenAICompatibleAnalyzer:
     api_key: str
     response_format: dict[str, str]
 
-    def analyze(self, content: str) -> dict[str, Any]:
+    def analyze(self, content: str, language: str = "en") -> dict[str, Any]:
         try:
             from openai import OpenAI
         except ImportError as exc:
             raise RuntimeError("Install dreamloop[ai] to enable cloud model analysis.") from exc
 
+        output_language = "Simplified Chinese" if language == "zh" else "English"
         client = OpenAI(api_key=self.api_key, base_url=self.base_url)
         response = client.chat.completions.create(
             model=self.model,
@@ -61,7 +62,9 @@ class OpenAICompatibleAnalyzer:
                     "role": "system",
                     "content": (
                         "Analyze dreams as structured data. Return only JSON with "
-                        "emotional_tone, symbols, themes, summary, and confidence."
+                        "emotional_tone, symbols, themes, summary, and confidence. "
+                        "Keep JSON keys in English. Write all field values in "
+                        f"{output_language}."
                     ),
                 },
                 {"role": "user", "content": content},
@@ -121,7 +124,7 @@ class LegacyResponsesAnalyzer:
     def __init__(self, model: str = DEFAULT_OPENAI_MODEL) -> None:
         self.model = model
 
-    def analyze(self, content: str) -> dict[str, Any]:
+    def analyze(self, content: str, language: str = "en") -> dict[str, Any]:
         try:
             from openai import OpenAI
         except ImportError as exc:
@@ -130,6 +133,7 @@ class LegacyResponsesAnalyzer:
         if not os.getenv("OPENAI_API_KEY"):
             raise RuntimeError("OPENAI_API_KEY is not configured.")
 
+        output_language = "Simplified Chinese" if language == "zh" else "English"
         client = OpenAI()
         response = client.responses.create(
             model=self.model,
@@ -138,7 +142,9 @@ class LegacyResponsesAnalyzer:
                     "role": "system",
                     "content": (
                         "Analyze dreams as structured data. Return only JSON with "
-                        "emotional_tone, symbols, themes, summary, and confidence."
+                        "emotional_tone, symbols, themes, summary, and confidence. "
+                        "Keep JSON keys in English. Write all field values in "
+                        f"{output_language}."
                     ),
                 },
                 {"role": "user", "content": content},

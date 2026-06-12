@@ -7,6 +7,29 @@ from dreamloop.analysis import StaticAnalyzer
 from dreamloop.core import DreamLoop
 
 
+class LanguageAnalyzer:
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, str]] = []
+
+    def analyze(self, content: str, language: str = "en") -> dict[str, object]:
+        self.calls.append((content, language))
+        if language == "zh":
+            return {
+                "emotional_tone": "平静",
+                "symbols": ["月亮"],
+                "themes": ["抵达"],
+                "summary": "一场关于月光下抵达的梦。",
+                "confidence": 0.91,
+            }
+        return {
+            "emotional_tone": "calm",
+            "symbols": ["moon"],
+            "themes": ["arrival"],
+            "summary": "A dream about arriving under moonlight.",
+            "confidence": 0.9,
+        }
+
+
 def test_init_creates_local_store_and_gitignore(tmp_path):
     loop = DreamLoop(tmp_path)
 
@@ -87,6 +110,49 @@ def test_analyze_dream_writes_only_requested_dream(tmp_path):
     second = loop.get_dream(second_id)
     assert second["analysis_status"] == "analyzed"
     assert second["analysis"]["symbols"] == ["river", "station"]
+
+
+def test_analyze_dream_stores_separate_language_results(tmp_path):
+    loop = DreamLoop(tmp_path)
+    loop.init()
+    dream_id = loop.add_dream("The moon was above the harbor.")
+    analyzer = LanguageAnalyzer()
+
+    loop.analyze_dream(dream_id, analyzer, language="en")
+    loop.analyze_dream(dream_id, analyzer, language="zh")
+
+    english = loop.get_dream(dream_id, language="en")
+    chinese = loop.get_dream(dream_id, language="zh")
+    assert analyzer.calls == [
+        ("The moon was above the harbor.", "en"),
+        ("The moon was above the harbor.", "zh"),
+    ]
+    assert english["analysis"]["summary"] == "A dream about arriving under moonlight."
+    assert chinese["analysis"]["summary"] == "一场关于月光下抵达的梦。"
+    assert chinese["analysis"]["symbols"] == ["月亮"]
+
+
+def test_add_dream_with_analysis_saves_selected_language(tmp_path):
+    loop = DreamLoop(tmp_path)
+    loop.init()
+
+    dream_id = loop.add_dream_with_analysis(
+        "我打开了一扇发光的门。",
+        {
+            "emotional_tone": "好奇",
+            "symbols": ["门"],
+            "themes": ["发现"],
+            "summary": "一场关于发现隐藏之门的梦。",
+            "confidence": 0.86,
+        },
+        language="zh",
+    )
+
+    chinese = loop.get_dream(dream_id, language="zh")
+    english = loop.get_dream(dream_id, language="en")
+    assert chinese["analysis_status"] == "analyzed"
+    assert chinese["analysis"]["summary"] == "一场关于发现隐藏之门的梦。"
+    assert english["analysis"] is None
 
 
 def test_import_ics_and_weather_feed_heatmap_context(tmp_path):

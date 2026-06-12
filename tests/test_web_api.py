@@ -1,9 +1,34 @@
 from __future__ import annotations
 
+import json
+
 from fastapi.testclient import TestClient
 
 from dreamloop.analysis import StaticAnalyzer
 from dreamloop.web import create_app
+
+
+class LanguageAwareAnalyzer:
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, str]] = []
+
+    def analyze(self, content: str, language: str = "en") -> dict[str, object]:
+        self.calls.append((content, language))
+        if language == "zh":
+            return {
+                "emotional_tone": "好奇",
+                "symbols": ["门"],
+                "themes": ["发现"],
+                "summary": "一场关于发现隐藏之门的梦。",
+                "confidence": 0.86,
+            }
+        return {
+            "emotional_tone": "curious",
+            "symbols": ["door"],
+            "themes": ["discovery"],
+            "summary": "A dream about finding a hidden door.",
+            "confidence": 0.84,
+        }
 
 
 def test_api_creates_lists_and_reads_dreams(tmp_path):
@@ -59,11 +84,15 @@ def test_web_home_prioritizes_capture_and_ai_analysis(tmp_path):
     assert "Log Dream" in response.text
     assert "AI Analysis" in response.text
     assert 'placeholder="Record a dream before it fades..."' in response.text
+    assert 'action="/drafts/analyze?lang=en"' in response.text
+    assert 'name="tags"' not in response.text
+    assert 'name="manual_mood"' not in response.text
+    assert "AI Analysis</button>" in response.text
     assert response.text.index("Log Dream") < response.text.index("Dream constellation")
     assert response.text.index("AI Analysis") < response.text.index("Dreamscape log")
 
 
-def test_web_home_shows_analyze_now_for_latest_pending_dream(tmp_path):
+def test_web_home_shows_current_language_analyze_button_for_pending_dream(tmp_path):
     app = create_app(tmp_path)
     client = TestClient(app)
     client.post("/api/dreams", json={"content": "A river crossed the station.", "tags": ["river"]})
@@ -76,17 +105,52 @@ def test_web_home_shows_analyze_now_for_latest_pending_dream(tmp_path):
     assert "/dreams/1/analyze?lang=en" in response.text
 
 
+def test_draft_analyze_does_not_persist_until_save(tmp_path):
+    app = create_app(tmp_path)
+    app.state.analyzer = LanguageAwareAnalyzer()
+    client = TestClient(app)
+
+    response = client.post("/drafts/analyze?lang=zh", data={"content": "我打开了一扇发光的门。"})
+
+    assert response.status_code == 200
+    assert "一场关于发现隐藏之门的梦。" in response.text
+    assert "保存到本地" in response.text
+    assert app.state.loop.list_dreams() == []
+    assert app.state.analyzer.calls == [("我打开了一扇发光的门。", "zh")]
+
+
+def test_draft_save_creates_dream_with_language_analysis(tmp_path):
+    app = create_app(tmp_path)
+    client = TestClient(app)
+    analysis = {
+        "emotional_tone": "好奇",
+        "symbols": ["门"],
+        "themes": ["发现"],
+        "summary": "一场关于发现隐藏之门的梦。",
+        "confidence": 0.86,
+    }
+
+    response = client.post(
+        "/drafts/save?lang=zh",
+        data={
+            "content": "我打开了一扇发光的门。",
+            "analysis_json": json.dumps(analysis, ensure_ascii=False),
+            "analysis_language": "zh",
+        },
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/?lang=zh"
+    dream = client.get("/api/dreams/1?lang=zh").json()
+    assert dream["content"] == "我打开了一扇发光的门。"
+    assert dream["analysis"]["summary"] == "一场关于发现隐藏之门的梦。"
+    assert client.get("/api/dreams/1?lang=en").json()["analysis"] is None
+
+
 def test_web_single_dream_analysis_route_preserves_language(tmp_path):
     app = create_app(tmp_path)
-    app.state.analyzer = StaticAnalyzer(
-        {
-            "emotional_tone": "calm",
-            "symbols": ["moon"],
-            "themes": ["arrival"],
-            "summary": "A quiet dream about arriving under moonlight.",
-            "confidence": 0.9,
-        }
-    )
+    app.state.analyzer = LanguageAwareAnalyzer()
     client = TestClient(app)
     dream_id = client.post("/api/dreams", json={"content": "The moon was above the harbor."}).json()["id"]
 
@@ -94,12 +158,13 @@ def test_web_single_dream_analysis_route_preserves_language(tmp_path):
 
     assert response.status_code == 303
     assert response.headers["location"] == "/?lang=zh"
-    dream = client.get(f"/api/dreams/{dream_id}").json()
+    dream = client.get(f"/api/dreams/{dream_id}?lang=zh").json()
     assert dream["analysis_status"] == "analyzed"
-    assert dream["analysis"]["summary"] == "A quiet dream about arriving under moonlight."
+    assert dream["analysis"]["summary"] == "一场关于发现隐藏之门的梦。"
+    assert client.get(f"/api/dreams/{dream_id}?lang=en").json()["analysis"] is None
     home = client.get("/?lang=en")
-    assert "Structured analysis" in home.text
-    assert "A quiet dream about arriving under moonlight." in home.text
+    assert "Pending analysis" in home.text
+    assert "一场关于发现隐藏之门的梦。" not in home.text
 
 
 def test_api_analyzes_single_dream_with_override(tmp_path):
@@ -117,12 +182,26 @@ def test_api_analyzes_single_dream_with_override(tmp_path):
     first_id = client.post("/api/dreams", json={"content": "I watched the rain."}).json()["id"]
     second_id = client.post("/api/dreams", json={"content": "I opened a hidden door."}).json()["id"]
 
-    response = client.post(f"/api/dreams/{second_id}/analyze")
+    response = client.post(f"/api/dreams/{second_id}/analyze?lang=en")
 
     assert response.status_code == 200
-    assert response.json() == {"analyzed": second_id, "ai_configured": True, "provider": "test"}
+    assert response.json() == {"analyzed": second_id, "ai_configured": True, "provider": "test", "language": "en"}
     assert client.get(f"/api/dreams/{first_id}").json()["analysis_status"] == "pending"
     assert client.get(f"/api/dreams/{second_id}").json()["analysis"]["symbols"] == ["door"]
+
+
+def test_api_analyze_returns_requested_language(tmp_path):
+    app = create_app(tmp_path)
+    app.state.analyzer = LanguageAwareAnalyzer()
+    client = TestClient(app)
+    dream_id = client.post("/api/dreams", json={"content": "I opened a hidden door."}).json()["id"]
+
+    response = client.post(f"/api/dreams/{dream_id}/analyze?lang=zh")
+
+    assert response.status_code == 200
+    assert response.json()["language"] == "zh"
+    assert client.get(f"/api/dreams/{dream_id}?lang=zh").json()["analysis"]["summary"] == "一场关于发现隐藏之门的梦。"
+    assert client.get(f"/api/dreams/{dream_id}?lang=en").json()["analysis"] is None
 
 
 def test_home_supports_english_and_chinese_language_toggle(tmp_path):
@@ -146,7 +225,7 @@ def test_create_dream_form_preserves_language(tmp_path):
 
     response = client.post(
         "/dreams?lang=zh",
-        data={"content": "我梦见一条河。", "tags": "河", "manual_mood": "平静"},
+        data={"content": "我梦见一条河。"},
         follow_redirects=False,
     )
 

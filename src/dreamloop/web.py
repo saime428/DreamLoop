@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -10,7 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 
-from .analysis import Analyzer, ai_status
+from .analysis import Analyzer, ai_status, build_analyzer, normalize_analysis
 from .core import DreamLoop
 
 PACKAGE_DIR = Path(__file__).parent
@@ -34,6 +35,15 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "tags_placeholder": "water, door",
         "mood_placeholder": "mood",
         "save_locally": "Save locally",
+        "analyze_dream": "AI Analysis",
+        "save_without_ai": "Save without AI",
+        "draft_analysis": "Draft analysis",
+        "draft_not_saved": "Not saved yet",
+        "save_analysis": "Save locally",
+        "discard": "Discard",
+        "generate_language_analysis": "Generate this language analysis",
+        "generate_chinese_analysis": "Generate Chinese analysis",
+        "generate_english_analysis": "Analyze now",
         "cli_first": "CLI-first capture",
         "ai_analysis": "AI Analysis",
         "no_dream": "Record a dream to unlock AI analysis.",
@@ -42,7 +52,8 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "analyze_now": "Analyze now",
         "analysis_ready": "Structured analysis",
         "analysis_unavailable": "AI analysis is optional. Configure Ollama, DeepSeek, or OpenAI when you want model output.",
-        "analysis_failed": "Analysis failed. Your dream is still saved locally.",
+        "analysis_unavailable_before_save": "AI is not ready. You can still save the dream locally without analysis.",
+        "analysis_failed": "Analysis failed. Nothing was saved yet.",
         "emotional_tone": "Emotional tone",
         "symbols": "Symbols",
         "themes": "Themes",
@@ -102,6 +113,15 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "tags_placeholder": "水, 门",
         "mood_placeholder": "情绪",
         "save_locally": "保存到本地",
+        "analyze_dream": "AI 分析",
+        "save_without_ai": "无 AI 保存",
+        "draft_analysis": "草稿分析",
+        "draft_not_saved": "尚未保存",
+        "save_analysis": "保存到本地",
+        "discard": "放弃",
+        "generate_language_analysis": "生成当前语言分析",
+        "generate_chinese_analysis": "生成中文分析",
+        "generate_english_analysis": "生成英文分析",
         "cli_first": "CLI 优先记录",
         "ai_analysis": "AI 分析",
         "no_dream": "先记录一条梦境，就可以开始 AI 分析。",
@@ -110,7 +130,8 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "analyze_now": "立即分析",
         "analysis_ready": "结构化分析",
         "analysis_unavailable": "AI 分析是可选功能。需要模型输出时，再配置 Ollama、DeepSeek 或 OpenAI。",
-        "analysis_failed": "分析失败。梦境仍已保存在本地。",
+        "analysis_unavailable_before_save": "AI 暂不可用，你仍可先把梦境保存到本地。",
+        "analysis_failed": "分析失败。当前内容尚未保存。",
         "emotional_tone": "情绪基调",
         "symbols": "符号",
         "themes": "主题",
@@ -206,28 +227,41 @@ def create_app(root: str | Path | None = None) -> FastAPI:
     app.state.loop = loop
     app.mount("/static", StaticFiles(directory=str(PACKAGE_DIR / "static")), name="static")
 
-    @app.get("/", response_class=HTMLResponse)
-    def home(request: Request, lang: str = "en", analysis_error: str = "") -> Any:
+    def render_home(
+        request: Request,
+        lang: str = "en",
+        *,
+        analysis_error: bool = False,
+        draft: dict[str, Any] | None = None,
+        draft_content: str = "",
+    ) -> Any:
         lang = _lang(lang)
         dreams = loop.list_dreams()
-        latest_dream = loop.get_dream(dreams[0]["id"]) if dreams else None
+        localized_dreams = [loop.get_dream(dream["id"], language=lang) for dream in dreams]
+        latest_dream = localized_dreams[0] if localized_dreams else None
         return templates.TemplateResponse(
             request,
             "index.html",
             {
-                "dreams": dreams,
+                "dreams": localized_dreams,
                 "latest_dream": latest_dream,
                 "heatmap": loop.heatmap(),
                 "ai": ai_status(loop.root),
-                "trends": loop.trends(),
+                "trends": loop.trends(language=lang),
                 "data_dir": loop.data_dir,
-                "pending_count": sum(1 for dream in dreams if dream["analysis_status"] == "pending"),
+                "pending_count": sum(1 for dream in localized_dreams if dream["analysis"] is None),
                 "mood_spectrum": _mood_spectrum(dreams),
                 "lang": lang,
                 "t": TRANSLATIONS[lang],
-                "analysis_error": bool(analysis_error),
+                "analysis_error": analysis_error,
+                "draft": draft,
+                "draft_content": draft_content,
             },
         )
+
+    @app.get("/", response_class=HTMLResponse)
+    def home(request: Request, lang: str = "en", analysis_error: str = "") -> Any:
+        return render_home(request, lang, analysis_error=bool(analysis_error))
 
     @app.post("/dreams")
     def create_dream_form(
@@ -240,11 +274,49 @@ def create_app(root: str | Path | None = None) -> FastAPI:
         loop.add_dream(content, tags=tag_list, mood=manual_mood or None)
         return RedirectResponse(_home_url(lang), status_code=status.HTTP_303_SEE_OTHER)
 
+    @app.post("/drafts/analyze", response_class=HTMLResponse)
+    def analyze_draft(request: Request, lang: str = "en", content: str = Form(...)) -> Any:
+        lang = _lang(lang)
+        analyzer = _analyzer_override(request.app) or build_analyzer(loop.root)
+        if analyzer is None:
+            return render_home(request, lang, analysis_error=True, draft_content=content)
+
+        try:
+            normalized = normalize_analysis(analyzer.analyze(content, language=lang))
+        except Exception:
+            return render_home(request, lang, analysis_error=True, draft_content=content)
+
+        return render_home(
+            request,
+            lang,
+            draft={
+                "content": content.strip(),
+                "analysis": normalized,
+                "analysis_json": normalized["raw_json"],
+                "language": lang,
+            },
+        )
+
+    @app.post("/drafts/save")
+    def save_draft(
+        lang: str = "en",
+        content: str = Form(...),
+        analysis_json: str = Form(...),
+        analysis_language: str = Form("en"),
+    ) -> RedirectResponse:
+        try:
+            analysis = json.loads(analysis_json)
+        except json.JSONDecodeError as exc:
+            raise HTTPException(status_code=400, detail="Invalid analysis JSON") from exc
+        loop.add_dream_with_analysis(content, analysis, language=_lang(analysis_language))
+        return RedirectResponse(_home_url(lang), status_code=status.HTTP_303_SEE_OTHER)
+
     @app.post("/dreams/{dream_id}/analyze")
     def analyze_dream_form(request: Request, dream_id: int, lang: str = "en") -> RedirectResponse:
+        lang = _lang(lang)
         analyzer = _analyzer_override(request.app)
         try:
-            loop.analyze_dream(dream_id, analyzer)
+            loop.analyze_dream(dream_id, analyzer, language=lang)
         except Exception:
             return RedirectResponse(
                 _home_url(lang, analysis_error="1"),
@@ -256,7 +328,7 @@ def create_app(root: str | Path | None = None) -> FastAPI:
     def dream_detail(request: Request, dream_id: int, lang: str = "en") -> Any:
         lang = _lang(lang)
         try:
-            dream = loop.get_dream(dream_id)
+            dream = loop.get_dream(dream_id, language=lang)
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="Dream not found") from exc
         context = loop.day_context(date.fromisoformat(dream["dreamed_on"]))
@@ -287,9 +359,9 @@ def create_app(root: str | Path | None = None) -> FastAPI:
         return loop.list_dreams()
 
     @app.get("/api/dreams/{dream_id}")
-    def api_get_dream(dream_id: int) -> dict[str, Any]:
+    def api_get_dream(dream_id: int, lang: str = "en") -> dict[str, Any]:
         try:
-            return loop.get_dream(dream_id)
+            return loop.get_dream(dream_id, language=_lang(lang))
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="Dream not found") from exc
 
@@ -301,26 +373,28 @@ def create_app(root: str | Path | None = None) -> FastAPI:
             raise HTTPException(status_code=404, detail="Dream not found") from exc
 
     @app.post("/api/dreams/{dream_id}/analyze")
-    def api_analyze_dream(request: Request, dream_id: int) -> dict[str, Any]:
+    def api_analyze_dream(request: Request, dream_id: int, lang: str = "en") -> dict[str, Any]:
+        lang = _lang(lang)
         analyzer = _analyzer_override(request.app)
         status_payload = ai_status(loop.root)
         if analyzer is None and not status_payload.ready:
             raise HTTPException(status_code=409, detail=status_payload.warning or "AI provider is not ready.")
         try:
-            analyzed = loop.analyze_dream(dream_id, analyzer)
+            analyzed = loop.analyze_dream(dream_id, analyzer, language=lang)
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="Dream not found") from exc
         return {
             "analyzed": analyzed,
             "ai_configured": True,
             "provider": "test" if analyzer is not None else status_payload.provider,
+            "language": lang,
         }
 
     @app.post("/api/analyze/pending")
-    def api_analyze_pending() -> dict[str, Any]:
-        analyzed = loop.analyze_pending()
+    def api_analyze_pending(lang: str = "en") -> dict[str, Any]:
+        analyzed = loop.analyze_pending(language=_lang(lang))
         status = ai_status(loop.root)
-        return {"analyzed": analyzed, "ai_configured": status.ready, "provider": status.provider}
+        return {"analyzed": analyzed, "ai_configured": status.ready, "provider": status.provider, "language": _lang(lang)}
 
     @app.post("/api/import/ics")
     def api_import_ics(path: str) -> dict[str, int]:
@@ -335,7 +409,7 @@ def create_app(root: str | Path | None = None) -> FastAPI:
         return loop.heatmap()
 
     @app.get("/api/insights/trends")
-    def api_trends() -> dict[str, list[dict[str, Any]]]:
-        return loop.trends()
+    def api_trends(lang: str = "en") -> dict[str, list[dict[str, Any]]]:
+        return loop.trends(language=_lang(lang))
 
     return app
