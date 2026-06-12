@@ -733,11 +733,17 @@ button,
 }
 
 .capture-log-grid,
-.detail-grid {
+.detail-grid,
+.settings-grid {
   display: grid;
   grid-template-columns: minmax(0, 0.95fr) minmax(360px, 1.05fr);
   gap: 14px;
   margin-top: 14px;
+}
+
+.log-page-grid {
+  display: grid;
+  gap: 14px;
 }
 
 .terminal-panel {
@@ -798,7 +804,8 @@ pre {
 }
 
 textarea,
-input {
+input,
+select {
   width: 100%;
   border: 1px solid rgba(125, 240, 168, 0.22);
   border-radius: 6px;
@@ -813,9 +820,19 @@ textarea {
   resize: vertical;
 }
 
-input {
+input,
+select {
   height: 40px;
   padding: 0 10px;
+}
+
+select {
+  appearance: none;
+}
+
+option {
+  background: var(--panel);
+  color: var(--text);
 }
 
 .form-row {
@@ -868,6 +885,56 @@ button {
 .secondary-button:hover {
   border-color: var(--line-strong);
   color: var(--text);
+}
+
+.settings-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.settings-form {
+  display: grid;
+  gap: 13px;
+}
+
+.settings-form label {
+  display: grid;
+  gap: 6px;
+}
+
+.settings-form label span {
+  color: var(--muted);
+  font-family: "Cascadia Mono", "JetBrains Mono", Consolas, monospace;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.settings-form button {
+  width: fit-content;
+  min-width: 150px;
+}
+
+.ready-message {
+  background: rgba(82, 231, 210, 0.12);
+  border-color: rgba(82, 231, 210, 0.38);
+}
+
+.developer-note {
+  border-top: 1px solid var(--line);
+  margin-top: 16px;
+  padding-top: 14px;
+}
+
+.developer-note strong {
+  color: var(--cyan);
+  font-family: "Cascadia Mono", "JetBrains Mono", Consolas, monospace;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.developer-note p {
+  margin: 8px 0 0;
+  color: var(--muted);
 }
 
 .dream-grid {
@@ -993,7 +1060,8 @@ summary {
   .hero-panel,
   .primary-workbench,
   .capture-log-grid,
-  .detail-grid {
+  .detail-grid,
+  .settings-grid {
     grid-template-columns: 1fr;
   }
 

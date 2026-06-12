@@ -14,11 +14,10 @@
           <strong>DreamLoop</strong>
         </a>
         <nav class="side-nav">
-          <a href="#capture" class="active">{{ t.nav_capture }}</a>
-          <a href="#analysis">{{ t.nav_analysis }}</a>
-          <a href="#insights">{{ t.nav_insights }}</a>
-          <a href="#runtime">{{ t.nav_local }}</a>
-          <a href="#log">{{ t.nav_logbook }}</a>
+          <a href="/?lang={{ lang }}" class="{{ 'active' if page == 'capture' else '' }}">{{ t.nav_capture }}</a>
+          <a href="/insights?lang={{ lang }}" class="{{ 'active' if page == 'insights' else '' }}">{{ t.nav_insights }}</a>
+          <a href="/log?lang={{ lang }}" class="{{ 'active' if page == 'log' else '' }}">{{ t.nav_logbook }}</a>
+          <a href="/settings?lang={{ lang }}" class="{{ 'active' if page == 'settings' else '' }}">{{ t.nav_settings }}</a>
         </nav>
         <div class="side-note">
           <span>{{ dreams|length }}</span>
@@ -39,6 +38,7 @@
           </nav>
         </header>
 
+        {% if page == "capture" %}
         <section class="primary-workbench">
           <div class="star-field" aria-hidden="true"></div>
 
@@ -62,10 +62,6 @@
                 {% endif %}
               </div>
             </form>
-            <div class="hero-command">
-              <span>$</span>
-              <code>dreamloop add "I found a blue door under the sea."</code>
-            </div>
           </article>
 
           <article class="analysis-panel" id="analysis">
@@ -159,6 +155,7 @@
           </div>
         </section>
 
+        {% elif page == "insights" %}
         <section class="work-grid" id="insights">
           <article class="panel panel-wide">
             <div class="section-title">
@@ -216,45 +213,17 @@
               {% endfor %}
             </div>
           </article>
-
-          <article class="panel" id="runtime">
-            <div class="section-title">
-              <span>{{ t.runtime }}</span>
-              <h2>{{ t.local_runtime }}</h2>
-            </div>
-            <dl class="runtime-list">
-              <div><dt>SQLite</dt><dd>local</dd></div>
-              <div><dt>{{ t.data_dir }}</dt><dd>{{ data_dir }}</dd></div>
-              <div><dt>Ollama</dt><dd>{{ t.ollama_optional }}</dd></div>
-              <div><dt>DeepSeek</dt><dd>{{ ai.model if ai.provider == "deepseek" else "opt-in" }}</dd></div>
-              <div><dt>Obsidian</dt><dd>{{ t.obsidian_roadmap }}</dd></div>
-            </dl>
-            {% if ai.warning %}
-              <p class="runtime-note">{{ ai.warning }}</p>
-            {% else %}
-              <p class="runtime-note">{{ t.provider_configured }}</p>
-            {% endif %}
-          </article>
         </section>
 
-        <section class="capture-log-grid">
-          <article class="panel terminal-panel">
-            <div class="terminal-bar">
-              <span></span><span></span><span></span>
-              <strong>{{ t.cli_first }}</strong>
-            </div>
-            <pre><code>$ dreamloop add "I found a blue door under the sea." --tag water --mood curious
-saved locally -> .dreamloop/dreamloop.sqlite3
-analysis -> pending</code></pre>
-          </article>
-
+        {% elif page == "log" %}
+        <section class="log-page-grid">
           <article class="panel" id="log">
             <div class="section-title">
               <span>{{ t.local_logbook }}</span>
               <h2>{{ t.dreamscape_log }}</h2>
             </div>
             <div class="dream-grid">
-              {% for dream in dreams[:3] %}
+              {% for dream in dreams %}
                 <a class="dream-card" href="/dreams/{{ dream.id }}?lang={{ lang }}">
                   <span>#{{ dream.id }} / {{ dream.dreamed_on }}</span>
                   <strong>{{ dream.content }}</strong>
@@ -266,6 +235,69 @@ analysis -> pending</code></pre>
             </div>
           </article>
         </section>
+
+        {% elif page == "settings" %}
+        <section class="settings-grid">
+          <article class="panel settings-panel">
+            <div class="section-title">
+              <span>{{ t.settings_eyebrow }}</span>
+              <h2>{{ t.settings_title }}</h2>
+            </div>
+            <p class="lede">{{ t.settings_copy }}</p>
+            {% if settings_saved %}
+              <p class="status-message ready-message">{{ t.settings_saved }}</p>
+            {% endif %}
+            <form method="post" action="/settings/ai?lang={{ lang }}" class="settings-form">
+              <label>
+                <span>{{ t.provider }}</span>
+                <select name="provider">
+                  <option value="ollama" {{ "selected" if ai_config.provider == "ollama" else "" }}>Ollama</option>
+                  <option value="deepseek" {{ "selected" if ai_config.provider == "deepseek" else "" }}>DeepSeek</option>
+                  <option value="openai" {{ "selected" if ai_config.provider == "openai" else "" }}>OpenAI</option>
+                  <option value="none" {{ "selected" if ai_config.provider == "none" else "" }}>None</option>
+                </select>
+              </label>
+              <label>
+                <span>{{ t.model }}</span>
+                <input name="model" value="{{ ai_config.model }}" placeholder="qwen3:8b / deepseek-v4-flash">
+              </label>
+              <label>
+                <span>{{ t.base_url }}</span>
+                <input name="base_url" value="{{ ai_config.base_url }}" placeholder="http://localhost:11434/v1">
+              </label>
+              <label>
+                <span>{{ t.api_key }}</span>
+                <input name="api_key" type="password" value="" placeholder="{{ t.api_key_placeholder }}">
+              </label>
+              <p class="runtime-note">{{ t.settings_secret_note }}</p>
+              <button type="submit">{{ t.save_settings }}</button>
+            </form>
+          </article>
+
+          <article class="panel" id="runtime">
+            <div class="section-title">
+              <span>{{ t.provider_status }}</span>
+              <h2>{{ t.local_runtime }}</h2>
+            </div>
+            <dl class="runtime-list">
+              <div><dt>{{ t.provider }}</dt><dd>{{ ai.provider }}</dd></div>
+              <div><dt>{{ t.model }}</dt><dd>{{ ai.model or "capture only" }}</dd></div>
+              <div><dt>{{ t.base_url }}</dt><dd>{{ ai.base_url or "-" }}</dd></div>
+              <div><dt>{{ t.data_dir }}</dt><dd>{{ data_dir }}</dd></div>
+              <div><dt>SQLite</dt><dd>local</dd></div>
+            </dl>
+            {% if ai.warning %}
+              <p class="runtime-note">{{ ai.warning }}</p>
+            {% else %}
+              <p class="runtime-note">{{ t.provider_configured }}</p>
+            {% endif %}
+            <div class="developer-note">
+              <strong>{{ t.developer_note }}</strong>
+              <p>{{ t.cli_note }}</p>
+            </div>
+          </article>
+        </section>
+        {% endif %}
       </main>
     </div>
 

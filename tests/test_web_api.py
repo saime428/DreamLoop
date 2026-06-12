@@ -61,16 +61,14 @@ def test_web_home_renders_without_ai_key(tmp_path, monkeypatch):
     assert response.status_code == 200
     assert "Good night, explorer" in response.text
     assert "Your dreams have patterns. DreamLoop finds them locally." in response.text
-    assert "Ollama optional" in response.text
-    assert "CLI-first" in response.text
-    assert "Obsidian" in response.text
     assert "data never leaves this machine" in response.text
-    assert "Dream constellation" in response.text
-    assert "Mood spectrum" in response.text
-    assert "AI Insight" in response.text
-    assert "Dreamscape log" in response.text
-    assert "Starlit local runtime" in response.text
     assert "DreamLoop" in response.text
+    assert 'href="/insights?lang=en"' in response.text
+    assert 'href="/log?lang=en"' in response.text
+    assert 'href="/settings?lang=en"' in response.text
+    assert 'href="#log"' not in response.text
+    assert 'href="#insights"' not in response.text
+    assert "CLI-first capture" not in response.text
 
 
 def test_web_home_prioritizes_capture_and_ai_analysis(tmp_path):
@@ -88,8 +86,8 @@ def test_web_home_prioritizes_capture_and_ai_analysis(tmp_path):
     assert 'name="tags"' not in response.text
     assert 'name="manual_mood"' not in response.text
     assert "AI Analysis</button>" in response.text
-    assert response.text.index("Log Dream") < response.text.index("Dream constellation")
-    assert response.text.index("AI Analysis") < response.text.index("Dreamscape log")
+    assert "Dream constellation" not in response.text
+    assert "Dreamscape log" not in response.text
 
 
 def test_web_home_shows_current_language_analyze_button_for_pending_dream(tmp_path):
@@ -217,6 +215,57 @@ def test_home_supports_english_and_chinese_language_toggle(tmp_path):
     assert "AI 分析" in chinese.text
     assert 'data-lang="zh"' in english.text
     assert 'data-lang="en"' in chinese.text
+
+
+def test_insights_log_and_settings_are_real_pages(tmp_path):
+    app = create_app(tmp_path)
+    client = TestClient(app)
+    client.post("/api/dreams", json={"content": "Water covered the old city.", "tags": ["water"]})
+
+    insights = client.get("/insights?lang=en")
+    log = client.get("/log?lang=en")
+    settings = client.get("/settings?lang=en")
+
+    assert insights.status_code == 200
+    assert "Dream constellation" in insights.text
+    assert "Mood spectrum" in insights.text
+    assert "AI Insight" in insights.text
+    assert "Log Dream" not in insights.text
+    assert log.status_code == 200
+    assert "Dreamscape log" in log.text
+    assert "Water covered the old city." in log.text
+    assert "CLI-first capture" not in log.text
+    assert settings.status_code == 200
+    assert "AI Provider" in settings.text
+    assert "API Key" in settings.text
+
+
+def test_settings_updates_ai_provider_without_leaking_secret(tmp_path, monkeypatch):
+    from dreamloop.analysis import ai_status
+
+    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+    app = create_app(tmp_path)
+    client = TestClient(app)
+
+    response = client.post(
+        "/settings/ai?lang=zh",
+        data={
+            "provider": "deepseek",
+            "model": "deepseek-v4-flash",
+            "base_url": "https://api.deepseek.com",
+            "api_key": "secret-from-form",
+        },
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/settings?lang=zh&saved=1"
+    status = ai_status(tmp_path)
+    assert status.provider == "deepseek"
+    assert status.model == "deepseek-v4-flash"
+    settings = client.get("/settings?lang=zh")
+    assert "secret-from-form" not in settings.text
+    assert "deepseek-v4-flash" in settings.text
 
 
 def test_create_dream_form_preserves_language(tmp_path):

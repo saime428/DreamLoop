@@ -11,7 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 
-from .analysis import Analyzer, ai_status, build_analyzer, normalize_analysis
+from .analysis import Analyzer, ai_status, build_analyzer, load_ai_config, normalize_analysis, save_ai_config, save_secret
 from .core import DreamLoop
 
 PACKAGE_DIR = Path(__file__).parent
@@ -24,6 +24,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "nav_insights": "Insights",
         "nav_local": "Local",
         "nav_logbook": "Logbook",
+        "nav_settings": "Settings",
         "sidebar_count": "dreams stored in your local workspace",
         "eyebrow": "Local-first dream intelligence",
         "headline": "Good night, explorer",
@@ -95,6 +96,20 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "weather": "Weather",
         "no_calendar": "No imported calendar events.",
         "no_weather": "No weather synced for this day.",
+        "settings_title": "AI Provider",
+        "settings_eyebrow": "Local model settings",
+        "settings_copy": "Choose Ollama for local zero-cost analysis, or opt in to DeepSeek/OpenAI. Secrets stay in .dreamloop/secrets.env and are never rendered back.",
+        "provider": "Provider",
+        "model": "Model",
+        "base_url": "Base URL",
+        "api_key": "API Key",
+        "api_key_placeholder": "Paste a key only when you want to replace it",
+        "save_settings": "Save settings",
+        "settings_saved": "Settings saved locally.",
+        "settings_secret_note": "Existing keys are hidden. Leave API Key blank to keep the current secret.",
+        "provider_status": "Provider status",
+        "developer_note": "Developer note",
+        "cli_note": "The CLI demo is useful for README screenshots and developer onboarding, but it no longer competes with the main dream analysis workflow.",
     },
     "zh": {
         "nav_capture": "记录",
@@ -102,6 +117,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "nav_insights": "洞察",
         "nav_local": "本地",
         "nav_logbook": "日志",
+        "nav_settings": "设置",
         "sidebar_count": "条梦境保存在本地工作区",
         "eyebrow": "本地优先梦境智能",
         "headline": "晚安，探索者",
@@ -173,6 +189,20 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "weather": "天气",
         "no_calendar": "没有导入的日历事件。",
         "no_weather": "这一天还没有同步天气。",
+        "settings_title": "AI 提供方",
+        "settings_eyebrow": "本地模型设置",
+        "settings_copy": "选择 Ollama 可以零成本本地分析；DeepSeek/OpenAI 是显式启用的云模型。密钥只写入 .dreamloop/secrets.env，不会回显到页面。",
+        "provider": "提供方",
+        "model": "模型",
+        "base_url": "Base URL",
+        "api_key": "API Key",
+        "api_key_placeholder": "只有需要替换密钥时才粘贴",
+        "save_settings": "保存设置",
+        "settings_saved": "设置已保存到本地。",
+        "settings_secret_note": "已有密钥会隐藏。API Key 留空表示保留当前密钥。",
+        "provider_status": "模型状态",
+        "developer_note": "开发者说明",
+        "cli_note": "CLI 演示更适合 README 截图和开发者上手，不再占用梦境分析主流程。",
     },
 }
 
@@ -203,6 +233,12 @@ def _home_url(lang: str, **params: str) -> str:
     return "/?" + "&".join(f"{key}={value}" for key, value in query.items())
 
 
+def _page_url(page: str, lang: str, **params: str) -> str:
+    path = "/" if page == "capture" else f"/{page}"
+    query = {"lang": _lang(lang), **{key: val for key, val in params.items() if val}}
+    return path + "?" + "&".join(f"{key}={value}" for key, value in query.items())
+
+
 def _analyzer_override(app: FastAPI) -> Analyzer | None:
     analyzer = getattr(app.state, "analyzer", None)
     return analyzer if analyzer is not None else None
@@ -231,9 +267,11 @@ def create_app(root: str | Path | None = None) -> FastAPI:
         request: Request,
         lang: str = "en",
         *,
+        page: str = "capture",
         analysis_error: bool = False,
         draft: dict[str, Any] | None = None,
         draft_content: str = "",
+        settings_saved: bool = False,
     ) -> Any:
         lang = _lang(lang)
         dreams = loop.list_dreams()
@@ -247,21 +285,53 @@ def create_app(root: str | Path | None = None) -> FastAPI:
                 "latest_dream": latest_dream,
                 "heatmap": loop.heatmap(),
                 "ai": ai_status(loop.root),
+                "ai_config": load_ai_config(loop.root),
                 "trends": loop.trends(language=lang),
                 "data_dir": loop.data_dir,
                 "pending_count": sum(1 for dream in localized_dreams if dream["analysis"] is None),
                 "mood_spectrum": _mood_spectrum(dreams),
                 "lang": lang,
+                "page": page,
                 "t": TRANSLATIONS[lang],
                 "analysis_error": analysis_error,
                 "draft": draft,
                 "draft_content": draft_content,
+                "settings_saved": settings_saved,
             },
         )
 
     @app.get("/", response_class=HTMLResponse)
     def home(request: Request, lang: str = "en", analysis_error: str = "") -> Any:
         return render_home(request, lang, analysis_error=bool(analysis_error))
+
+    @app.get("/insights", response_class=HTMLResponse)
+    def insights(request: Request, lang: str = "en") -> Any:
+        return render_home(request, lang, page="insights")
+
+    @app.get("/log", response_class=HTMLResponse)
+    def logbook(request: Request, lang: str = "en") -> Any:
+        return render_home(request, lang, page="log")
+
+    @app.get("/settings", response_class=HTMLResponse)
+    def settings(request: Request, lang: str = "en", saved: str = "") -> Any:
+        return render_home(request, lang, page="settings", settings_saved=bool(saved))
+
+    @app.post("/settings/ai")
+    def save_ai_settings(
+        lang: str = "en",
+        provider: str = Form(...),
+        model: str = Form(""),
+        base_url: str = Form(""),
+        api_key: str = Form(""),
+    ) -> RedirectResponse:
+        provider = provider.strip().lower()
+        if provider not in {"ollama", "deepseek", "openai", "none"}:
+            raise HTTPException(status_code=400, detail="Unsupported AI provider")
+        save_ai_config(loop.root, provider=provider, model=model.strip() or None, base_url=base_url.strip() or None)
+        if api_key.strip() and provider in {"deepseek", "openai"}:
+            secret_name = "DEEPSEEK_API_KEY" if provider == "deepseek" else "OPENAI_API_KEY"
+            save_secret(loop.root, secret_name, api_key.strip())
+        return RedirectResponse(_page_url("settings", lang, saved="1"), status_code=status.HTTP_303_SEE_OTHER)
 
     @app.post("/dreams")
     def create_dream_form(
