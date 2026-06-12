@@ -47,6 +47,18 @@ def test_web_home_renders_without_ai_key(tmp_path, monkeypatch):
     assert "DreamLoop" in response.text
 
 
+def test_web_home_puts_capture_form_in_hero(tmp_path):
+    app = create_app(tmp_path)
+    client = TestClient(app)
+
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert 'class="hero-capture"' in response.text
+    assert response.text.index('class="hero-capture"') < response.text.index('id="insights"')
+    assert 'placeholder="Record a dream before it fades..."' in response.text
+
+
 def test_web_home_shows_provider_without_leaking_secret(tmp_path, monkeypatch):
     from dreamloop.analysis import save_ai_config, save_secret
 

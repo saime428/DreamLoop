@@ -258,16 +258,50 @@ p {
   font-size: 15px;
 }
 
-.hero-command {
-  align-self: end;
+.hero-capture {
+  align-self: stretch;
   border: 1px solid rgba(201, 182, 255, 0.28);
   border-radius: 8px;
   background: rgba(9, 7, 19, 0.62);
   color: var(--text);
   display: grid;
+  grid-template-rows: auto 1fr auto;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.capture-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid rgba(201, 182, 255, 0.16);
+  padding: 14px 16px 12px;
+}
+
+.capture-heading span,
+.capture-heading strong {
+  font-family: "Cascadia Mono", "JetBrains Mono", Consolas, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.capture-heading span {
+  color: var(--cyan);
+}
+
+.capture-heading strong {
+  color: var(--muted);
+}
+
+.hero-command {
+  display: grid;
   grid-template-columns: 22px minmax(0, 1fr);
   gap: 10px;
-  padding: 18px;
+  border-top: 1px solid rgba(201, 182, 255, 0.16);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 13px 16px;
 }
 
 .hero-command span,
@@ -551,6 +585,12 @@ pre {
   padding: 16px;
 }
 
+.hero-quick-capture {
+  border-top: 0;
+  display: grid;
+  align-content: start;
+}
+
 textarea,
 input {
   width: 100%;
@@ -701,6 +741,10 @@ summary {
     position: static;
   }
 
+  .hero-panel {
+    gap: 16px;
+  }
+
   .dashboard {
     width: min(100% - 28px, 1180px);
     padding-top: 14px;
@@ -723,6 +767,38 @@ summary {
   .stat-card,
   .detail-hero {
     padding: 16px;
+  }
+
+  .sidebar {
+    padding: 14px;
+  }
+
+  .brand-mark strong {
+    font-size: 17px;
+  }
+
+  .side-nav a {
+    padding: 7px 9px;
+  }
+
+  .side-note {
+    display: none;
+  }
+
+  h1 {
+    font-size: clamp(38px, 12vw, 58px);
+  }
+
+  .tagline {
+    font-size: 18px;
+  }
+
+  .lede {
+    font-size: 14px;
+  }
+
+  textarea {
+    min-height: 84px;
   }
 
   .work-grid {

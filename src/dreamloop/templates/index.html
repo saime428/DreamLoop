@@ -34,10 +34,24 @@
             <p class="tagline">Your dreams have patterns. DreamLoop finds them locally.</p>
             <p class="lede">CLI-first capture, Ollama optional analysis, DeepSeek opt-in, and an Obsidian-minded roadmap. Your data never leaves this machine unless you choose a cloud model.</p>
           </div>
-          <div class="hero-command" id="capture">
-            <span>$</span>
-            <code>dreamloop add "I found a blue door under the sea."</code>
-          </div>
+          <aside class="hero-capture" id="capture" aria-label="Quick dream capture">
+            <div class="capture-heading">
+              <span>Capture now</span>
+              <strong>local write</strong>
+            </div>
+            <form method="post" action="/dreams" class="quick-capture hero-quick-capture">
+              <textarea name="content" placeholder="Record a dream before it fades..." required autofocus></textarea>
+              <div class="form-row">
+                <input name="tags" placeholder="water, door">
+                <input name="manual_mood" placeholder="mood">
+                <button type="submit">Save locally</button>
+              </div>
+            </form>
+            <div class="hero-command">
+              <span>$</span>
+              <code>dreamloop add "I found a blue door under the sea."</code>
+            </div>
+          </aside>
         </section>
 
         <section class="stat-strip" aria-label="Project status">
@@ -152,14 +166,6 @@
             <pre><code>$ dreamloop add "I found a blue door under the sea." --tag water --mood curious
 saved locally -> .dreamloop/dreamloop.sqlite3
 analysis -> pending</code></pre>
-            <form method="post" action="/dreams" class="quick-capture">
-              <textarea name="content" placeholder="Record a dream without waiting for AI..." required></textarea>
-              <div class="form-row">
-                <input name="tags" placeholder="water, door">
-                <input name="manual_mood" placeholder="mood">
-                <button type="submit">Save locally</button>
-              </div>
-            </form>
           </article>
 
           <article class="panel" id="log">
