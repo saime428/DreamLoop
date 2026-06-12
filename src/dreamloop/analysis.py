@@ -205,6 +205,10 @@ def ai_status(root: str | Path | None = None) -> AIStatus:
         ready = bool(secrets.get("OPENAI_API_KEY"))
         warning = None if ready else "OPENAI_API_KEY is not configured."
         return AIStatus("openai", model, base_url, "cloud", ready, warning)
+    if provider == "custom":
+        ready = bool(model and base_url)
+        warning = None if ready else "Custom provider needs both model and base URL."
+        return AIStatus("custom", model, base_url, "custom", ready, warning)
     return AIStatus(provider, model, base_url, "unknown", False, f"Unknown AI provider: {provider}")
 
 
@@ -227,6 +231,14 @@ def build_analyzer(root: str | Path | None = None) -> Analyzer | None:
         )
     if status.provider == "openai":
         return OpenAIAnalyzer(model=status.model or DEFAULT_OPENAI_MODEL, api_key=secrets["OPENAI_API_KEY"])
+    if status.provider == "custom":
+        return OpenAICompatibleAnalyzer(
+            provider="custom",
+            model=status.model or "model",
+            base_url=status.base_url or "",
+            api_key=secrets.get("CUSTOM_API_KEY") or "local",
+            response_format={"type": "json_object"},
+        )
     return None
 
 
@@ -263,12 +275,14 @@ def default_ai_config(provider: str) -> dict[str, str]:
         return {"provider": "openai", "model": DEFAULT_OPENAI_MODEL, "base_url": "https://api.openai.com/v1"}
     if provider == "none":
         return {"provider": "none", "model": "", "base_url": ""}
+    if provider == "custom":
+        return {"provider": "custom", "model": "", "base_url": ""}
     return {"provider": "ollama", "model": DEFAULT_OLLAMA_MODEL, "base_url": DEFAULT_OLLAMA_BASE_URL}
 
 
 def load_secrets(root: str | Path | None = None) -> dict[str, str]:
     secrets = read_secret_file(dreamloop_dir(root) / "secrets.env")
-    for name in ("DEEPSEEK_API_KEY", "OPENAI_API_KEY"):
+    for name in ("DEEPSEEK_API_KEY", "OPENAI_API_KEY", "CUSTOM_API_KEY"):
         if os.getenv(name):
             secrets[name] = os.environ[name]
     return secrets

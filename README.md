@@ -5,7 +5,7 @@
 **Your dreams have patterns. DreamLoop finds them locally.**
 
 - Runs fully local. Your data never leaves your machine.
-- Free with Ollama. Optional DeepSeek/OpenAI if you want cloud models.
+- Free with Ollama. Optional DeepSeek/OpenAI or custom OpenAI-compatible endpoints.
 - CLI-first, forkable, and built for Obsidian-minded knowledge workers.
 
 ```bash
@@ -20,7 +20,7 @@ DreamLoop is a local-first dream journal for people who want fast capture, priva
 
 Commercial dream apps usually make you pay for analysis and push personal text into a cloud workflow. DreamLoop takes the opposite path: the journal is local, the CLI is the primary interface, and AI is a swappable layer.
 
-The default path is zero-cost Ollama. DeepSeek and OpenAI are optional cloud providers for people who want stronger hosted models. The code is small enough to fork and direct enough to extend.
+The default path is zero-cost Ollama. DeepSeek, OpenAI, and custom OpenAI-compatible endpoints are optional for people who want stronger hosted models or their own local gateway. The code is small enough to fork and direct enough to extend.
 
 ## Quick Start
 
@@ -37,6 +37,12 @@ dreamloop web
 ```
 
 The dashboard starts at `http://127.0.0.1:8765`.
+
+On Windows development checkouts, you can also double-click:
+
+```text
+scripts\start-dreamloop.cmd
+```
 
 ## CLI Demo
 
@@ -71,6 +77,7 @@ DreamLoop supports provider configuration without changing the journal model:
 dreamloop ai status
 dreamloop ai use ollama --model qwen3:8b
 dreamloop ai use deepseek --model deepseek-v4-flash
+dreamloop ai use custom --model local-model --base-url http://localhost:1234/v1
 dreamloop ai test
 ```
 
@@ -79,20 +86,23 @@ Provider defaults:
 - `ollama`: local, `http://localhost:11434/v1`, model `qwen3:8b`
 - `deepseek`: cloud, `https://api.deepseek.com`, model `deepseek-v4-flash`
 - `openai`: cloud, OpenAI-compatible JSON analysis
+- `custom`: any OpenAI-compatible `/v1` endpoint, including local gateways
 - `none`: capture-only local journal mode
 
 ## Web Dashboard
 
 The FastAPI/Jinja dashboard is intentionally lightweight:
 
-- CLI-first capture preview
-- local runtime status
-- model/provider status
+- draft-first dream capture and AI analysis
+- page-based navigation for capture, insights, log, and settings
+- model/provider settings without rendering secrets
 - privacy contract
-- emotion heatmap
+- clickable dream calendar
 - recurring symbol trends
 - recent dream log
 - detail pages with structured analysis and raw JSON
+
+DreamLoop is currently launched with `dreamloop web` or the lightweight Windows launcher in `scripts\start-dreamloop.cmd`. A native desktop app is a later packaging task; v0.1 stays lightweight so the local-first core remains easy to inspect and fork.
 
 The same app exposes JSON endpoints:
 
@@ -133,7 +143,7 @@ SQLite stores dreams, analysis results, imported calendar events, and synced wea
 - Local CLI and Web dashboard.
 - SQLite storage.
 - Ollama-first provider settings.
-- Optional DeepSeek/OpenAI structured analysis.
+- Optional DeepSeek/OpenAI/custom structured analysis.
 - Heatmap, `.ics` import, weather sync.
 - Similar dreams and basic trends.
 

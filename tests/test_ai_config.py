@@ -59,3 +59,24 @@ def test_ollama_provider_is_local_and_does_not_need_key(tmp_path):
     assert status.ready is True
     assert isinstance(analyzer, OllamaAnalyzer)
     assert analyzer.api_key == "ollama"
+
+
+def test_custom_openai_compatible_provider_uses_configured_endpoint(tmp_path):
+    save_ai_config(
+        tmp_path,
+        provider="custom",
+        model="local-model",
+        base_url="http://localhost:1234/v1",
+    )
+
+    status = ai_status(tmp_path)
+    analyzer = build_analyzer(tmp_path)
+
+    assert status.provider == "custom"
+    assert status.model == "local-model"
+    assert status.base_url == "http://localhost:1234/v1"
+    assert status.mode == "custom"
+    assert status.ready is True
+    assert analyzer is not None
+    assert analyzer.provider == "custom"
+    assert analyzer.api_key == "local"

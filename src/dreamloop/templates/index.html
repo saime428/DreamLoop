@@ -61,6 +61,7 @@
                   <button type="submit" class="secondary-button" formaction="/dreams?lang={{ lang }}" formmethod="post">{{ t.save_without_ai }}</button>
                 {% endif %}
               </div>
+              <p class="privacy-line">{{ t.data_never_leaves }}</p>
             </form>
           </article>
 
@@ -132,29 +133,6 @@
           </article>
         </section>
 
-        <section class="status-strip" aria-label="Project status">
-          <div>
-            <span>{{ t.local_dreams }}</span>
-            <strong>{{ dreams|length }}</strong>
-            <small>{{ t.sqlite_journal }}</small>
-          </div>
-          <div>
-            <span>{{ t.ai_provider }}</span>
-            <strong>{{ ai.provider }}</strong>
-            <small>{{ ai.model or "capture only" }}</small>
-          </div>
-          <div>
-            <span>{{ t.analysis_queue }}</span>
-            <strong>{{ pending_count }}</strong>
-            <small>{{ t.pending_entries }}</small>
-          </div>
-          <div>
-            <span>{{ t.privacy_mode }}</span>
-            <strong>{{ "local" if ai.mode == "local" else "opt-in" }}</strong>
-            <small>{{ t.data_never_leaves }}</small>
-          </div>
-        </section>
-
         {% elif page == "insights" %}
         <section class="work-grid" id="insights">
           <article class="panel panel-wide">
@@ -164,7 +142,7 @@
             </div>
             <div class="constellation-map" aria-label="Dream heatmap">
               {% for day in heatmap %}
-                <a class="heat-cell heat-level-{{ day.count if day.count < 4 else 4 }}" title="{{ day.date }}: {{ day.count }} dream(s)">
+                <a class="heat-cell heat-level-{{ day.count if day.count < 4 else 4 }}" href="/log?lang={{ lang }}&date={{ day.date }}" title="{{ day.date }}: {{ day.count }} dream(s)">
                   <span>{{ day.date[5:] }}</span>
                   <strong>{{ day.count }}</strong>
                 </a>
@@ -172,6 +150,7 @@
                 <p class="empty-state">{{ t.no_heatmap }}</p>
               {% endfor %}
             </div>
+            <p class="runtime-note">{{ t.open_dream_day }}</p>
           </article>
 
           <article class="panel">
@@ -220,10 +199,10 @@
           <article class="panel" id="log">
             <div class="section-title">
               <span>{{ t.local_logbook }}</span>
-              <h2>{{ t.dreamscape_log }}</h2>
+              <h2>{{ t.dreamscape_log }}{% if date_filter %} / {{ date_filter }}{% endif %}</h2>
             </div>
             <div class="dream-grid">
-              {% for dream in dreams %}
+              {% for dream in log_dreams %}
                 <a class="dream-card" href="/dreams/{{ dream.id }}?lang={{ lang }}">
                   <span>#{{ dream.id }} / {{ dream.dreamed_on }}</span>
                   <strong>{{ dream.content }}</strong>
@@ -254,6 +233,7 @@
                   <option value="ollama" {{ "selected" if ai_config.provider == "ollama" else "" }}>Ollama</option>
                   <option value="deepseek" {{ "selected" if ai_config.provider == "deepseek" else "" }}>DeepSeek</option>
                   <option value="openai" {{ "selected" if ai_config.provider == "openai" else "" }}>OpenAI</option>
+                  <option value="custom" {{ "selected" if ai_config.provider == "custom" else "" }}>Custom OpenAI-compatible</option>
                   <option value="none" {{ "selected" if ai_config.provider == "none" else "" }}>None</option>
                 </select>
               </label>

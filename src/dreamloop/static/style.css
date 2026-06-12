@@ -865,6 +865,13 @@ button {
   min-width: 160px;
 }
 
+.privacy-line {
+  margin: 0;
+  color: var(--quiet);
+  font-family: "Cascadia Mono", "JetBrains Mono", Consolas, monospace;
+  font-size: 12px;
+}
+
 .secondary-button {
   border: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.06);

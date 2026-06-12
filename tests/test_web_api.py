@@ -69,6 +69,7 @@ def test_web_home_renders_without_ai_key(tmp_path, monkeypatch):
     assert 'href="#log"' not in response.text
     assert 'href="#insights"' not in response.text
     assert "CLI-first capture" not in response.text
+    assert "Analysis queue" not in response.text
 
 
 def test_web_home_prioritizes_capture_and_ai_analysis(tmp_path):
@@ -228,6 +229,7 @@ def test_insights_log_and_settings_are_real_pages(tmp_path):
 
     assert insights.status_code == 200
     assert "Dream constellation" in insights.text
+    assert 'href="/log?lang=en&date=' in insights.text
     assert "Mood spectrum" in insights.text
     assert "AI Insight" in insights.text
     assert "Log Dream" not in insights.text
@@ -238,6 +240,21 @@ def test_insights_log_and_settings_are_real_pages(tmp_path):
     assert settings.status_code == 200
     assert "AI Provider" in settings.text
     assert "API Key" in settings.text
+    assert "Custom OpenAI-compatible" in settings.text
+
+
+def test_log_page_can_filter_by_heatmap_date(tmp_path):
+    app = create_app(tmp_path)
+    client = TestClient(app)
+    client.post("/api/dreams", json={"content": "Water covered the old city.", "dreamed_on": "2026-06-10"})
+    client.post("/api/dreams", json={"content": "I flew over rooftops.", "dreamed_on": "2026-06-11"})
+
+    response = client.get("/log?lang=en&date=2026-06-10")
+
+    assert response.status_code == 200
+    assert "2026-06-10" in response.text
+    assert "Water covered the old city." in response.text
+    assert "I flew over rooftops." not in response.text
 
 
 def test_settings_updates_ai_provider_without_leaking_secret(tmp_path, monkeypatch):
@@ -266,6 +283,32 @@ def test_settings_updates_ai_provider_without_leaking_secret(tmp_path, monkeypat
     settings = client.get("/settings?lang=zh")
     assert "secret-from-form" not in settings.text
     assert "deepseek-v4-flash" in settings.text
+
+
+def test_settings_accepts_custom_openai_compatible_provider(tmp_path):
+    from dreamloop.analysis import ai_status
+
+    app = create_app(tmp_path)
+    client = TestClient(app)
+
+    response = client.post(
+        "/settings/ai?lang=en",
+        data={
+            "provider": "custom",
+            "model": "local-model",
+            "base_url": "http://localhost:1234/v1",
+            "api_key": "",
+        },
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    status = ai_status(tmp_path)
+    assert status.provider == "custom"
+    assert status.ready is True
+    settings = client.get("/settings?lang=en")
+    assert "Custom OpenAI-compatible" in settings.text
+    assert "http://localhost:1234/v1" in settings.text
 
 
 def test_create_dream_form_preserves_language(tmp_path):
@@ -303,7 +346,7 @@ def test_web_home_shows_provider_without_leaking_secret(tmp_path, monkeypatch):
     app = create_app(tmp_path)
     client = TestClient(app)
 
-    response = client.get("/")
+    response = client.get("/settings?lang=en")
 
     assert response.status_code == 200
     assert "deepseek" in response.text

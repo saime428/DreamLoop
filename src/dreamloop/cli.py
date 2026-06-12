@@ -108,12 +108,12 @@ def ai_status_command() -> None:
 
 @ai_app.command("use")
 def ai_use(
-    provider: Annotated[str, typer.Argument(help="Provider: ollama, deepseek, openai, or none.")],
+    provider: Annotated[str, typer.Argument(help="Provider: ollama, deepseek, openai, custom, or none.")],
     model: Annotated[str | None, typer.Option("--model")] = None,
     base_url: Annotated[str | None, typer.Option("--base-url")] = None,
 ) -> None:
-    if provider not in {"ollama", "deepseek", "openai", "none"}:
-        typer.echo("Provider must be one of: ollama, deepseek, openai, none.")
+    if provider not in {"ollama", "deepseek", "openai", "custom", "none"}:
+        typer.echo("Provider must be one of: ollama, deepseek, openai, custom, none.")
         raise typer.Exit(code=1)
     path = save_ai_config(provider=provider, model=model, base_url=base_url)
     status = ai_status()

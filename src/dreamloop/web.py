@@ -70,6 +70,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "data_never_leaves": "data never leaves this machine",
         "pattern_map": "Pattern map",
         "dream_constellation": "Dream constellation",
+        "open_dream_day": "Click a date to open that day in the log.",
         "no_heatmap": "No dreams yet.",
         "signals": "Signals",
         "mood_spectrum": "Mood spectrum",
@@ -98,7 +99,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "no_weather": "No weather synced for this day.",
         "settings_title": "AI Provider",
         "settings_eyebrow": "Local model settings",
-        "settings_copy": "Choose Ollama for local zero-cost analysis, or opt in to DeepSeek/OpenAI. Secrets stay in .dreamloop/secrets.env and are never rendered back.",
+        "settings_copy": "Choose Ollama for local zero-cost analysis, use DeepSeek/OpenAI, or connect any OpenAI-compatible endpoint. Secrets stay in .dreamloop/secrets.env and are never rendered back.",
         "provider": "Provider",
         "model": "Model",
         "base_url": "Base URL",
@@ -163,6 +164,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "data_never_leaves": "数据默认不离机",
         "pattern_map": "模式地图",
         "dream_constellation": "梦境星图",
+        "open_dream_day": "点击日期，查看当天梦境记录。",
         "no_heatmap": "还没有梦境。",
         "signals": "信号",
         "mood_spectrum": "情绪光谱",
@@ -191,7 +193,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "no_weather": "这一天还没有同步天气。",
         "settings_title": "AI 提供方",
         "settings_eyebrow": "本地模型设置",
-        "settings_copy": "选择 Ollama 可以零成本本地分析；DeepSeek/OpenAI 是显式启用的云模型。密钥只写入 .dreamloop/secrets.env，不会回显到页面。",
+        "settings_copy": "选择 Ollama 可以零成本本地分析；也可以使用 DeepSeek/OpenAI，或连接任意 OpenAI-compatible 端点。密钥只写入 .dreamloop/secrets.env，不会回显到页面。",
         "provider": "提供方",
         "model": "模型",
         "base_url": "Base URL",
@@ -272,16 +274,21 @@ def create_app(root: str | Path | None = None) -> FastAPI:
         draft: dict[str, Any] | None = None,
         draft_content: str = "",
         settings_saved: bool = False,
+        date_filter: str = "",
     ) -> Any:
         lang = _lang(lang)
         dreams = loop.list_dreams()
         localized_dreams = [loop.get_dream(dream["id"], language=lang) for dream in dreams]
+        log_dreams = [
+            dream for dream in localized_dreams if not date_filter or dream["dreamed_on"] == date_filter
+        ]
         latest_dream = localized_dreams[0] if localized_dreams else None
         return templates.TemplateResponse(
             request,
             "index.html",
             {
                 "dreams": localized_dreams,
+                "log_dreams": log_dreams,
                 "latest_dream": latest_dream,
                 "heatmap": loop.heatmap(),
                 "ai": ai_status(loop.root),
@@ -297,6 +304,7 @@ def create_app(root: str | Path | None = None) -> FastAPI:
                 "draft": draft,
                 "draft_content": draft_content,
                 "settings_saved": settings_saved,
+                "date_filter": date_filter,
             },
         )
 
@@ -309,8 +317,8 @@ def create_app(root: str | Path | None = None) -> FastAPI:
         return render_home(request, lang, page="insights")
 
     @app.get("/log", response_class=HTMLResponse)
-    def logbook(request: Request, lang: str = "en") -> Any:
-        return render_home(request, lang, page="log")
+    def logbook(request: Request, lang: str = "en", date: str = "") -> Any:
+        return render_home(request, lang, page="log", date_filter=date)
 
     @app.get("/settings", response_class=HTMLResponse)
     def settings(request: Request, lang: str = "en", saved: str = "") -> Any:
@@ -325,11 +333,15 @@ def create_app(root: str | Path | None = None) -> FastAPI:
         api_key: str = Form(""),
     ) -> RedirectResponse:
         provider = provider.strip().lower()
-        if provider not in {"ollama", "deepseek", "openai", "none"}:
+        if provider not in {"ollama", "deepseek", "openai", "custom", "none"}:
             raise HTTPException(status_code=400, detail="Unsupported AI provider")
         save_ai_config(loop.root, provider=provider, model=model.strip() or None, base_url=base_url.strip() or None)
-        if api_key.strip() and provider in {"deepseek", "openai"}:
-            secret_name = "DEEPSEEK_API_KEY" if provider == "deepseek" else "OPENAI_API_KEY"
+        if api_key.strip() and provider in {"deepseek", "openai", "custom"}:
+            secret_name = {
+                "deepseek": "DEEPSEEK_API_KEY",
+                "openai": "OPENAI_API_KEY",
+                "custom": "CUSTOM_API_KEY",
+            }[provider]
             save_secret(loop.root, secret_name, api_key.strip())
         return RedirectResponse(_page_url("settings", lang, saved="1"), status_code=status.HTTP_303_SEE_OTHER)
 
