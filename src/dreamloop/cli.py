@@ -7,14 +7,16 @@ from typing import Annotated
 
 import typer
 
-from .analysis import ai_is_configured
+from .analysis import ai_status, save_ai_config, test_provider_connection
 from .core import DreamLoop
 
 app = typer.Typer(help="Local-first AI dream journal.")
 import_app = typer.Typer(help="Import local data.")
 weather_app = typer.Typer(help="Sync local context such as weather.")
+ai_app = typer.Typer(help="Configure local and optional cloud AI providers.")
 app.add_typer(import_app, name="import")
 app.add_typer(weather_app, name="weather")
+app.add_typer(ai_app, name="ai")
 
 
 @app.command()
@@ -56,8 +58,9 @@ def analyze(pending: Annotated[bool, typer.Option("--pending")] = False) -> None
     if not pending:
         typer.echo("Use --pending to analyze queued dreams.")
         raise typer.Exit(code=1)
-    if not ai_is_configured():
-        typer.echo("AI not configured. Set OPENAI_API_KEY or keep using DreamLoop as a local journal.")
+    status = ai_status()
+    if not status.ready:
+        typer.echo(status.warning or "AI provider is not ready. Keep using DreamLoop as a local journal.")
         return
     analyzed = DreamLoop().analyze_pending()
     typer.echo(f"Analyzed {len(analyzed)} pending dream(s).")
@@ -89,3 +92,35 @@ def import_ics(path: Path) -> None:
 def weather_sync(lat: float, lon: float) -> None:
     count = DreamLoop().sync_weather(lat, lon)
     typer.echo(f"Synced {count} weather day(s).")
+
+
+@ai_app.command("status")
+def ai_status_command() -> None:
+    status = ai_status()
+    typer.echo(f"provider: {status.provider}")
+    typer.echo(f"model: {status.model or 'none'}")
+    typer.echo(f"mode: {status.mode}")
+    typer.echo(f"base_url: {status.base_url or 'none'}")
+    typer.echo(f"ready: {status.ready}")
+    if status.warning:
+        typer.echo(f"warning: {status.warning}")
+
+
+@ai_app.command("use")
+def ai_use(
+    provider: Annotated[str, typer.Argument(help="Provider: ollama, deepseek, openai, or none.")],
+    model: Annotated[str | None, typer.Option("--model")] = None,
+    base_url: Annotated[str | None, typer.Option("--base-url")] = None,
+) -> None:
+    if provider not in {"ollama", "deepseek", "openai", "none"}:
+        typer.echo("Provider must be one of: ollama, deepseek, openai, none.")
+        raise typer.Exit(code=1)
+    path = save_ai_config(provider=provider, model=model, base_url=base_url)
+    status = ai_status()
+    typer.echo(f"AI provider set to {status.provider} ({status.model or 'no model'}).")
+    typer.echo(f"Config saved to {path}")
+
+
+@ai_app.command("test")
+def ai_test() -> None:
+    typer.echo(test_provider_connection())

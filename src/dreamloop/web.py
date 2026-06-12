@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 
-from .analysis import ai_is_configured
+from .analysis import ai_status
 from .core import DreamLoop
 
 PACKAGE_DIR = Path(__file__).parent
@@ -44,7 +44,9 @@ def create_app(root: str | Path | None = None) -> FastAPI:
             {
                 "dreams": loop.list_dreams(),
                 "heatmap": loop.heatmap(),
-                "ai_configured": ai_is_configured(),
+                "ai": ai_status(loop.root),
+                "trends": loop.trends(),
+                "data_dir": loop.data_dir,
             },
         )
 
@@ -71,7 +73,7 @@ def create_app(root: str | Path | None = None) -> FastAPI:
             {
                 "dream": dream,
                 "context": context,
-                "ai_configured": ai_is_configured(),
+                "ai": ai_status(loop.root),
             },
         )
 
@@ -106,7 +108,8 @@ def create_app(root: str | Path | None = None) -> FastAPI:
     @app.post("/api/analyze/pending")
     def api_analyze_pending() -> dict[str, Any]:
         analyzed = loop.analyze_pending()
-        return {"analyzed": analyzed, "ai_configured": ai_is_configured()}
+        status = ai_status(loop.root)
+        return {"analyzed": analyzed, "ai_configured": status.ready, "provider": status.provider}
 
     @app.post("/api/import/ics")
     def api_import_ics(path: str) -> dict[str, int]:

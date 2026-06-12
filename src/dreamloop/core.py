@@ -10,7 +10,7 @@ from typing import Any, Callable
 from urllib.parse import urlencode
 from urllib.request import urlopen
 
-from .analysis import Analyzer, OpenAIAnalyzer, ai_is_configured, normalize_analysis
+from .analysis import Analyzer, build_analyzer, normalize_analysis
 
 
 class DreamLoop:
@@ -87,9 +87,9 @@ class DreamLoop:
     def analyze_pending(self, analyzer: Analyzer | None = None, limit: int | None = None) -> list[int]:
         self.init()
         if analyzer is None:
-            if not ai_is_configured():
+            analyzer = build_analyzer(self.root)
+            if analyzer is None:
                 return []
-            analyzer = OpenAIAnalyzer()
 
         sql = "SELECT * FROM dreams WHERE analysis_status = 'pending' ORDER BY id"
         params: tuple[Any, ...] = ()

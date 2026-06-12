@@ -553,6 +553,7 @@ dependencies = [
     { name = "fastapi" },
     { name = "httpx" },
     { name = "jinja2" },
+    { name = "openai" },
     { name = "python-multipart" },
     { name = "typer" },
     { name = "uvicorn" },
@@ -561,7 +562,6 @@ dependencies = [
 [package.optional-dependencies]
 ai = [
     { name = "chromadb" },
-    { name = "openai" },
 ]
 dev = [
     { name = "pytest" },
@@ -574,7 +574,7 @@ requires-dist = [
     { name = "fastapi", specifier = ">=0.115" },
     { name = "httpx", specifier = ">=0.27" },
     { name = "jinja2", specifier = ">=3.1" },
-    { name = "openai", marker = "extra == 'ai'", specifier = ">=1.50" },
+    { name = "openai", specifier = ">=1.50" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=5.0" },
     { name = "python-multipart", specifier = ">=0.0.9" },

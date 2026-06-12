@@ -3,38 +3,52 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Dream #{{ dream.id }} · DreamLoop</title>
+    <title>Dream #{{ dream.id }} / DreamLoop</title>
     <link rel="stylesheet" href="{{ url_for('static', path='/style.css') }}">
   </head>
   <body>
-    <main class="shell">
+    <main class="shell detail-shell">
       <a class="back" href="/">Back to DreamLoop</a>
-      <article class="panel">
-        <p class="eyebrow">{{ dream.dreamed_on }} · {{ dream.analysis_status }}</p>
+      <article class="log-entry">
+        <p class="eyebrow">{{ dream.dreamed_on }} / {{ dream.analysis_status }}</p>
         <h1>Dream #{{ dream.id }}</h1>
         <p class="dream-text">{{ dream.content }}</p>
-        <p class="muted">{{ dream.manual_mood or "no mood" }} · {{ ", ".join(dream.tags) or "no tags" }}</p>
+        <p class="muted">{{ dream.manual_mood or "no mood" }} / {{ ", ".join(dream.tags) or "no tags" }}</p>
       </article>
 
-      <section class="grid">
-        <div class="panel">
-          <h2>AI analysis</h2>
+      <section class="insight-grid">
+        <div class="paper-panel">
+          <div class="section-title">
+            <span>structured output</span>
+            <h2>AI analysis</h2>
+          </div>
           {% if dream.analysis %}
-            <dl>
-              <dt>Emotion</dt><dd>{{ dream.analysis.emotional_tone }}</dd>
-              <dt>Symbols</dt><dd>{{ ", ".join(dream.analysis.symbols) }}</dd>
-              <dt>Themes</dt><dd>{{ ", ".join(dream.analysis.themes) }}</dd>
-              <dt>Summary</dt><dd>{{ dream.analysis.summary }}</dd>
-            </dl>
-          {% elif ai_configured %}
-            <p class="muted">Analysis is pending.</p>
+            <div class="tag-shelf">
+              <span>{{ dream.analysis.emotional_tone }}</span>
+              {% for symbol in dream.analysis.symbols %}
+                <span>{{ symbol }}</span>
+              {% endfor %}
+              {% for theme in dream.analysis.themes %}
+                <span>{{ theme }}</span>
+              {% endfor %}
+            </div>
+            <p>{{ dream.analysis.summary }}</p>
+            <details>
+              <summary>Raw JSON</summary>
+              <pre><code>{{ dream.analysis.raw_json }}</code></pre>
+            </details>
+          {% elif ai.ready %}
+            <p class="muted">Analysis is pending for {{ ai.provider }} / {{ ai.model }}.</p>
           {% else %}
-            <p class="muted">AI not configured. Set OPENAI_API_KEY when you want structured analysis.</p>
+            <p class="muted">AI is optional. Use Ollama locally or configure DeepSeek when you want structured analysis.</p>
           {% endif %}
         </div>
 
-        <div class="panel">
-          <h2>Day context</h2>
+        <div class="paper-panel quiet-panel">
+          <div class="section-title">
+            <span>day context</span>
+            <h2>Calendar / Weather</h2>
+          </div>
           <h3>Calendar</h3>
           {% for event in context.events %}
             <p>{{ event.summary }}</p>

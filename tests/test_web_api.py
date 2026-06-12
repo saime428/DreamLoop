@@ -33,8 +33,29 @@ def test_web_home_renders_without_ai_key(tmp_path, monkeypatch):
     response = client.get("/")
 
     assert response.status_code == 200
-    assert "AI not configured" in response.text
+    assert "Your dreams have patterns. DreamLoop finds them locally." in response.text
+    assert "Ollama optional" in response.text
+    assert "CLI-first" in response.text
+    assert "Obsidian" in response.text
+    assert "data never leaves this machine" in response.text
     assert "DreamLoop" in response.text
+
+
+def test_web_home_shows_provider_without_leaking_secret(tmp_path, monkeypatch):
+    from dreamloop.analysis import save_ai_config, save_secret
+
+    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+    save_ai_config(tmp_path, provider="deepseek")
+    save_secret(tmp_path, "DEEPSEEK_API_KEY", "very-secret-token")
+    app = create_app(tmp_path)
+    client = TestClient(app)
+
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert "deepseek" in response.text
+    assert "deepseek-v4-flash" in response.text
+    assert "very-secret-token" not in response.text
 
 
 def test_heatmap_endpoint_returns_stable_json(tmp_path):

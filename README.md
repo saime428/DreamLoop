@@ -1,120 +1,100 @@
 # DreamLoop
 
-DreamLoop is a local-first dream journal for people who want to capture dreams quickly and notice patterns over time.
+![DreamLoop hero dashboard](docs/assets/hero-dashboard.svg)
 
-Dreams stay on your machine first. AI analysis, weather context, calendar imports, and future image generation are optional layers you choose to enable.
+**Your dreams have patterns. DreamLoop finds them locally.**
 
-DreamLoop 是一个本地优先的 AI 梦境日志。它先帮你在醒来后的几秒钟里把梦记下来，再慢慢整理情绪、符号、主题、天气和日历线索。
-
-```bash
-uvx dreamloop init
-uvx dreamloop add "I was flying above a dark ocean." --tag water --tag flying --mood anxious
-uvx dreamloop web
-```
-
-![DreamLoop dashboard placeholder](docs/assets/dashboard-placeholder.svg)
-
-## Why DreamLoop
-
-Most dream journals are either too slow when you wake up or too private to trust to a cloud app. DreamLoop is built around a smaller promise: record first, locally; analyze later, only when you opt in.
-
-很多梦境记录工具的问题是：醒来时太慢，长期回看又太散。DreamLoop 的第一原则是本地优先，默认数据保存在当前目录的 `.dreamloop/`，并自动加入 `.gitignore`，避免把私人梦境误提交。
-
-## Features
-
-- Fast CLI capture with `dreamloop add`.
-- Local SQLite database in `.dreamloop/dreamloop.sqlite3`.
-- FastAPI + Jinja local dashboard.
-- Structured AI analysis when `OPENAI_API_KEY` is configured.
-- Pending analysis queue so capture never waits for an LLM call.
-- Emotion heatmap for daily review.
-- Local `.ics` calendar import.
-- Open-Meteo weather sync with no API key.
-- Similar dream lookup and basic tag/symbol/theme trends.
-- Future-ready roadmap for ChromaDB and generated dream illustrations.
-
-## Quick Start
-
-Install with `pipx` or run directly with `uvx`:
+- Runs fully local. Your data never leaves your machine.
+- Free with Ollama. Optional DeepSeek/OpenAI if you want cloud models.
+- CLI-first, forkable, and built for Obsidian-minded knowledge workers.
 
 ```bash
 pipx install dreamloop
 dreamloop init
-dreamloop add "A door opened under the sea." --tag water --mood curious
+dreamloop add "I found a blue door under the sea."
+```
+
+DreamLoop is a local-first dream journal for people who want fast capture, private storage, and pattern discovery without renting their inner life to another subscription app.
+
+## Why This Project
+
+Commercial dream apps usually make you pay for analysis and push personal text into a cloud workflow. DreamLoop takes the opposite path: the journal is local, the CLI is the primary interface, and AI is a swappable layer.
+
+The default path is zero-cost Ollama. DeepSeek and OpenAI are optional cloud providers for people who want stronger hosted models. The code is small enough to fork and direct enough to extend.
+
+## Quick Start
+
+```bash
+pipx install dreamloop
+dreamloop init
+dreamloop add "I was flying above a dark ocean." --tag water --mood anxious
+```
+
+Then open the local dashboard:
+
+```bash
 dreamloop web
 ```
 
-For local development from this repository:
+The dashboard starts at `http://127.0.0.1:8765`.
 
-```bash
-uv sync --extra dev
-uv run dreamloop init
-uv run dreamloop add "I walked through a city made of glass." --tag city
-uv run dreamloop web
-```
-
-The dashboard starts on `http://127.0.0.1:8765` by default.
-
-## Local-first Data Model
-
-DreamLoop creates a private project-local data directory:
+## CLI Demo
 
 ```text
-.dreamloop/
-  dreamloop.sqlite3
-  chroma/
-  exports/
-  imports/
+$ dreamloop add "A door opened under the sea." --tag water --tag threshold
+saved locally -> .dreamloop/dreamloop.sqlite3
+analysis -> pending
+
+$ dreamloop ai use ollama --model qwen3:8b
+AI provider set to ollama (qwen3:8b).
+
+$ dreamloop analyze --pending
+Analyzed pending dreams when a provider is ready.
 ```
 
-SQLite stores dreams, structured analyses, imported calendar events, and synced weather. ChromaDB is optional and reserved for richer vector search; core logging and browsing work without it.
+Future release assets will include `docs/assets/cli-demo.cast` and `docs/assets/cli-demo.gif`.
 
-## AI Setup
+## Privacy Promise
 
-DreamLoop works without an API key. In that mode it is a fast local journal with Web browsing, heatmaps, ICS import, weather sync, and pattern tracking.
+- Dream entries are stored in `.dreamloop/dreamloop.sqlite3`.
+- `.dreamloop/` is automatically ignored by Git.
+- Your dreams are never uploaded by default.
+- Ollama keeps analysis local on your machine.
+- DeepSeek/OpenAI only run after explicit configuration.
+- API keys live in `.dreamloop/secrets.env`; secrets do not belong in commits.
 
-To enable structured AI analysis:
+## AI Providers
+
+DreamLoop supports provider configuration without changing the journal model:
 
 ```bash
-set OPENAI_API_KEY=sk-...
-dreamloop analyze --pending
+dreamloop ai status
+dreamloop ai use ollama --model qwen3:8b
+dreamloop ai use deepseek --model deepseek-v4-flash
+dreamloop ai test
 ```
 
-Each analysis stores fixed queryable fields plus the raw JSON response:
+Provider defaults:
 
-- emotional tone
-- archetypal symbols
-- narrative themes
-- summary
-- confidence
-
-## CLI Reference
-
-```bash
-dreamloop init
-dreamloop add "I was flying above a dark ocean." --tag water --tag flying --mood anxious
-dreamloop list
-dreamloop show 1
-dreamloop analyze --pending
-dreamloop import ics calendar.ics
-dreamloop weather sync --lat 31.2304 --lon 121.4737
-dreamloop export
-dreamloop web
-```
+- `ollama`: local, `http://localhost:11434/v1`, model `qwen3:8b`
+- `deepseek`: cloud, `https://api.deepseek.com`, model `deepseek-v4-flash`
+- `openai`: cloud, OpenAI-compatible JSON analysis
+- `none`: capture-only local journal mode
 
 ## Web Dashboard
 
-The local Web UI includes:
+The FastAPI/Jinja dashboard is intentionally lightweight:
 
-- dream capture form
-- recent dream list
-- dream detail pages
-- AI analysis display
+- CLI-first capture preview
+- local runtime status
+- model/provider status
+- privacy contract
 - emotion heatmap
-- imported calendar context
-- synced weather context
+- recurring symbol trends
+- recent dream log
+- detail pages with structured analysis and raw JSON
 
-The same FastAPI app also exposes JSON endpoints for integrations:
+The same app exposes JSON endpoints:
 
 - `POST /api/dreams`
 - `GET /api/dreams`
@@ -126,14 +106,25 @@ The same FastAPI app also exposes JSON endpoints for integrations:
 - `GET /api/insights/heatmap`
 - `GET /api/insights/trends`
 
-## Weather and Calendar
+## Local Data Model
 
-Weather sync uses Open-Meteo and does not require an API key. Calendar support intentionally starts with local `.ics` import instead of Google or Apple OAuth, keeping the v0.1 privacy story simple.
-
-```bash
-dreamloop import ics my-calendar.ics
-dreamloop weather sync --lat 31.2304 --lon 121.4737
+```text
+.dreamloop/
+  dreamloop.sqlite3
+  config.json
+  secrets.env
+  chroma/
+  exports/
+  imports/
 ```
+
+SQLite stores dreams, analysis results, imported calendar events, and synced weather. ChromaDB remains optional for richer vector search.
+
+## Obsidian Roadmap
+
+- v0.2: Markdown export for dream entries and analysis summaries.
+- v0.3: Obsidian vault sync with stable frontmatter.
+- v0.4: Community plugin for capture, backlinks, and local dashboard launch.
 
 ## Roadmap
 
@@ -141,32 +132,44 @@ dreamloop weather sync --lat 31.2304 --lon 121.4737
 
 - Local CLI and Web dashboard.
 - SQLite storage.
-- Optional OpenAI structured analysis.
+- Ollama-first provider settings.
+- Optional DeepSeek/OpenAI structured analysis.
 - Heatmap, `.ics` import, weather sync.
 - Similar dreams and basic trends.
 
 ### v0.2
 
-- Beta-level UI polish.
+- Markdown export.
+- Better screenshots and CLI GIF assets.
 - ChromaDB-backed clustering and recurring-theme insights.
-- Stronger backup and restore flows.
-- Better import/export formats.
+- Backup and restore flows.
+
+### v0.3+
+
+- Obsidian vault sync.
+- Obsidian community plugin.
 - Generated dream illustrations stored locally as opt-in artifacts.
 
 ## Contributing
 
-DreamLoop is designed as a small, readable Python project. Good first contributions include:
+DreamLoop is deliberately small and forkable. Good first contributions:
 
-- adding fixtures for more `.ics` variants
-- improving dashboard accessibility
-- expanding local pattern tracking
-- adding export formats
-- improving README screenshots
+- improve local model prompts
+- add `.ics` fixtures
+- polish dashboard accessibility
+- expand Markdown/Obsidian export
+- add terminal demo assets
 
 Run tests with:
 
 ```bash
 uv run --extra dev pytest
+```
+
+Build the package with:
+
+```bash
+uv build
 ```
 
 ## License
