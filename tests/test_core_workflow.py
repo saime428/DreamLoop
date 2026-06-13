@@ -422,6 +422,83 @@ def test_trends_filter_placeholder_terms_and_delete_dream(tmp_path):
     assert [dream["id"] for dream in loop.list_dreams()] == [first_id]
 
 
+def test_structured_symbol_objects_are_displayed_as_terms(tmp_path):
+    loop = DreamLoop(tmp_path)
+    loop.init()
+    dream_id = loop.add_dream_with_analysis(
+        "I was lost in a subway station with a broken map.",
+        {
+            "emotional_tone": "anxious",
+            "symbols": [
+                {"name": "subway station", "meaning": "A confusing transition point."},
+                {"name": "broken map", "meaning": "Planning tools failing."},
+            ],
+            "themes": [{"name": "lost direction", "meaning": "Unclear next step."}],
+            "summary": "A dream about finding direction under pressure.",
+            "confidence": 0.74,
+            "dream_details": [{"name": "subway station", "meaning": "You cannot find the exit."}],
+        },
+    )
+
+    dream = loop.get_dream(dream_id)
+    trends = loop.trends()
+    raw = json.loads(dream["analysis"]["raw_json"])
+
+    assert dream["analysis"]["symbols"] == ["subway station", "broken map"]
+    assert dream["analysis"]["themes"] == ["lost direction"]
+    assert raw["symbols"] == ["subway station", "broken map"]
+    assert "subway station: You cannot find the exit." in raw["dream_details"]
+    assert {"name": "subway station", "count": 1} in trends["symbols"]
+    assert {"name": "broken map", "count": 1} in trends["symbols"]
+    assert all('"name"' not in item["name"] and "meaning" not in item["name"] for item in trends["symbols"])
+
+
+def test_legacy_json_string_terms_and_visual_memory_are_sanitized(tmp_path):
+    loop = DreamLoop(tmp_path)
+    loop.init()
+    dream_id = loop.add_dream_with_analysis(
+        "I was trapped in a station.",
+        {
+            "emotional_tone": "stuck",
+            "symbols": ["station"],
+            "themes": ["transition"],
+            "summary": "A stuck transition dream.",
+            "confidence": 0.7,
+        },
+    )
+    legacy_symbol = json.dumps({"name": "station", "meaning": "A transfer point."}, ensure_ascii=False)
+    legacy_theme = json.dumps({"name": "blocked transition", "meaning": "No clear route."}, ensure_ascii=False)
+    legacy_visual = {
+        "kind": "local_card",
+        "title": legacy_symbol,
+        "prompt": f"Local visual memory card. Symbols: {legacy_symbol}",
+        "symbols": [legacy_symbol],
+        "themes": [legacy_theme],
+        "accent_1": "#69f0d7",
+        "accent_2": "#8e63ff",
+        "accent_3": "#ff6ba8",
+    }
+    with loop._connect() as db:
+        db.execute(
+            "UPDATE dream_analyses SET symbols_json = ?, themes_json = ? WHERE dream_id = ? AND language = 'en'",
+            (json.dumps([legacy_symbol]), json.dumps([legacy_theme]), dream_id),
+        )
+        db.execute("UPDATE dreams SET visual_json = ? WHERE id = ?", (json.dumps(legacy_visual), dream_id))
+
+    dream = loop.get_dream(dream_id)
+    trends = loop.trends()
+    visual = dream["visual_memory"]
+
+    assert dream["analysis"]["symbols"] == ["station"]
+    assert dream["analysis"]["themes"] == ["blocked transition"]
+    assert trends["symbols"] == [{"name": "station", "count": 1}]
+    assert visual["title"] == "station"
+    assert visual["symbols"] == ["station"]
+    assert visual["themes"] == ["blocked transition"]
+    assert '"name"' not in visual["prompt"]
+    assert "meaning" not in visual["prompt"]
+
+
 def test_generate_visual_memory_creates_local_card_without_external_api(tmp_path):
     loop = DreamLoop(tmp_path)
     loop.init()

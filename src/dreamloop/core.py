@@ -118,6 +118,7 @@ class DreamLoop:
             ).fetchone()
         if analysis:
             raw_report = parse_json_any(analysis["raw_json"])
+            report = normalize_report_payload(raw_report) if isinstance(raw_report, dict) else {}
             dream["analysis"] = {
                 "language": analysis["language"],
                 "emotional_tone": analysis["emotional_tone"],
@@ -125,8 +126,8 @@ class DreamLoop:
                 "themes": normalize_text_list(json.loads(analysis["themes_json"])),
                 "summary": analysis["summary"],
                 "confidence": analysis["confidence"],
-                "report": normalize_report_payload(raw_report) if isinstance(raw_report, dict) else {},
-                "raw_json": analysis["raw_json"],
+                "report": report,
+                "raw_json": json.dumps(report, ensure_ascii=False),
             }
         else:
             dream["analysis"] = None
@@ -518,7 +519,9 @@ class DreamLoop:
         dream["tags"] = json.loads(dream.pop("tags_json"))
         dream["reflections"] = parse_json_object(dream.pop("reflection_json", "{}"))
         visual_memory = parse_json_any(dream.pop("visual_json", "{}"))
-        dream["visual_memory"] = visual_memory if isinstance(visual_memory, dict) and visual_memory else None
+        dream["visual_memory"] = (
+            normalize_visual_memory(visual_memory) if isinstance(visual_memory, dict) and visual_memory else None
+        )
         return dream
 
 
@@ -539,6 +542,31 @@ def visual_palette(seed: int) -> tuple[str, str, str]:
         ("#f7c66b", "#8d7aff", "#5de2d0"),
     )
     return palettes[seed % len(palettes)]
+
+
+def normalize_visual_memory(payload: dict[str, Any]) -> dict[str, Any]:
+    visual = dict(payload)
+    symbols = normalize_text_list(visual.get("symbols"))
+    themes = normalize_text_list(visual.get("themes"))
+    title_values = normalize_text_list(visual.get("title"))
+    title = title_values[0] if title_values else (symbols[0] if symbols else "Local visual memory")
+    prompt = str(visual.get("prompt") or "").strip()
+    if '"name"' in prompt or '"meaning"' in prompt or "{'name'" in prompt or "{'meaning'" in prompt:
+        prompt_parts = ["Local visual memory card."]
+        if symbols:
+            prompt_parts.append(f"Symbols: {', '.join(symbols[:5])}.")
+        if themes:
+            prompt_parts.append(f"Themes: {', '.join(themes[:5])}.")
+        prompt = " ".join(prompt_parts)
+    visual["kind"] = str(visual.get("kind") or "local_card")
+    visual["title"] = title
+    visual["prompt"] = prompt
+    visual["symbols"] = symbols[:5]
+    visual["themes"] = themes[:5]
+    visual.setdefault("accent_1", "#69f0d7")
+    visual.setdefault("accent_2", "#8e63ff")
+    visual.setdefault("accent_3", "#ff6ba8")
+    return visual
 
 
 def parse_json_object(text: str | None) -> dict[str, str]:

@@ -355,7 +355,58 @@ def is_meaningful_term(value: Any) -> bool:
         return False
     if text in {"-", "?", "??", "???", "????", "?????", "？", "？？"}:
         return False
+    if re.fullmatch(r"[\W_?？]+", text, flags=re.UNICODE):
+        return False
     return bool(re.search(r"[0-9A-Za-z\u4e00-\u9fff]", text))
+
+
+_JSON_MISSING = object()
+
+
+def parse_jsonish_text(value: str) -> Any:
+    text = value.strip()
+    if not text or text[0] not in "[{":
+        return _JSON_MISSING
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        return _JSON_MISSING
+
+
+def _first_normalized(value: Any, *, display: bool = False) -> str:
+    values = normalize_display_list(value) if display else normalize_text_list(value)
+    return values[0] if values else ""
+
+
+def _mapping_term(value: dict[str, Any]) -> str:
+    for key in ("name", "label", "title"):
+        if key in value:
+            text = _first_normalized(value.get(key))
+            if is_meaningful_term(text):
+                return text
+    for key in ("symbol", "theme", "term", "value"):
+        if key in value:
+            text = _first_normalized(value.get(key))
+            if is_meaningful_term(text):
+                return text
+    return ""
+
+
+def _mapping_display_text(value: dict[str, Any]) -> str:
+    name = _mapping_term(value)
+    meaning = _first_normalized(value.get("meaning"), display=True) if "meaning" in value else ""
+    if name and meaning and name != meaning:
+        return f"{name}: {meaning}"
+    if name:
+        return name
+    for key in ("summary", "description", "interpretation", "text", "value"):
+        if key in value:
+            text = _first_normalized(value.get(key), display=True)
+            if is_meaningful_term(text):
+                return text
+    if meaning:
+        return meaning
+    return ""
 
 
 def normalize_text_list(value: Any) -> list[str]:
@@ -363,20 +414,38 @@ def normalize_text_list(value: Any) -> list[str]:
         return []
     if isinstance(value, str):
         text = value.strip()
+        parsed = parse_jsonish_text(text)
+        if parsed is not _JSON_MISSING:
+            return normalize_text_list(parsed)
         return [text] if is_meaningful_term(text) else []
     if isinstance(value, dict):
-        return [json.dumps(value, ensure_ascii=False)] if value else []
+        text = _mapping_term(value)
+        return [text] if is_meaningful_term(text) else []
     if isinstance(value, (list, tuple, set)):
         items: list[str] = []
         for item in value:
-            if isinstance(item, str):
-                text = item.strip()
-            elif isinstance(item, dict):
-                text = json.dumps(item, ensure_ascii=False)
-            else:
-                text = str(item).strip()
-            if is_meaningful_term(text):
-                items.append(text)
+            items.extend(normalize_text_list(item))
+        return items
+    text = str(value).strip()
+    return [text] if is_meaningful_term(text) else []
+
+
+def normalize_display_list(value: Any) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        text = value.strip()
+        parsed = parse_jsonish_text(text)
+        if parsed is not _JSON_MISSING:
+            return normalize_display_list(parsed)
+        return [text] if is_meaningful_term(text) else []
+    if isinstance(value, dict):
+        text = _mapping_display_text(value)
+        return [text] if is_meaningful_term(text) else []
+    if isinstance(value, (list, tuple, set)):
+        items: list[str] = []
+        for item in value:
+            items.extend(normalize_display_list(item))
         return items
     text = str(value).strip()
     return [text] if is_meaningful_term(text) else []
@@ -405,9 +474,13 @@ def normalize_interpretations(value: Any) -> list[dict[str, str]]:
 
 def normalize_report_payload(result: dict[str, Any]) -> dict[str, Any]:
     report = dict(result)
+    if "symbols" in report:
+        report["symbols"] = normalize_text_list(report["symbols"])
+    if "themes" in report:
+        report["themes"] = normalize_text_list(report["themes"])
     for key in REPORT_LIST_FIELDS:
         if key in report:
-            report[key] = normalize_text_list(report[key])
+            report[key] = normalize_display_list(report[key])
     if "possible_interpretations" in report:
         report["possible_interpretations"] = normalize_interpretations(report["possible_interpretations"])
     for key in ("core_emotion", "waking_feeling"):

@@ -833,11 +833,13 @@ button,
   color: var(--text);
   font-family: Georgia, "Times New Roman", serif;
   font-size: 26px;
+  overflow-wrap: anywhere;
 }
 
 .insight-callout p {
   margin: 4px 0 0;
   color: var(--muted);
+  overflow-wrap: anywhere;
 }
 
 .muted-row {
@@ -1226,6 +1228,7 @@ button:disabled {
   color: var(--muted);
   font-family: "Cascadia Mono", "JetBrains Mono", Consolas, monospace;
   font-size: 12px;
+  overflow-wrap: anywhere;
 }
 
 .gallery-card strong {
@@ -1233,6 +1236,7 @@ button:disabled {
   font-family: Georgia, "Times New Roman", serif;
   font-size: 24px;
   line-height: 1.12;
+  overflow-wrap: anywhere;
 }
 
 .local-visual-card {
@@ -1254,6 +1258,7 @@ button:disabled {
   color: var(--muted);
   font-family: "Cascadia Mono", "JetBrains Mono", Consolas, monospace;
   font-size: 12px;
+  overflow-wrap: anywhere;
   position: relative;
   z-index: 1;
 }
@@ -1265,6 +1270,7 @@ button:disabled {
   font-size: clamp(26px, 4vw, 42px);
   line-height: 1.06;
   max-width: 540px;
+  overflow-wrap: anywhere;
   position: relative;
   z-index: 1;
 }

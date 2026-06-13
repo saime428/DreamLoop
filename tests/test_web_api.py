@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import html
 import json
 
 from fastapi.testclient import TestClient
@@ -73,6 +74,41 @@ class DetailedReflectionAnalyzer:
             ],
             "real_life_questions": ["我真正害怕的是失败，还是改变本身？"],
             "verification_prompts": ["把这个梦和最近一周最反复出现的压力放在一起看。"],
+        }
+
+
+class StructuredTermAnalyzer:
+    def analyze(self, content: str, language: str = "en") -> dict[str, object]:
+        return {
+            "analysis_version": 2,
+            "emotional_tone": "stuck",
+            "symbols": [
+                {"name": "subway station", "meaning": "A confusing transition point."},
+                {"name": "broken map", "meaning": "Planning tools failing."},
+            ],
+            "themes": [{"name": "lost direction", "meaning": "Unclear next step."}],
+            "summary": "A dream about trying to find a route.",
+            "confidence": 0.75,
+            "dream_details": [{"name": "subway station", "meaning": "You cannot find the exit."}],
+            "real_life_links": [{"name": "commute planning", "meaning": "You may be choosing between routes."}],
+            "possible_interpretations": [
+                {
+                    "title": "Pressure around choosing a route",
+                    "interpretation": "The station and broken map point to uncertainty rather than a fixed omen.",
+                    "dream_evidence": "You are in a station and the navigation is unreliable.",
+                    "real_life_connection": "This may mirror a recent decision that has too many options.",
+                    "verification_question": "Where are you currently choosing between several imperfect routes?",
+                },
+                {
+                    "title": "Need for support",
+                    "interpretation": "Ignored requests for help may reflect wanting clearer support.",
+                    "dream_evidence": "People nearby do not answer you.",
+                    "real_life_connection": "You may feel unsupported in a current task.",
+                    "verification_question": "Who could you ask for a concrete next step?",
+                },
+            ],
+            "real_life_questions": ["What real decision feels overloaded with routes?"],
+            "verification_prompts": ["Compare the dream to one decision from this week."],
         }
 
 
@@ -594,6 +630,26 @@ def test_detail_generates_local_visual_memory_and_gallery_shows_it(tmp_path):
     assert "Dream Gallery" in gallery.text
     assert "Local visual memory" in gallery.text
     assert "A dream about finding a hidden door." in gallery.text
+
+
+def test_structured_symbol_objects_do_not_leak_to_web_pages(tmp_path):
+    app = create_app(tmp_path)
+    app.state.analyzer = StructuredTermAnalyzer()
+    client = TestClient(app)
+    dream_id = client.post(
+        "/api/dreams", json={"content": "I could not find the exit in a subway station."}
+    ).json()["id"]
+
+    client.post(f"/api/dreams/{dream_id}/analyze?lang=en")
+    client.post(f"/dreams/{dream_id}/visual?lang=en", follow_redirects=False)
+
+    for path in ("/?lang=en", "/patterns?lang=en", "/gallery?lang=en", f"/dreams/{dream_id}?lang=en"):
+        response = client.get(path)
+        assert response.status_code == 200
+        rendered = html.unescape(response.text)
+        assert '{"name"' not in rendered
+        assert '"meaning"' not in rendered
+        assert "subway station" in rendered
 
 
 def test_api_generates_local_visual_memory(tmp_path):
