@@ -44,6 +44,9 @@
           </div>
           <div class="visual-memory-action">
             <button type="button" class="secondary-button">{{ t.generate_dream_image }}</button>
+            <form method="post" action="/dreams/{{ dream.id }}/delete?lang={{ lang }}" onsubmit="return confirm('{{ t.delete_confirm }}')">
+              <button type="submit" class="danger-button">{{ t.delete_dream }}</button>
+            </form>
             <p>{{ t.visual_memory_note }}</p>
           </div>
         </article>
@@ -148,8 +151,9 @@
               </details>
             {% elif ai.ready %}
               <p class="empty-state">{{ t.pending_analysis }}: {{ ai.provider }} / {{ ai.model }}</p>
-              <form method="post" action="/dreams/{{ dream.id }}/analyze?lang={{ lang }}" class="analyze-form">
-                <button type="submit">{{ t.generate_chinese_analysis if lang == "zh" else t.generate_english_analysis }}</button>
+              <form method="post" action="/dreams/{{ dream.id }}/analyze?lang={{ lang }}" class="analyze-form" data-loading-form data-loading-text="{{ t.analyzing_dream }}">
+                <button type="submit" data-loading-button>{{ t.generate_chinese_analysis if lang == "zh" else t.generate_english_analysis }}</button>
+                <p class="loading-message" aria-live="polite">{{ t.analyzing_dream }}</p>
               </form>
             {% else %}
               <p class="empty-state">{{ t.analysis_unavailable }}</p>
@@ -177,5 +181,22 @@
         </section>
       </main>
     </div>
+    <script>
+      (() => {
+        document.querySelectorAll("[data-loading-form]").forEach((form) => {
+          form.addEventListener("submit", () => {
+            form.classList.add("is-loading");
+            form.setAttribute("aria-busy", "true");
+            form.querySelectorAll("button[type='submit']").forEach((button) => {
+              button.disabled = true;
+            });
+            const button = form.querySelector("[data-loading-button]");
+            if (button && form.dataset.loadingText) {
+              button.textContent = form.dataset.loadingText;
+            }
+          });
+        });
+      })();
+    </script>
   </body>
 </html>

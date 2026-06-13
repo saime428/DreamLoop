@@ -10,7 +10,15 @@ from typing import Any, Callable
 from urllib.parse import urlencode
 from urllib.request import urlopen
 
-from .analysis import Analyzer, build_analyzer, clean_reflections, normalize_analysis
+from .analysis import (
+    Analyzer,
+    build_analyzer,
+    clean_reflections,
+    is_meaningful_term,
+    normalize_analysis,
+    normalize_report_payload,
+    normalize_text_list,
+)
 
 
 class DreamLoop:
@@ -113,11 +121,11 @@ class DreamLoop:
             dream["analysis"] = {
                 "language": analysis["language"],
                 "emotional_tone": analysis["emotional_tone"],
-                "symbols": json.loads(analysis["symbols_json"]),
-                "themes": json.loads(analysis["themes_json"]),
+                "symbols": normalize_text_list(json.loads(analysis["symbols_json"])),
+                "themes": normalize_text_list(json.loads(analysis["themes_json"])),
                 "summary": analysis["summary"],
                 "confidence": analysis["confidence"],
-                "report": raw_report if isinstance(raw_report, dict) else {},
+                "report": normalize_report_payload(raw_report) if isinstance(raw_report, dict) else {},
                 "raw_json": analysis["raw_json"],
             }
         else:
@@ -164,6 +172,13 @@ class DreamLoop:
                 raise KeyError(f"Dream {dream_id} was not found.")
             self._write_analysis(db, dream_id, row["content"], analyzer, language, row["reflection_json"])
         return dream_id
+
+    def delete_dream(self, dream_id: int) -> bool:
+        self.init()
+        with self._connect() as db:
+            db.execute("DELETE FROM dream_analyses WHERE dream_id = ?", (dream_id,))
+            cursor = db.execute("DELETE FROM dreams WHERE id = ?", (dream_id,))
+            return cursor.rowcount > 0
 
     def import_ics(self, path: str | Path) -> int:
         self.init()
@@ -547,10 +562,11 @@ def dream_similarity(target: dict[str, Any], candidate: dict[str, Any]) -> float
 
 def counter_items(counter: Counter[str], secondary: Counter[str] | None = None) -> list[dict[str, Any]]:
     secondary = secondary or Counter()
+    filtered = Counter({name: count for name, count in counter.items() if is_meaningful_term(name)})
     return [
         {"name": name, "count": count}
         for name, count in sorted(
-            counter.items(), key=lambda item: (-item[1], -secondary[item[0]], item[0])
+            filtered.items(), key=lambda item: (-item[1], -secondary[item[0]], item[0])
         )
     ]
 

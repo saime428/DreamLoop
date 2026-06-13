@@ -163,6 +163,8 @@ def test_log_prioritizes_capture_and_ai_analysis(tmp_path):
     assert 'name="tags"' not in response.text
     assert 'name="manual_mood"' not in response.text
     assert "AI Analysis</button>" in response.text
+    assert "data-loading-form" in response.text
+    assert "data-loading-text" in response.text
     assert "Dream calendar" not in response.text
     assert "Dreamscape log" not in response.text
 
@@ -232,6 +234,31 @@ def test_draft_analyze_uses_optional_reflections_and_renders_detailed_report(tmp
     assert "我真正害怕的是失败，还是改变本身？" in response.text
 
 
+def test_draft_analyze_renders_string_report_fields_as_single_list_items(tmp_path):
+    app = create_app(tmp_path)
+    app.state.analyzer = StaticAnalyzer(
+        {
+            "analysis_version": 2,
+            "emotional_tone": "anxious",
+            "symbols": ["station"],
+            "themes": ["transition"],
+            "summary": "A report about moving through an unfamiliar place.",
+            "confidence": 0.72,
+            "dream_details": "The subway station became a stranger neighborhood.",
+            "real_life_links": "You may be comparing housing routes.",
+            "real_life_questions": "Which option feels unreliable right now?",
+            "verification_prompts": "Notice whether this maps to a recent decision.",
+        }
+    )
+    client = TestClient(app)
+
+    response = client.post("/drafts/analyze?lang=en", data={"content": "The station changed shape."})
+
+    assert response.status_code == 200
+    assert "<li>The subway station became a stranger neighborhood.</li>" in response.text
+    assert "<li>T</li>" not in response.text
+
+
 def test_draft_save_creates_dream_with_language_analysis(tmp_path):
     app = create_app(tmp_path)
     client = TestClient(app)
@@ -280,6 +307,34 @@ def test_web_single_dream_analysis_route_preserves_language(tmp_path):
     home = client.get("/?lang=en")
     assert "Missing analysis" in home.text
     assert "一场关于发现隐藏之门的梦。" not in home.text
+
+
+def test_web_can_delete_saved_dream(tmp_path):
+    app = create_app(tmp_path)
+    client = TestClient(app)
+    dream_id = client.post("/api/dreams", json={"content": "A dream to remove."}).json()["id"]
+
+    detail = client.get(f"/dreams/{dream_id}?lang=en")
+    assert detail.status_code == 200
+    assert f'action="/dreams/{dream_id}/delete?lang=en"' in detail.text
+
+    deleted = client.post(f"/dreams/{dream_id}/delete?lang=en", follow_redirects=False)
+
+    assert deleted.status_code == 303
+    assert deleted.headers["location"] == "/log?lang=en"
+    assert client.get(f"/api/dreams/{dream_id}").status_code == 404
+
+
+def test_api_can_delete_saved_dream(tmp_path):
+    app = create_app(tmp_path)
+    client = TestClient(app)
+    dream_id = client.post("/api/dreams", json={"content": "A dream to remove."}).json()["id"]
+
+    response = client.delete(f"/api/dreams/{dream_id}")
+
+    assert response.status_code == 200
+    assert response.json() == {"deleted": dream_id}
+    assert client.delete(f"/api/dreams/{dream_id}").status_code == 404
 
 
 def test_api_analyzes_single_dream_with_override(tmp_path):

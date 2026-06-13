@@ -997,6 +997,11 @@ button {
   padding: 0 14px;
 }
 
+button:disabled {
+  cursor: wait;
+  opacity: 0.68;
+}
+
 .form-actions,
 .draft-actions {
   display: flex;
@@ -1022,6 +1027,17 @@ button {
   color: var(--muted);
 }
 
+.danger-button {
+  border: 1px solid rgba(255, 112, 156, 0.42);
+  background: rgba(255, 112, 156, 0.1);
+  color: #ff9ab9;
+}
+
+.danger-button:hover {
+  border-color: rgba(255, 112, 156, 0.74);
+  color: #ffd5e2;
+}
+
 .secondary-link {
   border: 1px solid var(--line);
   border-radius: 6px;
@@ -1036,6 +1052,22 @@ button {
 .secondary-button:hover {
   border-color: var(--line-strong);
   color: var(--text);
+}
+
+.loading-message {
+  display: none;
+  border: 1px solid rgba(105, 240, 215, 0.26);
+  border-radius: 10px;
+  background: rgba(105, 240, 215, 0.08);
+  color: var(--cyan);
+  font-family: "Cascadia Mono", "JetBrains Mono", Consolas, monospace;
+  font-size: 12px;
+  margin: 0;
+  padding: 10px 12px;
+}
+
+.is-loading .loading-message {
+  display: block;
 }
 
 .settings-panel {
@@ -1200,6 +1232,10 @@ button {
   gap: 10px;
   align-items: center;
   margin-top: 18px;
+}
+
+.visual-memory-action form {
+  margin: 0;
 }
 
 .visual-memory-action p {

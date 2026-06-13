@@ -135,7 +135,7 @@
               <h2>{{ t.log_title }}</h2>
             </div>
             <p class="lede">{{ t.log_lede }}</p>
-            <form method="post" action="/drafts/analyze?lang={{ lang }}" class="quick-capture hero-quick-capture">
+            <form method="post" action="/drafts/analyze?lang={{ lang }}" class="quick-capture hero-quick-capture" data-loading-form data-loading-text="{{ t.analyzing_dream }}">
               <textarea name="content" placeholder="{{ t.content_placeholder }}" required autofocus>{{ draft.content if draft else draft_content }}</textarea>
               <div class="reflection-fields" aria-label="{{ t.reflection_prompt }}">
                 <p class="reflection-heading">{{ t.reflection_prompt }}</p>
@@ -152,11 +152,12 @@
                 <p class="status-message warning">{{ t.analysis_unavailable_before_save }}</p>
               {% endif %}
               <div class="form-actions">
-                <button type="submit">{{ t.analyze_dream }}</button>
+                <button type="submit" data-loading-button>{{ t.analyze_dream }}</button>
                 {% if analysis_error or not ai.ready %}
-                  <button type="submit" class="secondary-button" formaction="/dreams?lang={{ lang }}" formmethod="post">{{ t.save_without_ai }}</button>
+                  <button type="submit" class="secondary-button" formaction="/dreams?lang={{ lang }}" formmethod="post" data-loading-skip>{{ t.save_without_ai }}</button>
                 {% endif %}
               </div>
+              <p class="loading-message" aria-live="polite">{{ t.analyzing_dream }}</p>
               <p class="privacy-line">{{ t.data_never_leaves }}</p>
             </form>
           </article>
@@ -280,8 +281,9 @@
                 <p>{{ latest_dream.content }}</p>
               </div>
               <div class="analysis-status pending">{{ t.missing_analysis }}</div>
-              <form method="post" action="/dreams/{{ latest_dream.id }}/analyze?lang={{ lang }}" class="analyze-form">
-                <button type="submit">{{ t.generate_chinese_analysis if lang == "zh" else t.generate_english_analysis }}</button>
+              <form method="post" action="/dreams/{{ latest_dream.id }}/analyze?lang={{ lang }}" class="analyze-form" data-loading-form data-loading-text="{{ t.analyzing_dream }}">
+                <button type="submit" data-loading-button>{{ t.generate_chinese_analysis if lang == "zh" else t.generate_english_analysis }}</button>
+                <p class="loading-message" aria-live="polite">{{ t.analyzing_dream }}</p>
               </form>
             {% else %}
               <div class="analysis-status unavailable">{{ t.pending_analysis }}</div>
@@ -501,6 +503,21 @@
         document.querySelectorAll("[data-lang]").forEach((link) => {
           link.addEventListener("click", () => {
             window.localStorage.setItem("dreamloop.lang", link.dataset.lang);
+          });
+        });
+        document.querySelectorAll("[data-loading-form]").forEach((form) => {
+          form.addEventListener("submit", (event) => {
+            const submitter = event.submitter;
+            if (submitter && submitter.hasAttribute("data-loading-skip")) return;
+            form.classList.add("is-loading");
+            form.setAttribute("aria-busy", "true");
+            form.querySelectorAll("button[type='submit']").forEach((button) => {
+              button.disabled = true;
+            });
+            const button = form.querySelector("[data-loading-button]");
+            if (button && form.dataset.loadingText) {
+              button.textContent = form.dataset.loadingText;
+            }
           });
         });
       })();

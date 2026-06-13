@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol
@@ -21,6 +22,23 @@ REFLECTION_LABELS = {
     "important_elements": "Most important people, objects, or scenes",
     "real_life_context": "Recent real-life situations that may be related",
     "personal_association": "What this dream makes the dreamer think of",
+}
+
+REPORT_LIST_FIELDS = {
+    "dream_details",
+    "important_elements",
+    "real_life_links",
+    "personal_associations",
+    "real_life_questions",
+    "verification_prompts",
+}
+
+INTERPRETATION_FIELDS = {
+    "title",
+    "interpretation",
+    "dream_evidence",
+    "real_life_connection",
+    "verification_question",
 }
 
 
@@ -331,6 +349,75 @@ def clean_reflections(reflections: dict[str, Any] | None) -> dict[str, str]:
     return cleaned
 
 
+def is_meaningful_term(value: Any) -> bool:
+    text = str(value).strip()
+    if not text:
+        return False
+    if text in {"-", "?", "??", "???", "????", "?????", "？", "？？"}:
+        return False
+    return bool(re.search(r"[0-9A-Za-z\u4e00-\u9fff]", text))
+
+
+def normalize_text_list(value: Any) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        text = value.strip()
+        return [text] if is_meaningful_term(text) else []
+    if isinstance(value, dict):
+        return [json.dumps(value, ensure_ascii=False)] if value else []
+    if isinstance(value, (list, tuple, set)):
+        items: list[str] = []
+        for item in value:
+            if isinstance(item, str):
+                text = item.strip()
+            elif isinstance(item, dict):
+                text = json.dumps(item, ensure_ascii=False)
+            else:
+                text = str(item).strip()
+            if is_meaningful_term(text):
+                items.append(text)
+        return items
+    text = str(value).strip()
+    return [text] if is_meaningful_term(text) else []
+
+
+def normalize_interpretations(value: Any) -> list[dict[str, str]]:
+    if value is None:
+        return []
+    raw_items = value if isinstance(value, list) else [value]
+    normalized: list[dict[str, str]] = []
+    for item in raw_items:
+        if isinstance(item, dict):
+            entry = {
+                key: str(item.get(key) or "").strip()
+                for key in INTERPRETATION_FIELDS
+                if str(item.get(key) or "").strip()
+            }
+            if entry:
+                normalized.append(entry)
+            continue
+        text = str(item).strip()
+        if is_meaningful_term(text):
+            normalized.append({"interpretation": text})
+    return normalized
+
+
+def normalize_report_payload(result: dict[str, Any]) -> dict[str, Any]:
+    report = dict(result)
+    for key in REPORT_LIST_FIELDS:
+        if key in report:
+            report[key] = normalize_text_list(report[key])
+    if "possible_interpretations" in report:
+        report["possible_interpretations"] = normalize_interpretations(report["possible_interpretations"])
+    for key in ("core_emotion", "waking_feeling"):
+        if isinstance(report.get(key), (list, tuple, set)):
+            report[key] = " ".join(normalize_text_list(report[key]))
+        elif report.get(key) is not None:
+            report[key] = str(report[key]).strip()
+    return report
+
+
 def build_analysis_user_payload(content: str, reflections: dict[str, Any] | None = None) -> str:
     cleaned = clean_reflections(reflections)
     lines = ["梦境内容 / Dream content:", content.strip()]
@@ -382,12 +469,9 @@ def ensure_gitignore(root: str | Path | None = None) -> None:
 
 
 def normalize_analysis(result: dict[str, Any]) -> dict[str, Any]:
-    symbols = result.get("symbols") or []
-    themes = result.get("themes") or []
-    if isinstance(symbols, str):
-        symbols = [symbols]
-    if isinstance(themes, str):
-        themes = [themes]
+    report = normalize_report_payload(result)
+    symbols = normalize_text_list(result.get("symbols"))
+    themes = normalize_text_list(result.get("themes"))
 
     confidence = result.get("confidence", 0.0)
     try:
@@ -397,10 +481,10 @@ def normalize_analysis(result: dict[str, Any]) -> dict[str, Any]:
 
     return {
         "emotional_tone": str(result.get("emotional_tone") or "unknown"),
-        "symbols": [str(item) for item in symbols],
-        "themes": [str(item) for item in themes],
+        "symbols": symbols,
+        "themes": themes,
         "summary": str(result.get("summary") or ""),
         "confidence": max(0.0, min(confidence_value, 1.0)),
-        "report": result,
-        "raw_json": json.dumps(result, ensure_ascii=False),
+        "report": report,
+        "raw_json": json.dumps(report, ensure_ascii=False),
     }

@@ -4,6 +4,7 @@ import json
 from datetime import date
 
 from dreamloop.analysis import StaticAnalyzer
+from dreamloop.analysis import normalize_analysis
 from dreamloop.core import DreamLoop
 
 
@@ -216,6 +217,32 @@ def test_analyze_dream_writes_only_requested_dream(tmp_path):
     assert second["analysis"]["symbols"] == ["river", "station"]
 
 
+def test_normalize_analysis_keeps_report_strings_as_single_items():
+    normalized = normalize_analysis(
+        {
+            "analysis_version": 2,
+            "emotional_tone": "anxious",
+            "symbols": "??",
+            "themes": ["transition"],
+            "summary": "A long interpretation.",
+            "confidence": 0.7,
+            "dream_details": "A crowded subway station turned into an unfamiliar neighborhood.",
+            "real_life_links": "You may be navigating several housing or commute options.",
+            "real_life_questions": "Which choice feels unreliable in real life?",
+            "verification_prompts": "Check whether this matches your recent decisions.",
+        }
+    )
+
+    assert normalized["report"]["dream_details"] == [
+        "A crowded subway station turned into an unfamiliar neighborhood."
+    ]
+    assert normalized["report"]["real_life_links"] == [
+        "You may be navigating several housing or commute options."
+    ]
+    assert normalized["report"]["real_life_questions"] == ["Which choice feels unreliable in real life?"]
+    assert normalized["symbols"] == []
+
+
 def test_analyze_dream_passes_reflections_and_preserves_detailed_report(tmp_path):
     loop = DreamLoop(tmp_path)
     loop.init()
@@ -366,3 +393,30 @@ def test_pattern_tracking_finds_similar_dreams_and_symbol_trends(tmp_path):
     assert similar[0]["id"] == second
     assert similar[0]["score"] > 0
     assert trends["symbols"][0] == {"name": "water", "count": 3}
+
+
+def test_trends_filter_placeholder_terms_and_delete_dream(tmp_path):
+    loop = DreamLoop(tmp_path)
+    loop.init()
+    first_id = loop.add_dream("A crowded subway station became an unfamiliar district.")
+    second_id = loop.add_dream("I walked through a library.")
+    loop.analyze_dream(
+        first_id,
+        StaticAnalyzer(
+            {
+                "emotional_tone": "anxious",
+                "symbols": ["??", "subway station"],
+                "themes": ["????", "transition"],
+                "summary": "A transition dream.",
+                "confidence": 0.7,
+            }
+        ),
+    )
+
+    trends = loop.trends()
+
+    assert trends["symbols"] == [{"name": "subway station", "count": 1}]
+    assert trends["themes"] == [{"name": "transition", "count": 1}]
+    assert loop.delete_dream(second_id) is True
+    assert loop.delete_dream(9999) is False
+    assert [dream["id"] for dream in loop.list_dreams()] == [first_id]

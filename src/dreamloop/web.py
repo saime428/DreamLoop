@@ -56,11 +56,14 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "personal_association": "What this dream makes me think of",
         "personal_association_placeholder": "Any memory, image, phrase, or current concern it brings up",
         "analyze_dream": "AI Analysis",
+        "analyzing_dream": "Analyzing...",
         "save_without_ai": "Save without AI",
         "draft_analysis": "Draft analysis",
         "draft_not_saved": "Not saved yet",
         "save_analysis": "Save locally",
         "discard": "Discard",
+        "delete_dream": "Delete dream",
+        "delete_confirm": "Delete this dream from local storage?",
         "generate_chinese_analysis": "Generate Chinese analysis",
         "generate_english_analysis": "Analyze now",
         "generate_dream_image": "Generate dream image",
@@ -176,11 +179,14 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "personal_association": "这个梦让我想到什么",
         "personal_association_placeholder": "它让你想起的记忆、画面、词语或现实烦恼",
         "analyze_dream": "AI 分析",
+        "analyzing_dream": "正在分析...",
         "save_without_ai": "不分析，直接保存",
         "draft_analysis": "草稿分析",
         "draft_not_saved": "尚未保存到本地",
         "save_analysis": "保存到本地",
         "discard": "放弃",
+        "delete_dream": "删除记录",
+        "delete_confirm": "确定要从本地删除这条梦境记录吗？",
         "generate_chinese_analysis": "生成中文分析",
         "generate_english_analysis": "生成英文分析",
         "generate_dream_image": "生成梦境画面",
@@ -669,6 +675,12 @@ def create_app(root: str | Path | None = None) -> FastAPI:
             )
         return RedirectResponse(_dream_url(dream_id, lang), status_code=status.HTTP_303_SEE_OTHER)
 
+    @app.post("/dreams/{dream_id}/delete")
+    def delete_dream_form(dream_id: int, lang: str = "en") -> RedirectResponse:
+        if not loop.delete_dream(dream_id):
+            raise HTTPException(status_code=404, detail="Dream not found")
+        return RedirectResponse(_page_url("log", lang), status_code=status.HTTP_303_SEE_OTHER)
+
     @app.get("/dreams/{dream_id}", response_class=HTMLResponse)
     def dream_detail(request: Request, dream_id: int, lang: str = "en") -> Any:
         lang = _lang(lang)
@@ -710,6 +722,12 @@ def create_app(root: str | Path | None = None) -> FastAPI:
             return loop.get_dream(dream_id, language=_lang(lang))
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="Dream not found") from exc
+
+    @app.delete("/api/dreams/{dream_id}")
+    def api_delete_dream(dream_id: int) -> dict[str, int]:
+        if not loop.delete_dream(dream_id):
+            raise HTTPException(status_code=404, detail="Dream not found")
+        return {"deleted": dream_id}
 
     @app.get("/api/dreams/{dream_id}/similar")
     def api_similar_dreams(dream_id: int) -> list[dict[str, Any]]:
