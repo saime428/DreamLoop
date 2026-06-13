@@ -67,7 +67,11 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "generate_chinese_analysis": "Generate Chinese analysis",
         "generate_english_analysis": "Analyze now",
         "generate_dream_image": "Generate dream image",
-        "visual_memory_note": "Opt-in visual memory. v0.1 keeps this as a local placeholder and never calls an image API by default.",
+        "regenerate_visual_memory": "Regenerate local card",
+        "visual_memory_title": "Local visual memory",
+        "visual_memory_saved": "Visual memory saved locally.",
+        "visual_memory_local_note": "No image API was called. This card is generated from the dream text and analysis, then stored locally.",
+        "visual_memory_note": "Generate a local visual-memory card. v0.1 does not call an image API by default.",
         "ai_analysis": "AI Analysis",
         "ai_insight": "AI Insight",
         "no_dream": "Record a dream to unlock AI analysis.",
@@ -132,7 +136,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "no_weather": "No weather synced for this day.",
         "gallery_title": "Dream Gallery",
         "gallery_eyebrow": "Visual memory",
-        "gallery_empty": "Generate or save a visual memory from a dream detail page first.",
+        "gallery_empty": "Generate a visual memory from a dream detail page first.",
         "gallery_note": "v0.1 shows local visual cards derived from saved dreams. Full image generation remains opt-in.",
         "settings_title": "AI Provider",
         "settings_eyebrow": "Local model settings",
@@ -190,7 +194,11 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "generate_chinese_analysis": "生成中文分析",
         "generate_english_analysis": "生成英文分析",
         "generate_dream_image": "生成梦境画面",
-        "visual_memory_note": "可选视觉记忆。v0.1 只保留本地占位入口，默认不会调用图像 API。",
+        "regenerate_visual_memory": "重新生成本地卡片",
+        "visual_memory_title": "本地视觉记忆",
+        "visual_memory_saved": "视觉记忆已保存到本地。",
+        "visual_memory_local_note": "没有调用图像 API。这张卡片由梦境文本和分析结果生成，并只保存在本地。",
+        "visual_memory_note": "生成一张本地视觉记忆卡片。v0.1 默认不会调用图像 API。",
         "ai_analysis": "AI 分析",
         "ai_insight": "AI 洞察",
         "no_dream": "先记录一条梦境，AI 分析会出现在这里。",
@@ -255,7 +263,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "no_weather": "这一天还没有同步天气。",
         "gallery_title": "梦境画廊",
         "gallery_eyebrow": "视觉记忆",
-        "gallery_empty": "先在梦境详情页生成或保存视觉记忆。",
+        "gallery_empty": "先在梦境详情页生成一张视觉记忆。",
         "gallery_note": "v0.1 展示由已保存梦境生成的本地视觉卡片；完整图像生成仍然是可选路线。",
         "settings_title": "AI 提供方",
         "settings_eyebrow": "本地模型设置",
@@ -472,7 +480,7 @@ def create_app(root: str | Path | None = None) -> FastAPI:
                 "dreams": localized_dreams,
                 "log_dreams": log_dreams,
                 "recent_dreams": localized_dreams[:3],
-                "gallery_cards": localized_dreams,
+                "gallery_cards": [dream for dream in localized_dreams if dream.get("visual_memory")],
                 "latest_dream": latest_dream,
                 "heatmap": loop.heatmap(),
                 "ai": ai_payload,
@@ -681,6 +689,14 @@ def create_app(root: str | Path | None = None) -> FastAPI:
             raise HTTPException(status_code=404, detail="Dream not found")
         return RedirectResponse(_page_url("log", lang), status_code=status.HTTP_303_SEE_OTHER)
 
+    @app.post("/dreams/{dream_id}/visual")
+    def generate_visual_form(dream_id: int, lang: str = "en") -> RedirectResponse:
+        try:
+            loop.generate_visual_memory(dream_id, language=_lang(lang))
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="Dream not found") from exc
+        return RedirectResponse(_dream_url(dream_id, lang), status_code=status.HTTP_303_SEE_OTHER)
+
     @app.get("/dreams/{dream_id}", response_class=HTMLResponse)
     def dream_detail(request: Request, dream_id: int, lang: str = "en") -> Any:
         lang = _lang(lang)
@@ -728,6 +744,13 @@ def create_app(root: str | Path | None = None) -> FastAPI:
         if not loop.delete_dream(dream_id):
             raise HTTPException(status_code=404, detail="Dream not found")
         return {"deleted": dream_id}
+
+    @app.post("/api/dreams/{dream_id}/visual")
+    def api_generate_visual(dream_id: int, lang: str = "en") -> dict[str, Any]:
+        try:
+            return loop.generate_visual_memory(dream_id, language=_lang(lang))
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="Dream not found") from exc
 
     @app.get("/api/dreams/{dream_id}/similar")
     def api_similar_dreams(dream_id: int) -> list[dict[str, Any]]:

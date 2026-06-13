@@ -1208,6 +1208,19 @@ button:disabled {
   text-decoration: none;
 }
 
+.gallery-card::before,
+.local-visual-card::before {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background:
+    radial-gradient(circle at 22% 24%, color-mix(in srgb, var(--visual-a, #69f0d7) 72%, transparent), transparent 18%),
+    radial-gradient(circle at 78% 28%, color-mix(in srgb, var(--visual-c, #ff6ba8) 62%, transparent), transparent 20%),
+    linear-gradient(135deg, color-mix(in srgb, var(--visual-b, #8e63ff) 36%, transparent), rgba(8, 6, 20, 0.2));
+  opacity: 0.78;
+  z-index: -1;
+}
+
 .gallery-card span,
 .gallery-card small {
   color: var(--muted);
@@ -1220,6 +1233,74 @@ button:disabled {
   font-family: Georgia, "Times New Roman", serif;
   font-size: 24px;
   line-height: 1.12;
+}
+
+.local-visual-card {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: 16px;
+  display: grid;
+  gap: 9px;
+  margin-top: 22px;
+  max-width: 620px;
+  min-height: 220px;
+  padding: 18px;
+}
+
+.local-visual-card span,
+.local-visual-card small {
+  color: var(--muted);
+  font-family: "Cascadia Mono", "JetBrains Mono", Consolas, monospace;
+  font-size: 12px;
+  position: relative;
+  z-index: 1;
+}
+
+.local-visual-card strong {
+  align-self: end;
+  color: var(--text);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(26px, 4vw, 42px);
+  line-height: 1.06;
+  max-width: 540px;
+  position: relative;
+  z-index: 1;
+}
+
+.visual-sky {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.visual-sky i {
+  position: absolute;
+  border-radius: 999px;
+  background: var(--visual-a, #69f0d7);
+  box-shadow: 0 0 24px currentColor;
+  color: inherit;
+  height: 8px;
+  opacity: 0.75;
+  width: 8px;
+}
+
+.visual-sky i:nth-child(1) {
+  left: 14%;
+  top: 18%;
+}
+
+.visual-sky i:nth-child(2) {
+  background: var(--visual-b, #8e63ff);
+  right: 18%;
+  top: 34%;
+}
+
+.visual-sky i:nth-child(3) {
+  background: var(--visual-c, #ff6ba8);
+  bottom: 18%;
+  left: 58%;
 }
 
 .empty-gallery {

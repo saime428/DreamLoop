@@ -42,12 +42,24 @@
               <span>{{ t.no_tags }}</span>
             {% endfor %}
           </div>
+          {% if dream.visual_memory %}
+            <section class="local-visual-card" style="--visual-a: {{ dream.visual_memory.accent_1 }}; --visual-b: {{ dream.visual_memory.accent_2 }}; --visual-c: {{ dream.visual_memory.accent_3 }};">
+              <div class="visual-sky" aria-hidden="true">
+                <i></i><i></i><i></i>
+              </div>
+              <span>{{ t.visual_memory_title }}</span>
+              <strong>{{ dream.visual_memory.title }}</strong>
+              <small>{{ ", ".join(dream.visual_memory.symbols) or dream.dreamed_on }}</small>
+            </section>
+          {% endif %}
           <div class="visual-memory-action">
-            <button type="button" class="secondary-button">{{ t.generate_dream_image }}</button>
+            <form method="post" action="/dreams/{{ dream.id }}/visual?lang={{ lang }}">
+              <button type="submit" class="secondary-button">{{ t.regenerate_visual_memory if dream.visual_memory else t.generate_dream_image }}</button>
+            </form>
             <form method="post" action="/dreams/{{ dream.id }}/delete?lang={{ lang }}" onsubmit="return confirm('{{ t.delete_confirm }}')">
               <button type="submit" class="danger-button">{{ t.delete_dream }}</button>
             </form>
-            <p>{{ t.visual_memory_note }}</p>
+            <p>{{ t.visual_memory_local_note if dream.visual_memory else t.visual_memory_note }}</p>
           </div>
         </article>
 

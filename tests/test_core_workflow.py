@@ -420,3 +420,40 @@ def test_trends_filter_placeholder_terms_and_delete_dream(tmp_path):
     assert loop.delete_dream(second_id) is True
     assert loop.delete_dream(9999) is False
     assert [dream["id"] for dream in loop.list_dreams()] == [first_id]
+
+
+def test_generate_visual_memory_creates_local_card_without_external_api(tmp_path):
+    loop = DreamLoop(tmp_path)
+    loop.init()
+    dream_id = loop.add_dream_with_analysis(
+        "I found a blue door under the sea.",
+        {
+            "emotional_tone": "curious",
+            "symbols": ["blue door", "sea"],
+            "themes": ["threshold"],
+            "summary": "A threshold dream under water.",
+            "confidence": 0.8,
+        },
+        language="en",
+    )
+
+    visual = loop.generate_visual_memory(dream_id, language="en")
+    dream = loop.get_dream(dream_id, language="en")
+
+    assert visual["kind"] == "local_card"
+    assert visual["title"] == "A threshold dream under water."
+    assert "blue door" in visual["prompt"]
+    assert "sea" in visual["symbols"]
+    assert dream["visual_memory"] == visual
+
+
+def test_generate_visual_memory_raises_for_missing_dream(tmp_path):
+    loop = DreamLoop(tmp_path)
+    loop.init()
+
+    try:
+        loop.generate_visual_memory(999)
+    except KeyError as exc:
+        assert "999" in str(exc)
+    else:
+        raise AssertionError("Expected missing dream to raise KeyError")

@@ -180,6 +180,41 @@ class DreamLoop:
             cursor = db.execute("DELETE FROM dreams WHERE id = ?", (dream_id,))
             return cursor.rowcount > 0
 
+    def generate_visual_memory(self, dream_id: int, *, language: str = "en") -> dict[str, Any]:
+        dream = self.get_dream(dream_id, language=language)
+        analysis = dream.get("analysis") or {}
+        symbols = normalize_text_list(analysis.get("symbols"))
+        themes = normalize_text_list(analysis.get("themes"))
+        title = str(analysis.get("summary") or dream["content"]).strip()
+        if len(title) > 90:
+            title = title[:87].rstrip() + "..."
+        palette = visual_palette(dream_id)
+        prompt_parts = [
+            "Local visual memory card for a dream.",
+            f"Dream: {dream['content']}",
+        ]
+        if symbols:
+            prompt_parts.append(f"Symbols: {', '.join(symbols[:5])}")
+        if themes:
+            prompt_parts.append(f"Themes: {', '.join(themes[:5])}")
+        visual = {
+            "kind": "local_card",
+            "title": title,
+            "prompt": " ".join(prompt_parts),
+            "symbols": symbols[:5],
+            "themes": themes[:5],
+            "accent_1": palette[0],
+            "accent_2": palette[1],
+            "accent_3": palette[2],
+            "created_at": datetime.now().isoformat(timespec="seconds"),
+        }
+        with self._connect() as db:
+            db.execute(
+                "UPDATE dreams SET visual_json = ? WHERE id = ?",
+                (json.dumps(visual, ensure_ascii=False), dream_id),
+            )
+        return visual
+
     def import_ics(self, path: str | Path) -> int:
         self.init()
         events = parse_ics(Path(path).read_text(encoding="utf-8"))
@@ -369,6 +404,7 @@ class DreamLoop:
                     manual_mood TEXT,
                     tags_json TEXT NOT NULL DEFAULT '[]',
                     reflection_json TEXT NOT NULL DEFAULT '{}',
+                    visual_json TEXT NOT NULL DEFAULT '{}',
                     analysis_status TEXT NOT NULL DEFAULT 'pending'
                 );
 
@@ -401,6 +437,8 @@ class DreamLoop:
         column_names = {column["name"] for column in columns}
         if "reflection_json" not in column_names:
             db.execute("ALTER TABLE dreams ADD COLUMN reflection_json TEXT NOT NULL DEFAULT '{}'")
+        if "visual_json" not in column_names:
+            db.execute("ALTER TABLE dreams ADD COLUMN visual_json TEXT NOT NULL DEFAULT '{}'")
 
     def _migrate_analysis_table(self, db: sqlite3.Connection) -> None:
         columns = db.execute("PRAGMA table_info(dream_analyses)").fetchall()
@@ -479,6 +517,8 @@ class DreamLoop:
         dream = dict(row)
         dream["tags"] = json.loads(dream.pop("tags_json"))
         dream["reflections"] = parse_json_object(dream.pop("reflection_json", "{}"))
+        visual_memory = parse_json_any(dream.pop("visual_json", "{}"))
+        dream["visual_memory"] = visual_memory if isinstance(visual_memory, dict) and visual_memory else None
         return dream
 
 
@@ -489,6 +529,16 @@ def value_at(payload: dict[str, Any], key: str, index: int) -> Any:
 
 def normalize_language(language: str | None) -> str:
     return language if language in {"en", "zh"} else "en"
+
+
+def visual_palette(seed: int) -> tuple[str, str, str]:
+    palettes = (
+        ("#69f0d7", "#8e63ff", "#ff6ba8"),
+        ("#78d7ff", "#a68cff", "#ffe27a"),
+        ("#88f0a6", "#5cc8ff", "#f58bd1"),
+        ("#f7c66b", "#8d7aff", "#5de2d0"),
+    )
+    return palettes[seed % len(palettes)]
 
 
 def parse_json_object(text: str | None) -> dict[str, str]:

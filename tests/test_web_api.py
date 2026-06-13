@@ -412,7 +412,7 @@ def test_patterns_log_gallery_and_settings_are_real_pages(tmp_path):
     assert "CLI-first capture" not in log.text
     assert gallery.status_code == 200
     assert "Dream Gallery" in gallery.text
-    assert "Water covered the old city." in gallery.text
+    assert "Generate a visual memory" in gallery.text
     assert settings.status_code == 200
     assert "AI Provider" in settings.text
     assert "API Key" in settings.text
@@ -570,6 +570,44 @@ def test_detail_page_renders_detailed_analysis_sections(tmp_path):
     assert "我真正害怕的是失败，还是改变本身？" in response.text
 
 
+def test_detail_generates_local_visual_memory_and_gallery_shows_it(tmp_path):
+    app = create_app(tmp_path)
+    app.state.analyzer = LanguageAwareAnalyzer()
+    client = TestClient(app)
+    dream_id = client.post("/api/dreams", json={"content": "I found a blue door under the sea."}).json()["id"]
+    client.post(f"/api/dreams/{dream_id}/analyze?lang=en")
+
+    detail = client.get(f"/dreams/{dream_id}?lang=en")
+    assert f'action="/dreams/{dream_id}/visual?lang=en"' in detail.text
+    assert "Local visual memory" not in detail.text
+
+    generated = client.post(f"/dreams/{dream_id}/visual?lang=en", follow_redirects=False)
+    assert generated.status_code == 303
+    assert generated.headers["location"] == f"/dreams/{dream_id}?lang=en"
+
+    updated = client.get(f"/dreams/{dream_id}?lang=en")
+    assert "Local visual memory" in updated.text
+    assert "No image API was called" in updated.text
+    assert "Generate dream image" not in updated.text
+
+    gallery = client.get("/gallery?lang=en")
+    assert "Dream Gallery" in gallery.text
+    assert "Local visual memory" in gallery.text
+    assert "A dream about finding a hidden door." in gallery.text
+
+
+def test_api_generates_local_visual_memory(tmp_path):
+    app = create_app(tmp_path)
+    client = TestClient(app)
+    dream_id = client.post("/api/dreams", json={"content": "I crossed a red bridge."}).json()["id"]
+
+    response = client.post(f"/api/dreams/{dream_id}/visual?lang=en")
+
+    assert response.status_code == 200
+    assert response.json()["kind"] == "local_card"
+    assert client.get(f"/api/dreams/{dream_id}").json()["visual_memory"]["kind"] == "local_card"
+
+
 def test_gallery_empty_state_explains_detail_driven_visual_memory(tmp_path):
     app = create_app(tmp_path)
     client = TestClient(app)
@@ -578,7 +616,7 @@ def test_gallery_empty_state_explains_detail_driven_visual_memory(tmp_path):
 
     assert response.status_code == 200
     assert "梦境画廊" in response.text
-    assert "先在梦境详情页生成或保存视觉记忆" in response.text
+    assert "先在梦境详情页生成一张视觉记忆" in response.text
 
 
 def test_web_home_shows_provider_without_leaking_secret(tmp_path, monkeypatch):
