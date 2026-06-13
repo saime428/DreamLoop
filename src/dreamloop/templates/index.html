@@ -137,6 +137,15 @@
             <p class="lede">{{ t.log_lede }}</p>
             <form method="post" action="/drafts/analyze?lang={{ lang }}" class="quick-capture hero-quick-capture">
               <textarea name="content" placeholder="{{ t.content_placeholder }}" required autofocus>{{ draft.content if draft else draft_content }}</textarea>
+              <div class="reflection-fields" aria-label="{{ t.reflection_prompt }}">
+                <p class="reflection-heading">{{ t.reflection_prompt }}</p>
+                {% for field in reflection_fields %}
+                  <label>
+                    <span>{{ field.label }}</span>
+                    <input name="{{ field.name }}" value="{{ field.value }}" placeholder="{{ field.placeholder }}">
+                  </label>
+                {% endfor %}
+              </div>
               {% if analysis_error %}
                 <p class="status-message warning">{{ t.analysis_failed }}</p>
               {% elif not ai.ready %}
@@ -171,9 +180,77 @@
                 <div><dt>{{ t.confidence }}</dt><dd>{{ "%.0f"|format(draft.analysis.confidence * 100) }}%</dd></div>
               </dl>
               <p class="analysis-summary">{{ draft.analysis.summary }}</p>
+              {% set report = draft.analysis.report %}
+              {% if report.analysis_version %}
+                <div class="dream-report">
+                  {% if report.dream_details %}
+                    <section class="report-section">
+                      <h3>{{ t.dream_details }}</h3>
+                      <ul>
+                        {% for item in report.dream_details %}
+                          <li>{{ item }}</li>
+                        {% endfor %}
+                      </ul>
+                    </section>
+                  {% endif %}
+                  {% if report.core_emotion %}
+                    <section class="report-section">
+                      <h3>{{ t.core_emotion }}</h3>
+                      <p>{{ report.core_emotion }}</p>
+                    </section>
+                  {% endif %}
+                  {% if report.real_life_links %}
+                    <section class="report-section">
+                      <h3>{{ t.real_life_links }}</h3>
+                      <ul>
+                        {% for item in report.real_life_links %}
+                          <li>{{ item }}</li>
+                        {% endfor %}
+                      </ul>
+                    </section>
+                  {% endif %}
+                  {% if report.possible_interpretations %}
+                    <section class="report-section">
+                      <h3>{{ t.possible_interpretations }}</h3>
+                      <div class="interpretation-list">
+                        {% for item in report.possible_interpretations %}
+                          <article>
+                            <strong>{{ item.title or loop.index }}</strong>
+                            <p>{{ item.interpretation }}</p>
+                            <small>{{ item.dream_evidence }}</small>
+                            <small>{{ item.real_life_connection }}</small>
+                            <em>{{ item.verification_question }}</em>
+                          </article>
+                        {% endfor %}
+                      </div>
+                    </section>
+                  {% endif %}
+                  {% if report.real_life_questions %}
+                    <section class="report-section reality-focus">
+                      <h3>{{ t.real_life_questions }}</h3>
+                      <ul>
+                        {% for item in report.real_life_questions %}
+                          <li>{{ item }}</li>
+                        {% endfor %}
+                      </ul>
+                    </section>
+                  {% endif %}
+                  {% if report.verification_prompts %}
+                    <section class="report-section">
+                      <h3>{{ t.verification_prompts }}</h3>
+                      <ul>
+                        {% for item in report.verification_prompts %}
+                          <li>{{ item }}</li>
+                        {% endfor %}
+                      </ul>
+                    </section>
+                  {% endif %}
+                </div>
+              {% endif %}
               <form method="post" action="/drafts/save?lang={{ lang }}" class="draft-actions">
                 <input type="hidden" name="content" value="{{ draft.content }}">
                 <input type="hidden" name="analysis_language" value="{{ draft.language }}">
+                <textarea name="reflections_json" hidden>{{ draft.reflections_json }}</textarea>
                 <textarea name="analysis_json" hidden>{{ draft.analysis_json }}</textarea>
                 <button type="submit">{{ t.save_analysis }}</button>
                 <a href="/log?lang={{ lang }}" class="secondary-link">{{ t.discard }}</a>

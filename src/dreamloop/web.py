@@ -12,11 +12,18 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 
-from .analysis import Analyzer, ai_status, build_analyzer, load_ai_config, normalize_analysis, save_ai_config, save_secret
-from .core import DreamLoop
+from .analysis import Analyzer, ai_status, build_analyzer, clean_reflections, load_ai_config, normalize_analysis, save_ai_config, save_secret
+from .core import DreamLoop, call_analyzer
 
 PACKAGE_DIR = Path(__file__).parent
 templates = Jinja2Templates(directory=str(PACKAGE_DIR / "templates"))
+REFLECTION_FIELD_KEYS = [
+    "strongest_emotion",
+    "waking_feeling",
+    "important_elements",
+    "real_life_context",
+    "personal_association",
+]
 
 TRANSLATIONS: dict[str, dict[str, str]] = {
     "en": {
@@ -37,6 +44,17 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "log_lede": "Write the dream first. Ask AI to analyze it. Save only after you like the draft result.",
         "local_write": "analysis-first workflow",
         "content_placeholder": "Record a dream before it fades...",
+        "reflection_prompt": "Optional prompts",
+        "strongest_emotion": "Strongest emotion in the dream",
+        "strongest_emotion_placeholder": "e.g. anxious, calm, curious, trapped",
+        "waking_feeling": "Feeling after waking",
+        "waking_feeling_placeholder": "What stayed with you after waking?",
+        "important_elements": "Most important people / objects / scenes",
+        "important_elements_placeholder": "Who or what mattered most in the dream?",
+        "real_life_context": "Recent real-life situations that may be related",
+        "real_life_context_placeholder": "Work, relationships, decisions, stress, conversations...",
+        "personal_association": "What this dream makes me think of",
+        "personal_association_placeholder": "Any memory, image, phrase, or current concern it brings up",
         "analyze_dream": "AI Analysis",
         "save_without_ai": "Save without AI",
         "draft_analysis": "Draft analysis",
@@ -63,6 +81,13 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "summary": "Summary",
         "confidence": "Confidence",
         "raw_json": "Raw JSON",
+        "dream_details": "Dream details",
+        "core_emotion": "Core emotion",
+        "important_context": "Your added context",
+        "real_life_links": "Possible real-life links",
+        "possible_interpretations": "Possible interpretations",
+        "real_life_questions": "What I can notice in real life",
+        "verification_prompts": "Questions to verify for yourself",
         "local_dreams": "Local dreams",
         "analyzed": "Analyzed",
         "ai_provider": "AI provider",
@@ -139,6 +164,17 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "log_lede": "先写下梦境，再让 AI 生成分析草稿。确认有用后，再保存到本地。",
         "local_write": "先分析，再保存",
         "content_placeholder": "趁梦还没散，先记下来...",
+        "reflection_prompt": "可选补充",
+        "strongest_emotion": "梦里最强的情绪",
+        "strongest_emotion_placeholder": "比如：焦虑、平静、好奇、被困住",
+        "waking_feeling": "醒来后的感觉",
+        "waking_feeling_placeholder": "醒来后最残留的感受是什么？",
+        "important_elements": "梦里最重要的人 / 物 / 场景",
+        "important_elements_placeholder": "谁或什么最重要？哪个场景最挥之不去？",
+        "real_life_context": "最近现实中可能相关的事",
+        "real_life_context_placeholder": "工作、关系、决定、压力、对话都可以写",
+        "personal_association": "这个梦让我想到什么",
+        "personal_association_placeholder": "它让你想起的记忆、画面、词语或现实烦恼",
         "analyze_dream": "AI 分析",
         "save_without_ai": "不分析，直接保存",
         "draft_analysis": "草稿分析",
@@ -165,6 +201,13 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "summary": "摘要",
         "confidence": "置信度",
         "raw_json": "原始 JSON",
+        "dream_details": "梦里的具体细节",
+        "core_emotion": "核心情绪",
+        "important_context": "你补充的线索",
+        "real_life_links": "可能关联的现实处境",
+        "possible_interpretations": "可能解释",
+        "real_life_questions": "我可以从中看到的现实问题",
+        "verification_prompts": "可以自我验证的问题",
         "local_dreams": "本地梦境",
         "analyzed": "已分析",
         "ai_provider": "AI 提供方",
@@ -245,6 +288,38 @@ def _mood_spectrum(dreams: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 def _lang(value: str | None) -> str:
     return value if value in TRANSLATIONS else "en"
+
+
+def _collect_reflections(
+    strongest_emotion: str = "",
+    waking_feeling: str = "",
+    important_elements: str = "",
+    real_life_context: str = "",
+    personal_association: str = "",
+) -> dict[str, str]:
+    return clean_reflections(
+        {
+            "strongest_emotion": strongest_emotion,
+            "waking_feeling": waking_feeling,
+            "important_elements": important_elements,
+            "real_life_context": real_life_context,
+            "personal_association": personal_association,
+        }
+    )
+
+
+def _reflection_fields(lang: str, values: dict[str, str] | None = None) -> list[dict[str, str]]:
+    t = TRANSLATIONS[_lang(lang)]
+    values = values or {}
+    return [
+        {
+            "name": key,
+            "label": t[key],
+            "placeholder": t[f"{key}_placeholder"],
+            "value": values.get(key, ""),
+        }
+        for key in REFLECTION_FIELD_KEYS
+    ]
 
 
 def _page_url(page: str, lang: str, **params: str) -> str:
@@ -335,6 +410,7 @@ class DreamCreate(BaseModel):
     tags: list[str] = Field(default_factory=list)
     manual_mood: str | None = None
     dreamed_on: date | None = None
+    reflections: dict[str, str] = Field(default_factory=dict)
 
 
 class WeatherSync(BaseModel):
@@ -357,6 +433,7 @@ def create_app(root: str | Path | None = None) -> FastAPI:
         analysis_error: bool = False,
         draft: dict[str, Any] | None = None,
         draft_content: str = "",
+        draft_reflections: dict[str, str] | None = None,
         settings_saved: bool = False,
         date_filter: str = "",
         symbol_filter: str = "",
@@ -406,6 +483,7 @@ def create_app(root: str | Path | None = None) -> FastAPI:
                 "analysis_error": analysis_error,
                 "draft": draft,
                 "draft_content": draft_content,
+                "reflection_fields": _reflection_fields(lang, (draft or {}).get("reflections") or draft_reflections),
                 "settings_saved": settings_saved,
                 "date_filter": date_filter,
                 "symbol_filter": symbol_filter,
@@ -477,22 +555,68 @@ def create_app(root: str | Path | None = None) -> FastAPI:
         content: str = Form(...),
         tags: str = Form(""),
         manual_mood: str = Form(""),
+        strongest_emotion: str = Form(""),
+        waking_feeling: str = Form(""),
+        important_elements: str = Form(""),
+        real_life_context: str = Form(""),
+        personal_association: str = Form(""),
     ) -> RedirectResponse:
         tag_list = [tag.strip() for tag in tags.split(",") if tag.strip()]
-        dream_id = loop.add_dream(content, tags=tag_list, mood=manual_mood or None)
+        dream_id = loop.add_dream(
+            content,
+            tags=tag_list,
+            mood=manual_mood or None,
+            reflections=_collect_reflections(
+                strongest_emotion,
+                waking_feeling,
+                important_elements,
+                real_life_context,
+                personal_association,
+            ),
+        )
         return RedirectResponse(_dream_url(dream_id, lang), status_code=status.HTTP_303_SEE_OTHER)
 
     @app.post("/drafts/analyze", response_class=HTMLResponse)
-    def analyze_draft(request: Request, lang: str = "en", content: str = Form(...)) -> Any:
+    def analyze_draft(
+        request: Request,
+        lang: str = "en",
+        content: str = Form(...),
+        strongest_emotion: str = Form(""),
+        waking_feeling: str = Form(""),
+        important_elements: str = Form(""),
+        real_life_context: str = Form(""),
+        personal_association: str = Form(""),
+    ) -> Any:
         lang = _lang(lang)
+        reflections = _collect_reflections(
+            strongest_emotion,
+            waking_feeling,
+            important_elements,
+            real_life_context,
+            personal_association,
+        )
         analyzer = _analyzer_override(request.app) or build_analyzer(loop.root)
         if analyzer is None:
-            return render_home(request, lang, page="log", analysis_error=True, draft_content=content)
+            return render_home(
+                request,
+                lang,
+                page="log",
+                analysis_error=True,
+                draft_content=content,
+                draft_reflections=reflections,
+            )
 
         try:
-            normalized = normalize_analysis(analyzer.analyze(content, language=lang))
+            normalized = normalize_analysis(call_analyzer(analyzer, content, lang, reflections))
         except Exception:
-            return render_home(request, lang, page="log", analysis_error=True, draft_content=content)
+            return render_home(
+                request,
+                lang,
+                page="log",
+                analysis_error=True,
+                draft_content=content,
+                draft_reflections=reflections,
+            )
 
         return render_home(
             request,
@@ -500,6 +624,8 @@ def create_app(root: str | Path | None = None) -> FastAPI:
             page="log",
             draft={
                 "content": content.strip(),
+                "reflections": reflections,
+                "reflections_json": json.dumps(reflections, ensure_ascii=False),
                 "analysis": normalized,
                 "analysis_json": normalized["raw_json"],
                 "language": lang,
@@ -512,12 +638,22 @@ def create_app(root: str | Path | None = None) -> FastAPI:
         content: str = Form(...),
         analysis_json: str = Form(...),
         analysis_language: str = Form("en"),
+        reflections_json: str = Form("{}"),
     ) -> RedirectResponse:
         try:
             analysis = json.loads(analysis_json)
         except json.JSONDecodeError as exc:
             raise HTTPException(status_code=400, detail="Invalid analysis JSON") from exc
-        dream_id = loop.add_dream_with_analysis(content, analysis, language=_lang(analysis_language))
+        try:
+            reflections_payload = json.loads(reflections_json)
+        except json.JSONDecodeError:
+            reflections_payload = {}
+        dream_id = loop.add_dream_with_analysis(
+            content,
+            analysis,
+            language=_lang(analysis_language),
+            reflections=reflections_payload if isinstance(reflections_payload, dict) else {},
+        )
         return RedirectResponse(_dream_url(dream_id, lang), status_code=status.HTTP_303_SEE_OTHER)
 
     @app.post("/dreams/{dream_id}/analyze")
@@ -560,6 +696,7 @@ def create_app(root: str | Path | None = None) -> FastAPI:
             tags=payload.tags,
             mood=payload.manual_mood,
             dreamed_on=payload.dreamed_on,
+            reflections=payload.reflections,
         )
         return {"id": dream_id}
 

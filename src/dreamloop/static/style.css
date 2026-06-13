@@ -1225,6 +1225,116 @@ button {
   text-decoration: none;
 }
 
+.reflection-fields {
+  border: 1px solid rgba(124, 94, 255, 0.28);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.035);
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
+.reflection-heading {
+  color: var(--cyan);
+  font-family: "Cascadia Mono", "JetBrains Mono", Consolas, monospace;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.reflection-fields label {
+  display: grid;
+  gap: 6px;
+}
+
+.reflection-fields span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.reflection-fields input {
+  background: rgba(8, 6, 20, 0.72);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--text);
+  font: inherit;
+  padding: 10px 11px;
+}
+
+.reflection-fields input:focus {
+  border-color: rgba(105, 240, 215, 0.55);
+  box-shadow: 0 0 0 3px rgba(105, 240, 215, 0.12);
+  outline: none;
+}
+
+.dream-report {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.report-section {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.035);
+  padding: 14px;
+}
+
+.report-section h3 {
+  color: var(--text);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 20px;
+  margin: 0 0 10px;
+}
+
+.report-section p,
+.report-section li {
+  color: var(--text-soft);
+  line-height: 1.65;
+}
+
+.report-section ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.interpretation-list {
+  display: grid;
+  gap: 10px;
+}
+
+.interpretation-list article {
+  border-left: 3px solid var(--cyan);
+  background: rgba(8, 6, 20, 0.38);
+  border-radius: 10px;
+  display: grid;
+  gap: 7px;
+  padding: 12px;
+}
+
+.interpretation-list strong {
+  color: var(--text);
+}
+
+.interpretation-list small {
+  color: var(--muted);
+  display: block;
+  line-height: 1.5;
+}
+
+.interpretation-list em {
+  color: var(--cyan);
+  font-style: normal;
+  line-height: 1.5;
+}
+
+.reality-focus {
+  border-color: rgba(105, 240, 215, 0.45);
+  background: linear-gradient(135deg, rgba(105, 240, 215, 0.12), rgba(124, 94, 255, 0.08));
+}
+
 details {
   border-top: 1px solid var(--line);
   margin-top: 18px;

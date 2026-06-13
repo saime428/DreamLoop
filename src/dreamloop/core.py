@@ -10,7 +10,7 @@ from typing import Any, Callable
 from urllib.parse import urlencode
 from urllib.request import urlopen
 
-from .analysis import Analyzer, build_analyzer, normalize_analysis
+from .analysis import Analyzer, build_analyzer, clean_reflections, normalize_analysis
 
 
 class DreamLoop:
@@ -32,6 +32,7 @@ class DreamLoop:
         tags: list[str] | None = None,
         mood: str | None = None,
         dreamed_on: date | None = None,
+        reflections: dict[str, Any] | None = None,
     ) -> int:
         self.init()
         if not content.strip():
@@ -41,8 +42,8 @@ class DreamLoop:
             cursor = db.execute(
                 """
                 INSERT INTO dreams (
-                    content, created_at, dreamed_on, manual_mood, tags_json, analysis_status
-                ) VALUES (?, ?, ?, ?, ?, ?)
+                    content, created_at, dreamed_on, manual_mood, tags_json, reflection_json, analysis_status
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     content.strip(),
@@ -50,6 +51,7 @@ class DreamLoop:
                     dreamed_on.isoformat(),
                     mood,
                     json.dumps(tags or [], ensure_ascii=False),
+                    json.dumps(clean_reflections(reflections), ensure_ascii=False),
                     "pending",
                 ),
             )
@@ -62,6 +64,7 @@ class DreamLoop:
         *,
         language: str = "en",
         dreamed_on: date | None = None,
+        reflections: dict[str, Any] | None = None,
     ) -> int:
         self.init()
         if not content.strip():
@@ -71,8 +74,8 @@ class DreamLoop:
             cursor = db.execute(
                 """
                 INSERT INTO dreams (
-                    content, created_at, dreamed_on, manual_mood, tags_json, analysis_status
-                ) VALUES (?, ?, ?, ?, ?, ?)
+                    content, created_at, dreamed_on, manual_mood, tags_json, reflection_json, analysis_status
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     content.strip(),
@@ -80,6 +83,7 @@ class DreamLoop:
                     dreamed_on.isoformat(),
                     None,
                     "[]",
+                    json.dumps(clean_reflections(reflections), ensure_ascii=False),
                     "analyzed",
                 ),
             )
@@ -105,6 +109,7 @@ class DreamLoop:
                 (dream_id, normalize_language(language)),
             ).fetchone()
         if analysis:
+            raw_report = parse_json_any(analysis["raw_json"])
             dream["analysis"] = {
                 "language": analysis["language"],
                 "emotional_tone": analysis["emotional_tone"],
@@ -112,6 +117,7 @@ class DreamLoop:
                 "themes": json.loads(analysis["themes_json"]),
                 "summary": analysis["summary"],
                 "confidence": analysis["confidence"],
+                "report": raw_report if isinstance(raw_report, dict) else {},
                 "raw_json": analysis["raw_json"],
             }
         else:
@@ -141,7 +147,7 @@ class DreamLoop:
         with self._connect() as db:
             rows = db.execute(sql, params).fetchall()
             for row in rows:
-                self._write_analysis(db, int(row["id"]), row["content"], analyzer, language)
+                self._write_analysis(db, int(row["id"]), row["content"], analyzer, language, row["reflection_json"])
                 analyzed.append(int(row["id"]))
         return analyzed
 
@@ -156,7 +162,7 @@ class DreamLoop:
             row = db.execute("SELECT * FROM dreams WHERE id = ?", (dream_id,)).fetchone()
             if row is None:
                 raise KeyError(f"Dream {dream_id} was not found.")
-            self._write_analysis(db, dream_id, row["content"], analyzer, language)
+            self._write_analysis(db, dream_id, row["content"], analyzer, language, row["reflection_json"])
         return dream_id
 
     def import_ics(self, path: str | Path) -> int:
@@ -295,8 +301,10 @@ class DreamLoop:
         content: str,
         analyzer: Analyzer,
         language: str,
+        reflection_json: str | None = None,
     ) -> None:
-        normalized = normalize_analysis(analyzer.analyze(content, language=normalize_language(language)))
+        reflections = parse_json_object(reflection_json)
+        normalized = normalize_analysis(call_analyzer(analyzer, content, normalize_language(language), reflections))
         self._store_analysis(db, dream_id, normalized, language)
 
     def _store_analysis(
@@ -345,6 +353,7 @@ class DreamLoop:
                     dreamed_on TEXT NOT NULL,
                     manual_mood TEXT,
                     tags_json TEXT NOT NULL DEFAULT '[]',
+                    reflection_json TEXT NOT NULL DEFAULT '{}',
                     analysis_status TEXT NOT NULL DEFAULT 'pending'
                 );
 
@@ -369,7 +378,14 @@ class DreamLoop:
                 );
                 """
             )
+            self._migrate_dreams_table(db)
             self._migrate_analysis_table(db)
+
+    def _migrate_dreams_table(self, db: sqlite3.Connection) -> None:
+        columns = db.execute("PRAGMA table_info(dreams)").fetchall()
+        column_names = {column["name"] for column in columns}
+        if "reflection_json" not in column_names:
+            db.execute("ALTER TABLE dreams ADD COLUMN reflection_json TEXT NOT NULL DEFAULT '{}'")
 
     def _migrate_analysis_table(self, db: sqlite3.Connection) -> None:
         columns = db.execute("PRAGMA table_info(dream_analyses)").fetchall()
@@ -447,6 +463,7 @@ class DreamLoop:
     def _dream_from_row(row: sqlite3.Row) -> dict[str, Any]:
         dream = dict(row)
         dream["tags"] = json.loads(dream.pop("tags_json"))
+        dream["reflections"] = parse_json_object(dream.pop("reflection_json", "{}"))
         return dream
 
 
@@ -457,6 +474,39 @@ def value_at(payload: dict[str, Any], key: str, index: int) -> Any:
 
 def normalize_language(language: str | None) -> str:
     return language if language in {"en", "zh"} else "en"
+
+
+def parse_json_object(text: str | None) -> dict[str, str]:
+    if not text:
+        return {}
+    try:
+        payload = json.loads(text)
+    except json.JSONDecodeError:
+        return {}
+    return clean_reflections(payload if isinstance(payload, dict) else {})
+
+
+def parse_json_any(text: str | None) -> Any:
+    if not text:
+        return {}
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        return {}
+
+
+def call_analyzer(
+    analyzer: Analyzer,
+    content: str,
+    language: str,
+    reflections: dict[str, str],
+) -> dict[str, Any]:
+    import inspect
+
+    parameters = inspect.signature(analyzer.analyze).parameters
+    if "reflections" in parameters:
+        return analyzer.analyze(content, language=language, reflections=reflections)
+    return analyzer.analyze(content, language=language)
 
 
 def dream_terms(dream: dict[str, Any]) -> set[str]:

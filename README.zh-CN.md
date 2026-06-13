@@ -11,6 +11,7 @@
 - 完全本地优先。梦境数据默认不离开你的机器。
 - 支持 Ollama 零成本运行；需要云模型时再显式配置 DeepSeek、OpenAI 或 Custom OpenAI-compatible。
 - CLI 优先、易 fork、适合 Obsidian 式知识工作流。
+- 解梦更重视情绪、现实处境和多种可验证解释，而不是只给一两句玄学摘要。
 
 ```bash
 git clone https://github.com/saime428/DreamLoop.git
@@ -78,8 +79,8 @@ DreamLoop 通过 http://localhost:11434/v1 使用 Ollama。
 DreamLoop v0.1 的产品逻辑是一个完整闭环：
 
 - Dashboard 总览：首页和 README 截图位，展示 AI 洞察、热力图、四格统计和最近梦境。
-- Log 录入：高频输入页，先写梦境，再点 AI 分析，满意草稿后再保存到本地。
-- Detail 分析：查看梦境原文、结构化 AI 分析、原始 JSON，并预留可选梦境画面入口。
+- Log 录入：高频输入页，先写梦境，也可补充醒来感受、现实关联和个人联想，再点 AI 分析。
+- Detail 分析：查看梦境原文、详细解梦、现实问题、自我验证问题、原始 JSON，并预留可选梦境画面入口。
 - Patterns 规律：可点击梦境日历、符号趋势、主题趋势，所有图表都能跳回 Log 过滤记录。
 - Gallery 记忆：v0.1 先展示本地视觉卡片；真实图像生成是 opt-in 路线，不默认调用付费 API。
 - Settings 信任托底：配置模型提供方、查看本地数据目录、确认密钥不会回显。
@@ -163,6 +164,7 @@ dreamloop web
 - SQLite 本地存储。
 - Ollama 优先的 provider 设置。
 - 可选 DeepSeek/OpenAI/Custom 结构化分析。
+- 可选输入预设和更长的现实关联解梦报告。
 - 可点击热力图、符号趋势、主题趋势、详情页分析。
 - Gallery 最小视觉记忆闭环。
 - 真实截图资产、CI、CHANGELOG 和公开发布包装。

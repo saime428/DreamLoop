@@ -6,6 +6,7 @@ DreamLoop's first public release turns the project into a usable local-first dre
 
 - Six-page Web loop: Dashboard, Log, Detail, Patterns, Gallery, and Settings.
 - Draft-first dream capture: analyze first, then save locally when the result looks useful.
+- Detailed interpretation reports with optional reflection prompts, multiple hypotheses, reality-grounded questions, and backward-compatible structured output.
 - Local SQLite storage under `.dreamloop/`, automatically ignored by Git.
 - AI providers: Ollama, DeepSeek, OpenAI, custom OpenAI-compatible endpoints, and capture-only mode.
 - Multilingual UI and per-language AI analysis for English and Chinese.

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import dreamloop.analysis as analysis
 from dreamloop.analysis import (
     DeepSeekAnalyzer,
     OllamaAnalyzer,
@@ -80,3 +81,34 @@ def test_custom_openai_compatible_provider_uses_configured_endpoint(tmp_path):
     assert analyzer is not None
     assert analyzer.provider == "custom"
     assert analyzer.api_key == "local"
+
+
+def test_analysis_prompt_requires_detailed_reality_grounded_report():
+    assert hasattr(analysis, "analysis_system_prompt")
+    prompt = analysis.analysis_system_prompt("zh")
+
+    assert "analysis_version" in prompt
+    assert "possible_interpretations" in prompt
+    assert "real_life_questions" in prompt
+    assert "至少 2" in prompt
+    assert "不要把梦说死" in prompt
+    assert "梦境具体细节" in prompt
+    assert "现实处境" in prompt
+
+
+def test_analysis_user_payload_includes_optional_reflections_without_empty_fields():
+    assert hasattr(analysis, "build_analysis_user_payload")
+    payload = analysis.build_analysis_user_payload(
+        "我在海底看到一扇蓝色的门。",
+        {
+            "strongest_emotion": "害怕又好奇",
+            "waking_feeling": "",
+            "real_life_context": "最近在考虑是否换工作",
+        },
+    )
+
+    assert "梦境内容" in payload
+    assert "我在海底看到一扇蓝色的门。" in payload
+    assert "strongest_emotion: 害怕又好奇" in payload
+    assert "real_life_context: 最近在考虑是否换工作" in payload
+    assert "waking_feeling" not in payload

@@ -64,7 +64,84 @@
                   <span>{{ theme }}</span>
                 {% endfor %}
               </div>
-              <p>{{ dream.analysis.summary }}</p>
+              <p class="analysis-summary">{{ dream.analysis.summary }}</p>
+              {% set report = dream.analysis.report %}
+              {% if report.analysis_version %}
+                <div class="dream-report">
+                  {% if report.dream_details %}
+                    <section class="report-section">
+                      <h3>{{ t.dream_details }}</h3>
+                      <ul>
+                        {% for item in report.dream_details %}
+                          <li>{{ item }}</li>
+                        {% endfor %}
+                      </ul>
+                    </section>
+                  {% endif %}
+                  {% if report.core_emotion %}
+                    <section class="report-section">
+                      <h3>{{ t.core_emotion }}</h3>
+                      <p>{{ report.core_emotion }}</p>
+                    </section>
+                  {% endif %}
+                  {% if dream.reflections %}
+                    <section class="report-section">
+                      <h3>{{ t.important_context }}</h3>
+                      <ul>
+                        {% for key, value in dream.reflections.items() %}
+                          <li>{{ value }}</li>
+                        {% endfor %}
+                      </ul>
+                    </section>
+                  {% endif %}
+                  {% if report.real_life_links %}
+                    <section class="report-section">
+                      <h3>{{ t.real_life_links }}</h3>
+                      <ul>
+                        {% for item in report.real_life_links %}
+                          <li>{{ item }}</li>
+                        {% endfor %}
+                      </ul>
+                    </section>
+                  {% endif %}
+                  {% if report.possible_interpretations %}
+                    <section class="report-section">
+                      <h3>{{ t.possible_interpretations }}</h3>
+                      <div class="interpretation-list">
+                        {% for item in report.possible_interpretations %}
+                          <article>
+                            <strong>{{ item.title or loop.index }}</strong>
+                            <p>{{ item.interpretation }}</p>
+                            <small>{{ item.dream_evidence }}</small>
+                            <small>{{ item.real_life_connection }}</small>
+                            <em>{{ item.verification_question }}</em>
+                          </article>
+                        {% endfor %}
+                      </div>
+                    </section>
+                  {% endif %}
+                  {% if report.real_life_questions %}
+                    <section class="report-section reality-focus">
+                      <h3>{{ t.real_life_questions }}</h3>
+                      <ul>
+                        {% for item in report.real_life_questions %}
+                          <li>{{ item }}</li>
+                        {% endfor %}
+                      </ul>
+                    </section>
+                  {% endif %}
+                  {% if report.verification_prompts %}
+                    <section class="report-section">
+                      <h3>{{ t.verification_prompts }}</h3>
+                      <ul>
+                        {% for item in report.verification_prompts %}
+                          <li>{{ item }}</li>
+                        {% endfor %}
+                      </ul>
+                    </section>
+                  {% endif %}
+                </div>
+              {% endif %}
               <details>
                 <summary>{{ t.raw_json }}</summary>
                 <pre><code>{{ dream.analysis.raw_json }}</code></pre>

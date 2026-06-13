@@ -31,6 +31,51 @@ class LanguageAwareAnalyzer:
         }
 
 
+class DetailedReflectionAnalyzer:
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, str, dict[str, str]]] = []
+
+    def analyze(
+        self,
+        content: str,
+        language: str = "en",
+        reflections: dict[str, str] | None = None,
+    ) -> dict[str, object]:
+        self.calls.append((content, language, dict(reflections or {})))
+        return {
+            "analysis_version": 2,
+            "emotional_tone": "焦虑但好奇",
+            "symbols": ["蓝色的门", "海底"],
+            "themes": ["边界", "探索"],
+            "summary": "这个梦把海底的门和现实中的压力联系在一起。",
+            "confidence": 0.88,
+            "dream_details": ["海底出现蓝色的门", "你停在门前没有立刻打开"],
+            "core_emotion": "焦虑中夹着想探索的冲动",
+            "waking_feeling": "醒来后还有一点紧张",
+            "important_elements": ["蓝色的门", "海底空间"],
+            "real_life_links": ["最近在考虑是否换工作"],
+            "personal_associations": ["门让我想到新的选择"],
+            "possible_interpretations": [
+                {
+                    "title": "解释 1：你在靠近一个新选择",
+                    "interpretation": "门像是一个机会，但海底让这个机会带着压力。",
+                    "dream_evidence": "蓝色的门出现在海底，而不是安全的房间里。",
+                    "real_life_connection": "这可能对应你最近对换工作的犹豫。",
+                    "verification_question": "最近有没有一个选择既吸引你又让你不安？",
+                },
+                {
+                    "title": "解释 2：你需要先处理情绪再行动",
+                    "interpretation": "海水可能代表情绪环境，门代表下一步。",
+                    "dream_evidence": "你停在门前，没有立刻打开。",
+                    "real_life_connection": "现实里可能有些压力需要先被看见。",
+                    "verification_question": "你是否正在推迟一个决定，因为状态还没准备好？",
+                },
+            ],
+            "real_life_questions": ["我真正害怕的是失败，还是改变本身？"],
+            "verification_prompts": ["把这个梦和最近一周最反复出现的压力放在一起看。"],
+        }
+
+
 def test_api_creates_lists_and_reads_dreams(tmp_path):
     app = create_app(tmp_path)
     client = TestClient(app)
@@ -49,6 +94,30 @@ def test_api_creates_lists_and_reads_dreams(tmp_path):
     detail = client.get(f"/api/dreams/{dream_id}")
     assert detail.status_code == 200
     assert detail.json()["content"] == "I found a door in the sea."
+    assert detail.json()["reflections"] == {}
+
+
+def test_api_creates_dream_with_reflections(tmp_path):
+    app = create_app(tmp_path)
+    client = TestClient(app)
+
+    created = client.post(
+        "/api/dreams",
+        json={
+            "content": "I found a door in the sea.",
+            "reflections": {
+                "strongest_emotion": "curiosity",
+                "real_life_context": "I am thinking about changing jobs.",
+            },
+        },
+    )
+
+    assert created.status_code == 201
+    detail = client.get(f"/api/dreams/{created.json()['id']}")
+    assert detail.json()["reflections"] == {
+        "strongest_emotion": "curiosity",
+        "real_life_context": "I am thinking about changing jobs.",
+    }
 
 
 def test_web_home_renders_without_ai_key(tmp_path, monkeypatch):
@@ -86,6 +155,11 @@ def test_log_prioritizes_capture_and_ai_analysis(tmp_path):
     assert "AI Analysis" in response.text
     assert 'placeholder="Record a dream before it fades..."' in response.text
     assert 'action="/drafts/analyze?lang=en"' in response.text
+    assert 'name="strongest_emotion"' in response.text
+    assert 'name="waking_feeling"' in response.text
+    assert 'name="important_elements"' in response.text
+    assert 'name="real_life_context"' in response.text
+    assert 'name="personal_association"' in response.text
     assert 'name="tags"' not in response.text
     assert 'name="manual_mood"' not in response.text
     assert "AI Analysis</button>" in response.text
@@ -121,6 +195,43 @@ def test_draft_analyze_does_not_persist_until_save(tmp_path):
     assert app.state.analyzer.calls == [("我打开了一扇发光的门。", "zh")]
 
 
+def test_draft_analyze_uses_optional_reflections_and_renders_detailed_report(tmp_path):
+    app = create_app(tmp_path)
+    app.state.analyzer = DetailedReflectionAnalyzer()
+    client = TestClient(app)
+
+    response = client.post(
+        "/drafts/analyze?lang=zh",
+        data={
+            "content": "我在海底看到一扇蓝色的门。",
+            "strongest_emotion": "害怕又好奇",
+            "waking_feeling": "醒来后很紧张",
+            "important_elements": "蓝色的门、海底",
+            "real_life_context": "最近在考虑是否换工作",
+            "personal_association": "门让我想到新的选择",
+        },
+    )
+
+    assert response.status_code == 200
+    assert app.state.loop.list_dreams() == []
+    assert app.state.analyzer.calls == [
+        (
+            "我在海底看到一扇蓝色的门。",
+            "zh",
+            {
+                "strongest_emotion": "害怕又好奇",
+                "waking_feeling": "醒来后很紧张",
+                "important_elements": "蓝色的门、海底",
+                "real_life_context": "最近在考虑是否换工作",
+                "personal_association": "门让我想到新的选择",
+            },
+        )
+    ]
+    assert "解释 1：你在靠近一个新选择" in response.text
+    assert "我可以从中看到的现实问题" in response.text
+    assert "我真正害怕的是失败，还是改变本身？" in response.text
+
+
 def test_draft_save_creates_dream_with_language_analysis(tmp_path):
     app = create_app(tmp_path)
     client = TestClient(app)
@@ -138,6 +249,7 @@ def test_draft_save_creates_dream_with_language_analysis(tmp_path):
             "content": "我打开了一扇发光的门。",
             "analysis_json": json.dumps(analysis, ensure_ascii=False),
             "analysis_language": "zh",
+            "reflections_json": json.dumps({"waking_feeling": "紧张"}, ensure_ascii=False),
         },
         follow_redirects=False,
     )
@@ -146,6 +258,7 @@ def test_draft_save_creates_dream_with_language_analysis(tmp_path):
     assert response.headers["location"] == "/dreams/1?lang=zh"
     dream = client.get("/api/dreams/1?lang=zh").json()
     assert dream["content"] == "我打开了一扇发光的门。"
+    assert dream["reflections"] == {"waking_feeling": "紧张"}
     assert dream["analysis"]["summary"] == "一场关于发现隐藏之门的梦。"
     assert client.get("/api/dreams/1?lang=en").json()["analysis"] is None
 
@@ -378,6 +491,28 @@ def test_detail_page_supports_chinese_language(tmp_path):
     assert "返回总览" in response.text
     assert "AI 分析" in response.text
     assert "生成梦境画面" in response.text
+
+
+def test_detail_page_renders_detailed_analysis_sections(tmp_path):
+    app = create_app(tmp_path)
+    app.state.analyzer = DetailedReflectionAnalyzer()
+    client = TestClient(app)
+    dream_id = client.post(
+        "/api/dreams",
+        json={
+            "content": "我在海底看到一扇蓝色的门。",
+            "reflections": {"real_life_context": "最近在考虑是否换工作"},
+        },
+    ).json()["id"]
+    client.post(f"/api/dreams/{dream_id}/analyze?lang=zh")
+
+    response = client.get(f"/dreams/{dream_id}?lang=zh")
+
+    assert response.status_code == 200
+    assert "梦里的具体细节" in response.text
+    assert "可能解释" in response.text
+    assert "我可以从中看到的现实问题" in response.text
+    assert "我真正害怕的是失败，还是改变本身？" in response.text
 
 
 def test_gallery_empty_state_explains_detail_driven_visual_memory(tmp_path):

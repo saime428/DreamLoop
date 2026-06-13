@@ -11,6 +11,7 @@
 - Runs fully local. Your data never leaves your machine.
 - Free with Ollama. Optional DeepSeek/OpenAI or custom OpenAI-compatible endpoints.
 - CLI-first, forkable, and built for Obsidian-minded knowledge workers.
+- Detailed dream analysis that favors emotions, real-life context, and multiple verifiable interpretations.
 
 ```bash
 git clone https://github.com/saime428/DreamLoop.git
@@ -121,8 +122,8 @@ Provider defaults:
 The FastAPI/Jinja dashboard is intentionally lightweight:
 
 - Dashboard: README-ready overview with AI Insight, heatmap, stats, and recent dreams
-- Log: draft-first dream capture and AI analysis before saving
-- Detail: original dream text, structured analysis, raw JSON, and an opt-in visual-memory entry point
+- Log: draft-first dream capture, optional reflection prompts, and AI analysis before saving
+- Detail: original dream text, detailed interpretation, reality-grounded questions, raw JSON, and an opt-in visual-memory entry point
 - Patterns: clickable calendar, recurring symbols, theme trends, and filters back into Log
 - Gallery: v0.1 local visual cards derived from saved dreams; image generation remains opt-in
 - Settings: provider selection, launch notes, local data directory, and privacy status
@@ -180,6 +181,7 @@ dreamloop web
 - SQLite storage.
 - Ollama-first provider settings.
 - Optional DeepSeek/OpenAI/custom structured analysis.
+- Optional reflection prompts and longer reality-grounded interpretation reports.
 - Heatmap, `.ics` import, weather sync.
 - Similar dreams and basic trends.
 - Real screenshot assets, CI, changelog, and public release packaging.
