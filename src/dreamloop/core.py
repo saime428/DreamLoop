@@ -20,6 +20,8 @@ from .analysis import (
     normalize_text_list,
 )
 
+FEEDBACK_RATINGS = {"resonates", "not_accurate", "unsure"}
+
 
 class DreamLoop:
     def __init__(self, root: str | Path | None = None) -> None:
@@ -177,9 +179,95 @@ class DreamLoop:
     def delete_dream(self, dream_id: int) -> bool:
         self.init()
         with self._connect() as db:
+            db.execute("DELETE FROM user_feedback WHERE dream_id = ?", (dream_id,))
             db.execute("DELETE FROM dream_analyses WHERE dream_id = ?", (dream_id,))
             cursor = db.execute("DELETE FROM dreams WHERE id = ?", (dream_id,))
             return cursor.rowcount > 0
+
+    def add_feedback(
+        self,
+        dream_id: int,
+        *,
+        language: str = "en",
+        interpretation_index: int = 0,
+        rating: str,
+        reason: str = "",
+    ) -> int:
+        self.init()
+        rating = rating.strip()
+        if rating not in FEEDBACK_RATINGS:
+            raise ValueError(f"Unsupported feedback rating: {rating}")
+        with self._connect() as db:
+            dream = db.execute("SELECT id FROM dreams WHERE id = ?", (dream_id,)).fetchone()
+            if dream is None:
+                raise KeyError(f"Dream {dream_id} was not found.")
+            cursor = db.execute(
+                """
+                INSERT INTO user_feedback (
+                    dream_id, analysis_language, interpretation_index, rating, reason, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    dream_id,
+                    normalize_language(language),
+                    interpretation_index,
+                    rating,
+                    reason.strip(),
+                    datetime.now().isoformat(timespec="seconds"),
+                ),
+            )
+            return int(cursor.lastrowid)
+
+    def feedback_for_dream(self, dream_id: int, *, language: str = "en") -> list[dict[str, Any]]:
+        self.init()
+        with self._connect() as db:
+            rows = db.execute(
+                """
+                SELECT * FROM user_feedback
+                WHERE dream_id = ? AND analysis_language = ?
+                ORDER BY created_at DESC, id DESC
+                """,
+                (dream_id, normalize_language(language)),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def feedback_summary(self, *, language: str = "en") -> dict[str, list[dict[str, Any]]]:
+        self.init()
+        rating_counts: Counter[str] = Counter()
+        resonant_themes: Counter[str] = Counter()
+        with self._connect() as db:
+            rows = db.execute(
+                "SELECT * FROM user_feedback WHERE analysis_language = ?",
+                (normalize_language(language),),
+            ).fetchall()
+        for row in rows:
+            rating_counts[row["rating"]] += 1
+            if row["rating"] != "resonates":
+                continue
+            try:
+                dream = self.get_dream(int(row["dream_id"]), language=language)
+            except KeyError:
+                continue
+            analysis = dream.get("analysis") or {}
+            resonant_themes.update(analysis.get("themes", []))
+        return {
+            "ratings": counter_items(rating_counts),
+            "resonant_themes": counter_items(resonant_themes),
+        }
+
+    def seed_demo(self) -> list[int]:
+        samples = demo_samples()
+        created: list[int] = []
+        for sample in samples:
+            dream_id = self.add_dream_with_analysis(
+                sample["content"],
+                sample["analysis"],
+                language="en",
+                reflections=sample.get("reflections", {}),
+            )
+            self.generate_visual_memory(dream_id, language="en")
+            created.append(dream_id)
+        return created
 
     def generate_visual_memory(self, dream_id: int, *, language: str = "en") -> dict[str, Any]:
         dream = self.get_dream(dream_id, language=language)
@@ -428,6 +516,16 @@ class DreamLoop:
                     weather_code INTEGER,
                     raw_json TEXT NOT NULL
                 );
+
+                CREATE TABLE IF NOT EXISTS user_feedback (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    dream_id INTEGER NOT NULL REFERENCES dreams(id) ON DELETE CASCADE,
+                    analysis_language TEXT NOT NULL DEFAULT 'en',
+                    interpretation_index INTEGER NOT NULL DEFAULT 0,
+                    rating TEXT NOT NULL,
+                    reason TEXT NOT NULL DEFAULT '',
+                    created_at TEXT NOT NULL
+                );
                 """
             )
             self._migrate_dreams_table(db)
@@ -567,6 +665,101 @@ def normalize_visual_memory(payload: dict[str, Any]) -> dict[str, Any]:
     visual.setdefault("accent_2", "#8e63ff")
     visual.setdefault("accent_3", "#ff6ba8")
     return visual
+
+
+def demo_samples() -> list[dict[str, Any]]:
+    return [
+        {
+            "content": "I kept walking through a quiet subway station, but every exit led back to the same platform.",
+            "reflections": {
+                "strongest_emotion": "uneasy curiosity",
+                "real_life_context": "I have been comparing several life options.",
+            },
+            "analysis": {
+                "analysis_version": 2,
+                "emotional_tone": "uneasy but curious",
+                "symbols": ["subway station", "repeating platform", "exit"],
+                "themes": ["transition", "uncertainty"],
+                "summary": "A transition dream where every route returns to the same unresolved question.",
+                "confidence": 0.82,
+                "dream_details": [
+                    "The station feels quiet rather than dangerous.",
+                    "Every exit leads back to the same platform.",
+                ],
+                "core_emotion": "A mix of curiosity and low-grade frustration.",
+                "real_life_links": ["You may be circling a decision without finding a satisfying next step."],
+                "possible_interpretations": [
+                    {
+                        "title": "A decision loop",
+                        "interpretation": "The repeating platform may reflect revisiting the same choice from different angles.",
+                        "dream_evidence": "Each exit returns to the same place.",
+                        "real_life_connection": "This can map to a decision that has no perfect option yet.",
+                        "verification_question": "Which real choice keeps bringing you back to the same concern?",
+                    }
+                ],
+                "real_life_questions": ["What decision feels circular rather than impossible?"],
+                "verification_prompts": ["Write down the choices you keep comparing and what each one costs."],
+            },
+        },
+        {
+            "content": "A blue door appeared under the sea. I could breathe, but I waited before opening it.",
+            "reflections": {
+                "strongest_emotion": "wonder",
+                "personal_association": "A new project that feels exciting and heavy.",
+            },
+            "analysis": {
+                "analysis_version": 2,
+                "emotional_tone": "wonder with caution",
+                "symbols": ["blue door", "sea", "waiting"],
+                "themes": ["threshold", "exploration"],
+                "summary": "A threshold dream about a possible opening that still asks for emotional readiness.",
+                "confidence": 0.84,
+                "dream_details": ["The door is under the sea.", "You can breathe, but you do not rush."],
+                "core_emotion": "Interest held back by caution.",
+                "real_life_links": ["A promising opportunity may feel real but not fully safe yet."],
+                "possible_interpretations": [
+                    {
+                        "title": "Approaching an opportunity carefully",
+                        "interpretation": "The blue door may mark a new option, while the sea adds emotional depth.",
+                        "dream_evidence": "You can breathe, yet you wait.",
+                        "real_life_connection": "This may echo a project or relationship that needs pacing.",
+                        "verification_question": "Where are you interested but not ready to commit?",
+                    }
+                ],
+                "real_life_questions": ["What opening needs patience rather than force?"],
+                "verification_prompts": ["Notice whether excitement or fear is leading the delay."],
+            },
+        },
+        {
+            "content": "I found an old library where the books rearranged themselves whenever I touched the shelves.",
+            "reflections": {
+                "strongest_emotion": "fascinated",
+                "waking_feeling": "I wanted to remember the layout.",
+            },
+            "analysis": {
+                "analysis_version": 2,
+                "emotional_tone": "fascinated and slightly overwhelmed",
+                "symbols": ["old library", "moving shelves", "rearranging books"],
+                "themes": ["memory", "knowledge", "change"],
+                "summary": "A knowledge dream where memory keeps reorganizing itself as you interact with it.",
+                "confidence": 0.8,
+                "dream_details": ["Books rearrange when touched.", "The library feels old and alive."],
+                "core_emotion": "The pleasure of discovery mixed with too much information.",
+                "real_life_links": ["You may be reorganizing how you understand a topic or period of life."],
+                "possible_interpretations": [
+                    {
+                        "title": "A changing knowledge map",
+                        "interpretation": "The library may reflect a personal knowledge system that evolves as you use it.",
+                        "dream_evidence": "The books move only when you touch the shelves.",
+                        "real_life_connection": "This may map to learning, writing, or rebuilding your notes.",
+                        "verification_question": "What knowledge area changes shape whenever you engage with it?",
+                    }
+                ],
+                "real_life_questions": ["What system are you trying to reorganize without losing yourself in it?"],
+                "verification_prompts": ["Pick one area of knowledge and name the pattern that keeps shifting."],
+            },
+        },
+    ]
 
 
 def parse_json_object(text: str | None) -> dict[str, str]:

@@ -36,6 +36,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "dashboard_eyebrow": "Local-first dream intelligence",
         "dashboard_title": "DreamLoop Dashboard",
         "dashboard_tagline": "Your dreams have patterns. DreamLoop finds them locally.",
+        "dashboard_hero_title": "Local-first dream intelligence",
         "dashboard_lede": "A six-page loop for private capture, structured AI analysis, pattern discovery, visual memory, and trust settings.",
         "dashboard_cta": "Log a Dream",
         "quick_loop": "Dashboard -> Log -> Detail -> Patterns -> Gallery -> Settings",
@@ -95,6 +96,14 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "possible_interpretations": "Possible interpretations",
         "real_life_questions": "What I can notice in real life",
         "verification_prompts": "Questions to verify for yourself",
+        "feedback_title": "Was this useful?",
+        "feedback_resonates": "Resonates",
+        "feedback_not_accurate": "Not accurate",
+        "feedback_unsure": "Unsure",
+        "feedback_reason_placeholder": "Optional note",
+        "feedback_saved": "Feedback saved locally.",
+        "resonant_themes": "Resonant themes",
+        "no_feedback": "Feedback will appear here after you rate an interpretation.",
         "local_dreams": "Local dreams",
         "analyzed": "Analyzed",
         "ai_provider": "AI provider",
@@ -149,6 +158,8 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "save_settings": "Save settings",
         "settings_saved": "Settings saved locally.",
         "settings_secret_note": "Existing keys are hidden. Leave API Key blank to keep the current secret.",
+        "privacy_audit": "Privacy audit",
+        "privacy_audit_copy": "Dream text stays in local SQLite by default. Cloud AI sends the dream and optional reflection fields only after you choose DeepSeek, OpenAI, or a custom endpoint. Weather sync sends coordinates to Open-Meteo. Future backup or Obsidian sync features should remain explicit opt-in actions.",
         "provider_status": "Provider status",
         "developer_note": "Developer note",
         "cli_note": "Start DreamLoop with dreamloop web or scripts/start-dreamloop.cmd. A native desktop shell is on the roadmap, not part of v0.1.",
@@ -162,7 +173,8 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "sidebar_count": "条梦境保存在本地工作区",
         "dashboard_eyebrow": "本地优先的梦境智能",
         "dashboard_title": "DreamLoop 总览",
-        "dashboard_tagline": "梦里反复出现的线索，DreamLoop 在本地帮你看见。",
+        "dashboard_tagline": "梦会重复说话，DreamLoop 帮你在本地听见。",
+        "dashboard_hero_title": "本地优先的梦境智能",
         "dashboard_lede": "从记录、分析到规律和视觉记忆，六页完成一个私密闭环；设置页负责把信任说清楚。",
         "dashboard_cta": "记录梦境",
         "quick_loop": "总览 -> 录入 -> 详情 -> 规律 -> 记忆 -> 设置",
@@ -222,6 +234,14 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "possible_interpretations": "可能解释",
         "real_life_questions": "我可以从中看到的现实问题",
         "verification_prompts": "可以自我验证的问题",
+        "feedback_title": "这段解释有帮助吗？",
+        "feedback_resonates": "有共鸣",
+        "feedback_not_accurate": "不准",
+        "feedback_unsure": "不确定",
+        "feedback_reason_placeholder": "可选备注",
+        "feedback_saved": "反馈已保存到本地。",
+        "resonant_themes": "高共鸣主题",
+        "no_feedback": "给解释打分后，共鸣主题会出现在这里。",
         "local_dreams": "本地梦境",
         "analyzed": "已分析",
         "ai_provider": "AI 提供方",
@@ -276,6 +296,8 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "save_settings": "保存设置",
         "settings_saved": "设置已保存到本地。",
         "settings_secret_note": "已有密钥会隐藏。API Key 留空表示保留当前密钥。",
+        "privacy_audit": "隐私审计",
+        "privacy_audit_copy": "默认情况下，梦境正文只写入本地 SQLite。只有当你明确选择 DeepSeek、OpenAI 或自定义端点时，云模型才会收到梦境和你填写的可选补充。天气同步会把经纬度发送给 Open-Meteo。未来的备份或 Obsidian 同步也应该保持显式开启。",
         "provider_status": "模型状态",
         "developer_note": "开发者说明",
         "cli_note": "当前可用 dreamloop web 或 scripts/start-dreamloop.cmd 启动；原生桌面壳在路线图里，不属于 v0.1。",
@@ -432,8 +454,14 @@ class WeatherSync(BaseModel):
     lon: float
 
 
+class FeedbackCreate(BaseModel):
+    interpretation_index: int = Field(ge=0)
+    rating: str
+    reason: str = ""
+
+
 def create_app(root: str | Path | None = None) -> FastAPI:
-    app = FastAPI(title="DreamLoop", version="0.1.0")
+    app = FastAPI(title="DreamLoop", version="0.1.1")
     loop = DreamLoop(root)
     loop.init()
     app.state.loop = loop
@@ -486,6 +514,7 @@ def create_app(root: str | Path | None = None) -> FastAPI:
                 "ai": ai_payload,
                 "ai_config": load_ai_config(loop.root),
                 "trends": trends,
+                "feedback_summary": loop.feedback_summary(language=lang),
                 "dashboard_insight": _dashboard_insight(localized_dreams, trends, lang),
                 "dashboard_stats": _dashboard_stats(localized_dreams, trends, ai_payload, lang),
                 "data_dir": loop.data_dir,
@@ -697,6 +726,28 @@ def create_app(root: str | Path | None = None) -> FastAPI:
             raise HTTPException(status_code=404, detail="Dream not found") from exc
         return RedirectResponse(_dream_url(dream_id, lang), status_code=status.HTTP_303_SEE_OTHER)
 
+    @app.post("/dreams/{dream_id}/feedback")
+    def save_feedback_form(
+        dream_id: int,
+        lang: str = "en",
+        interpretation_index: int = Form(0),
+        rating: str = Form(...),
+        reason: str = Form(""),
+    ) -> RedirectResponse:
+        try:
+            loop.add_feedback(
+                dream_id,
+                language=_lang(lang),
+                interpretation_index=interpretation_index,
+                rating=rating,
+                reason=reason,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="Dream not found") from exc
+        return RedirectResponse(_dream_url(dream_id, lang), status_code=status.HTTP_303_SEE_OTHER)
+
     @app.get("/dreams/{dream_id}", response_class=HTMLResponse)
     def dream_detail(request: Request, dream_id: int, lang: str = "en") -> Any:
         lang = _lang(lang)
@@ -710,6 +761,7 @@ def create_app(root: str | Path | None = None) -> FastAPI:
             "detail.html",
             {
                 "dream": dream,
+                "feedback": loop.feedback_for_dream(dream_id, language=lang),
                 "context": context,
                 "ai": ai_status(loop.root),
                 "lang": lang,
@@ -751,6 +803,28 @@ def create_app(root: str | Path | None = None) -> FastAPI:
             return loop.generate_visual_memory(dream_id, language=_lang(lang))
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="Dream not found") from exc
+
+    @app.post("/api/dreams/{dream_id}/feedback", status_code=201)
+    def api_add_feedback(dream_id: int, payload: FeedbackCreate, lang: str = "en") -> dict[str, Any]:
+        try:
+            feedback_id = loop.add_feedback(
+                dream_id,
+                language=_lang(lang),
+                interpretation_index=payload.interpretation_index,
+                rating=payload.rating,
+                reason=payload.reason,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="Dream not found") from exc
+        return {
+            "id": feedback_id,
+            "dream_id": dream_id,
+            "language": _lang(lang),
+            "interpretation_index": payload.interpretation_index,
+            "rating": payload.rating,
+        }
 
     @app.get("/api/dreams/{dream_id}/similar")
     def api_similar_dreams(dream_id: int) -> list[dict[str, Any]]:
@@ -803,5 +877,9 @@ def create_app(root: str | Path | None = None) -> FastAPI:
     @app.get("/api/insights/trends")
     def api_trends(lang: str = "en") -> dict[str, list[dict[str, Any]]]:
         return loop.trends(language=_lang(lang))
+
+    @app.get("/api/feedback/summary")
+    def api_feedback_summary(lang: str = "en") -> dict[str, list[dict[str, Any]]]:
+        return loop.feedback_summary(language=_lang(lang))
 
     return app

@@ -25,6 +25,23 @@ DreamLoop is a local-first dream journal for people who want fast capture, priva
 
 ## Quick Start
 
+### Five-minute PyPI demo
+
+```bash
+pipx install dreamloop
+dreamloop init
+dreamloop demo
+dreamloop web
+```
+
+Expected result:
+
+```text
+DreamLoop seeds three local sample dreams, mock analyses, and visual memory cards.
+The dashboard opens at http://127.0.0.1:8765 with Dashboard, Patterns, and Gallery populated.
+No cloud AI is required for this demo.
+```
+
 ### Run locally without AI
 
 ```bash
@@ -43,6 +60,8 @@ DreamLoop stores the entry in .dreamloop/dreamloop.sqlite3.
 The local dashboard starts at http://127.0.0.1:8765.
 AI analysis stays pending until you configure a provider.
 ```
+
+You can also run `uv run dreamloop doctor` to check the data directory, SQLite, provider settings, Ollama connectivity, and hidden key status without printing secrets.
 
 ### Enable local Ollama analysis
 
@@ -137,6 +156,8 @@ The same app exposes JSON endpoints:
 - `GET /api/dreams/{id}`
 - `GET /api/dreams/{id}/similar`
 - `POST /api/analyze/pending`
+- `POST /api/dreams/{id}/feedback`
+- `GET /api/feedback/summary`
 - `POST /api/import/ics`
 - `POST /api/weather/sync`
 - `GET /api/insights/heatmap`
@@ -156,13 +177,15 @@ The same app exposes JSON endpoints:
 
 SQLite stores dreams, analysis results, imported calendar events, and synced weather. ChromaDB remains optional for richer vector search.
 
-## PyPI Release Install
+## PyPI Install
 
-After the v0.1.0 package is published, install it with:
+Install the published package with:
 
 ```bash
 pipx install dreamloop
 dreamloop init
+dreamloop doctor
+dreamloop demo
 dreamloop add "I was flying above a dark ocean."
 dreamloop web
 ```
@@ -185,6 +208,14 @@ dreamloop web
 - Heatmap, `.ics` import, weather sync.
 - Similar dreams and basic trends.
 - Real screenshot assets, CI, changelog, and public release packaging.
+
+### v0.1.1
+
+- Dashboard hero overflow fix for English and Chinese layouts.
+- `dreamloop doctor` for local setup checks without revealing secrets.
+- `dreamloop demo` for a fast no-AI walkthrough with sample dreams and local visual cards.
+- Local feedback buttons on interpretations: resonates, not accurate, unsure.
+- Patterns summary for high-resonance themes.
 
 ### v0.2
 

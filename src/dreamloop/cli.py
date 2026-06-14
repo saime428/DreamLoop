@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 from datetime import date
 from pathlib import Path
 from typing import Annotated
@@ -67,9 +68,45 @@ def analyze(pending: Annotated[bool, typer.Option("--pending")] = False) -> None
 
 
 @app.command()
+def doctor() -> None:
+    loop = DreamLoop()
+    loop.init()
+    status = ai_status(loop.root)
+    typer.echo("DreamLoop doctor")
+    typer.echo(f"data_dir: {loop.data_dir}")
+    typer.echo(f"sqlite: {'ok' if loop.db_path.exists() else 'missing'}")
+    typer.echo(f"provider: {status.provider}")
+    typer.echo(f"model: {status.model or 'none'}")
+    typer.echo(f"mode: {status.mode}")
+    typer.echo(f"base_url: {status.base_url or 'none'}")
+    typer.echo(f"ready: {status.ready}")
+    typer.echo(f"connection: {test_provider_connection(loop.root)}")
+    if status.warning:
+        typer.echo(f"warning: {status.warning}")
+    typer.echo("secrets: hidden")
+
+
+@app.command()
+def demo(
+    reset: Annotated[
+        bool,
+        typer.Option("--reset/--no-reset", help="Reset .dreamloop before adding demo dreams."),
+    ] = False,
+) -> None:
+    loop = DreamLoop()
+    if reset and loop.data_dir.exists():
+        shutil.rmtree(loop.data_dir)
+    created = loop.seed_demo()
+    typer.echo(f"Added {len(created)} demo dream(s): {', '.join(f'#{dream_id}' for dream_id in created)}")
+    typer.echo("Run `dreamloop web` and open the Dashboard, Patterns, and Gallery pages.")
+
+
+@app.command()
 def web(host: str = "127.0.0.1", port: int = 8765) -> None:
     import uvicorn
 
+    if host == "0.0.0.0":
+        typer.echo("WARNING: binding to 0.0.0.0 can expose private dream data on your network.")
     uvicorn.run("dreamloop.web:create_app", factory=True, host=host, port=port)
 
 

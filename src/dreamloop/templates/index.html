@@ -62,8 +62,9 @@
           <div class="star-field" aria-hidden="true"></div>
           <article class="hero-copy">
             <p class="eyebrow">{{ t.quick_loop }}</p>
-            <h2>{{ t.dashboard_tagline }}</h2>
-            <p class="lede">{{ t.dashboard_lede }}</p>
+            <h2>{{ t.dashboard_hero_title }}</h2>
+            <p class="lede">{{ t.dashboard_tagline }}</p>
+            <p>{{ t.dashboard_lede }}</p>
             <div class="hero-actions">
               <a class="primary-cta" href="/log?lang={{ lang }}">{{ t.dashboard_cta }}</a>
               <span>{{ t.data_never_leaves }}</span>
@@ -398,6 +399,22 @@
               <p>{{ dashboard_insight.body }}</p>
             </div>
           </article>
+
+          <article class="panel">
+            <div class="section-title">
+              <span>{{ t.feedback_title }}</span>
+              <h2>{{ t.resonant_themes }}</h2>
+            </div>
+            <div class="symbol-stack">
+              {% for item in feedback_summary.resonant_themes[:5] %}
+                <a class="symbol-row trend-link" href="/log?lang={{ lang }}&theme={{ item.name }}">
+                  <span>{{ item.name }}</span><i style="width: {{ item.percent or 36 }}%"></i><strong>{{ item.count }}</strong>
+                </a>
+              {% else %}
+                <p class="empty-state">{{ t.no_feedback }}</p>
+              {% endfor %}
+            </div>
+          </article>
         </section>
 
         {% elif page == "gallery" %}
@@ -483,6 +500,10 @@
             <div class="developer-note">
               <strong>{{ t.developer_note }}</strong>
               <p>{{ t.cli_note }}</p>
+            </div>
+            <div class="developer-note">
+              <strong>{{ t.privacy_audit }}</strong>
+              <p>{{ t.privacy_audit_copy }}</p>
             </div>
           </article>
         </section>

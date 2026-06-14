@@ -166,6 +166,8 @@ def test_web_home_renders_without_ai_key(tmp_path, monkeypatch):
     assert response.status_code == 200
     assert "DreamLoop Dashboard" in response.text
     assert "Your dreams have patterns. DreamLoop finds them locally." in response.text
+    assert "Local-first dream intelligence" in response.text
+    assert response.text.count("<h2>Your dreams have patterns. DreamLoop finds them locally.</h2>") == 0
     assert "data never leaves this machine" in response.text
     assert "DreamLoop" in response.text
     assert 'href="/patterns?lang=en"' in response.text
@@ -630,6 +632,45 @@ def test_detail_generates_local_visual_memory_and_gallery_shows_it(tmp_path):
     assert "Dream Gallery" in gallery.text
     assert "Local visual memory" in gallery.text
     assert "A dream about finding a hidden door." in gallery.text
+
+
+def test_detail_feedback_buttons_and_api_summary(tmp_path):
+    app = create_app(tmp_path)
+    app.state.analyzer = StructuredTermAnalyzer()
+    client = TestClient(app)
+    dream_id = client.post(
+        "/api/dreams", json={"content": "I could not find the exit in a subway station."}
+    ).json()["id"]
+    client.post(f"/api/dreams/{dream_id}/analyze?lang=en")
+
+    detail = client.get(f"/dreams/{dream_id}?lang=en")
+    assert detail.status_code == 200
+    assert f'action="/dreams/{dream_id}/feedback?lang=en"' in detail.text
+    assert "Resonates" in detail.text
+    assert "Not accurate" in detail.text
+    assert "Unsure" in detail.text
+
+    posted = client.post(
+        f"/api/dreams/{dream_id}/feedback?lang=en",
+        json={"interpretation_index": 0, "rating": "resonates", "reason": "This fits."},
+    )
+    assert posted.status_code == 201
+    assert posted.json()["rating"] == "resonates"
+
+    bad = client.post(
+        f"/api/dreams/{dream_id}/feedback?lang=en",
+        json={"interpretation_index": 0, "rating": "too_mystical"},
+    )
+    assert bad.status_code == 400
+
+    summary = client.get("/api/feedback/summary?lang=en")
+    assert summary.status_code == 200
+    assert summary.json()["ratings"][0] == {"name": "resonates", "count": 1}
+    assert {"name": "lost direction", "count": 1} in summary.json()["resonant_themes"]
+
+    patterns = client.get("/patterns?lang=en")
+    assert "Resonant themes" in patterns.text
+    assert "lost direction" in patterns.text
 
 
 def test_structured_symbol_objects_do_not_leak_to_web_pages(tmp_path):

@@ -130,6 +130,13 @@
                             <small>{{ item.dream_evidence }}</small>
                             <small>{{ item.real_life_connection }}</small>
                             <em>{{ item.verification_question }}</em>
+                            <form method="post" action="/dreams/{{ dream.id }}/feedback?lang={{ lang }}" class="feedback-form">
+                              <input type="hidden" name="interpretation_index" value="{{ loop.index0 }}">
+                              <input name="reason" placeholder="{{ t.feedback_reason_placeholder }}">
+                              <button type="submit" name="rating" value="resonates">{{ t.feedback_resonates }}</button>
+                              <button type="submit" name="rating" value="not_accurate">{{ t.feedback_not_accurate }}</button>
+                              <button type="submit" name="rating" value="unsure">{{ t.feedback_unsure }}</button>
+                            </form>
                           </article>
                         {% endfor %}
                       </div>
@@ -161,6 +168,9 @@
                 <summary>{{ t.raw_json }}</summary>
                 <pre><code>{{ dream.analysis.raw_json }}</code></pre>
               </details>
+              {% if feedback %}
+                <p class="runtime-note">{{ t.feedback_saved }}</p>
+              {% endif %}
             {% elif ai.ready %}
               <p class="empty-state">{{ t.pending_analysis }}: {{ ai.provider }} / {{ ai.model }}</p>
               <form method="post" action="/dreams/{{ dream.id }}/analyze?lang={{ lang }}" class="analyze-form" data-loading-form data-loading-text="{{ t.analyzing_dream }}">

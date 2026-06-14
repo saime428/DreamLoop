@@ -534,3 +534,72 @@ def test_generate_visual_memory_raises_for_missing_dream(tmp_path):
         assert "999" in str(exc)
     else:
         raise AssertionError("Expected missing dream to raise KeyError")
+
+
+def test_feedback_lifecycle_and_resonance_summary(tmp_path):
+    loop = DreamLoop(tmp_path)
+    loop.init()
+    dream_id = loop.add_dream_with_analysis(
+        "I was lost in a station.",
+        {
+            "analysis_version": 2,
+            "emotional_tone": "anxious",
+            "symbols": ["station"],
+            "themes": ["transition", "uncertainty"],
+            "summary": "A dream about uncertainty.",
+            "confidence": 0.8,
+            "possible_interpretations": [
+                {
+                    "title": "Choosing a route",
+                    "interpretation": "You may be comparing several imperfect options.",
+                    "dream_evidence": "The station had too many exits.",
+                    "real_life_connection": "This may mirror a current decision.",
+                    "verification_question": "Which choice feels overloaded?",
+                }
+            ],
+        },
+        language="en",
+    )
+
+    feedback_id = loop.add_feedback(
+        dream_id,
+        language="en",
+        interpretation_index=0,
+        rating="resonates",
+        reason="This matches my week.",
+    )
+    feedback = loop.feedback_for_dream(dream_id, language="en")
+    summary = loop.feedback_summary(language="en")
+
+    assert feedback_id > 0
+    assert feedback[0]["rating"] == "resonates"
+    assert feedback[0]["reason"] == "This matches my week."
+    assert summary["ratings"][0] == {"name": "resonates", "count": 1}
+    assert {"name": "transition", "count": 1} in summary["resonant_themes"]
+    assert {"name": "uncertainty", "count": 1} in summary["resonant_themes"]
+
+    try:
+        loop.add_feedback(dream_id, language="en", interpretation_index=0, rating="too_mystical")
+    except ValueError as exc:
+        assert "rating" in str(exc)
+    else:
+        raise AssertionError("Expected invalid feedback rating to fail")
+
+    assert loop.delete_dream(dream_id) is True
+    assert loop.feedback_for_dream(dream_id, language="en") == []
+
+
+def test_seed_demo_adds_complete_local_sample_without_deleting_existing_data(tmp_path):
+    loop = DreamLoop(tmp_path)
+    loop.init()
+    existing = loop.add_dream("Do not remove this dream.")
+
+    created = loop.seed_demo()
+    dreams = loop.list_dreams()
+    visual_count = sum(1 for dream in dreams if dream.get("visual_memory"))
+
+    assert len(created) == 3
+    assert existing in [dream["id"] for dream in dreams]
+    assert len(dreams) == 4
+    assert visual_count >= 1
+    assert all(loop.get_dream(dream_id, language="en")["analysis"] for dream_id in created)

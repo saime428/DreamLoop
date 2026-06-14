@@ -17,7 +17,7 @@ def test_readme_leads_with_local_first_positioning_and_fast_start():
     assert "git clone https://github.com/saime428/DreamLoop.git" in first_screen
     assert "uv sync --extra dev" in first_screen
     assert "uv run dreamloop init" in first_screen
-    assert "pipx install dreamloop" not in first_screen
+    assert "pipx install dreamloop" in first_screen
     assert "Future release assets" not in text
 
 
@@ -45,7 +45,7 @@ def test_chinese_readme_covers_local_first_loop_and_providers():
     assert "git clone https://github.com/saime428/DreamLoop.git" in first_screen
     assert "uv run dreamloop web" in first_screen
     assert "pipx install dreamloop" in text
-    assert "pipx install dreamloop" not in first_screen
+    assert "pipx install dreamloop" in first_screen
     assert "sk-" not in text
 
 
