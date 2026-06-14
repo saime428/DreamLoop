@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.1.2 - 2026-06-14
+
+DreamLoop's second patch tightens first-screen quality and introduces an explicit image-generation path:
+
+- Reduced Dashboard hero title weight and spacing so the screenshot screen no longer visually overflows.
+- Added subtle page-enter transitions and sidebar active-state motion, with `prefers-reduced-motion` support.
+- Fixed the language toggle mojibake so Chinese renders as `中文`.
+- Added optional image provider configuration: local visual cards by default, ComfyUI readiness checks, and a custom OpenAI-compatible cloud image endpoint.
+- Added `dream_images` storage and `.dreamloop/assets/images/` output for generated image files.
+- Added dream image web/API routes and `dreamloop image test`.
+- Gallery now prefers real generated images and falls back to local visual memory cards.
+
 ## v0.1.1 - 2026-06-14
 
 This patch focuses on first-impression reliability and the trust loop around interpretation quality:

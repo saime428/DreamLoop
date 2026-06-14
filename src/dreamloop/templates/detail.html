@@ -42,6 +42,14 @@
               <span>{{ t.no_tags }}</span>
             {% endfor %}
           </div>
+          {% if dream.image and dream.image.status == "complete" %}
+            <section class="local-visual-card dream-image-card">
+              <img class="dream-image" src="{{ dream.image.image_url }}" alt="{{ t.dream_image_title }}">
+              <span>{{ t.dream_image_title }}</span>
+              <strong>{{ dream.image.provider }}</strong>
+              <small>{{ dream.image.created_at }}</small>
+            </section>
+          {% endif %}
           {% if dream.visual_memory %}
             <section class="local-visual-card" style="--visual-a: {{ dream.visual_memory.accent_1 }}; --visual-b: {{ dream.visual_memory.accent_2 }}; --visual-c: {{ dream.visual_memory.accent_3 }};">
               <div class="visual-sky" aria-hidden="true">
@@ -54,12 +62,15 @@
           {% endif %}
           <div class="visual-memory-action">
             <form method="post" action="/dreams/{{ dream.id }}/visual?lang={{ lang }}">
-              <button type="submit" class="secondary-button">{{ t.regenerate_visual_memory if dream.visual_memory else t.generate_dream_image }}</button>
+              <button type="submit" class="secondary-button">{{ t.regenerate_visual_memory if dream.visual_memory else t.generate_local_card }}</button>
+            </form>
+            <form method="post" action="/dreams/{{ dream.id }}/image?lang={{ lang }}">
+              <button type="submit" class="secondary-button" {{ "disabled" if not image.ready else "" }}>{{ t.generate_dream_image }}</button>
             </form>
             <form method="post" action="/dreams/{{ dream.id }}/delete?lang={{ lang }}" onsubmit="return confirm('{{ t.delete_confirm }}')">
               <button type="submit" class="danger-button">{{ t.delete_dream }}</button>
             </form>
-            <p>{{ t.visual_memory_local_note if dream.visual_memory else t.visual_memory_note }}</p>
+            <p>{{ t.visual_memory_local_note if dream.visual_memory else t.visual_memory_note }} {% if not image.ready %}{{ t.real_image_not_ready }}{% endif %}</p>
           </div>
         </article>
 

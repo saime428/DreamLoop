@@ -203,7 +203,11 @@ def save_ai_config(
         config["base_url"] = base_url
     path = dreamloop_dir(root) / "config.json"
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps({"ai": config}, ensure_ascii=False, indent=2), encoding="utf-8")
+    payload = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    if not isinstance(payload, dict):
+        payload = {}
+    payload["ai"] = config
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     ensure_gitignore(root)
     return path
 

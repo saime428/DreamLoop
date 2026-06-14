@@ -10,14 +10,17 @@ import typer
 
 from .analysis import ai_status, save_ai_config, test_provider_connection
 from .core import DreamLoop
+from .images import image_status, save_image_config, test_image_provider_connection
 
 app = typer.Typer(help="Local-first AI dream journal.")
 import_app = typer.Typer(help="Import local data.")
 weather_app = typer.Typer(help="Sync local context such as weather.")
 ai_app = typer.Typer(help="Configure local and optional cloud AI providers.")
+image_app = typer.Typer(help="Configure optional dream image generation.")
 app.add_typer(import_app, name="import")
 app.add_typer(weather_app, name="weather")
 app.add_typer(ai_app, name="ai")
+app.add_typer(image_app, name="image")
 
 
 @app.command()
@@ -83,6 +86,12 @@ def doctor() -> None:
     typer.echo(f"connection: {test_provider_connection(loop.root)}")
     if status.warning:
         typer.echo(f"warning: {status.warning}")
+    image = image_status(loop.root)
+    typer.echo(f"image_provider: {image.provider}")
+    typer.echo(f"image_model: {image.model or 'none'}")
+    typer.echo(f"image_ready: {image.ready}")
+    if image.warning:
+        typer.echo(f"image_warning: {image.warning}")
     typer.echo("secrets: hidden")
 
 
@@ -161,6 +170,22 @@ def ai_use(
 @ai_app.command("test")
 def ai_test() -> None:
     typer.echo(test_provider_connection())
+
+
+@image_app.command("use")
+def image_use(
+    provider: str,
+    model: Annotated[str | None, typer.Option("--model")] = None,
+    base_url: Annotated[str | None, typer.Option("--base-url")] = None,
+) -> None:
+    save_image_config(provider=provider, model=model, base_url=base_url)
+    status = image_status()
+    typer.echo(f"Image provider set to {status.provider} ({status.model or 'local card'}).")
+
+
+@image_app.command("test")
+def image_test() -> None:
+    typer.echo(test_image_provider_connection())
 
 
 def main() -> None:

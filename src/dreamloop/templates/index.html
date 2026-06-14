@@ -63,8 +63,7 @@
           <article class="hero-copy">
             <p class="eyebrow">{{ t.quick_loop }}</p>
             <h2>{{ t.dashboard_hero_title }}</h2>
-            <p class="lede">{{ t.dashboard_tagline }}</p>
-            <p>{{ t.dashboard_lede }}</p>
+            <p class="lede">{{ t.dashboard_lede }}</p>
             <div class="hero-actions">
               <a class="primary-cta" href="/log?lang={{ lang }}">{{ t.dashboard_cta }}</a>
               <span>{{ t.data_never_leaves }}</span>
@@ -420,14 +419,24 @@
         {% elif page == "gallery" %}
         <section class="gallery-grid">
           {% for dream in gallery_cards %}
-            <a class="gallery-card constellation-sky" href="/dreams/{{ dream.id }}?lang={{ lang }}" style="--visual-a: {{ dream.visual_memory.accent_1 }}; --visual-b: {{ dream.visual_memory.accent_2 }}; --visual-c: {{ dream.visual_memory.accent_3 }};">
+            <a class="gallery-card constellation-sky" href="/dreams/{{ dream.id }}?lang={{ lang }}" style="--visual-a: {{ dream.visual_memory.accent_1 if dream.visual_memory else '#69f0d7' }}; --visual-b: {{ dream.visual_memory.accent_2 if dream.visual_memory else '#8e63ff' }}; --visual-c: {{ dream.visual_memory.accent_3 if dream.visual_memory else '#ff6ba8' }};">
               <div class="star-field" aria-hidden="true"></div>
-              <div class="visual-sky" aria-hidden="true">
-                <i></i><i></i><i></i>
-              </div>
+              {% if dream.image and dream.image.status == "complete" %}
+                <img class="dream-image" src="{{ dream.image.image_url }}" alt="{{ t.dream_image_title }}">
+              {% else %}
+                <div class="visual-sky" aria-hidden="true">
+                  <i></i><i></i><i></i>
+                </div>
+              {% endif %}
               <span>#{{ dream.id }} / {{ dream.dreamed_on }}</span>
-              <strong>{{ dream.visual_memory.title }}</strong>
-              <small>{{ t.visual_memory_title }} / {{ ", ".join(dream.visual_memory.symbols[:3]) or dream.dreamed_on }}</small>
+              <strong>{{ dream.visual_memory.title if dream.visual_memory else dream.content }}</strong>
+              <small>
+                {% if dream.image and dream.image.status == "complete" %}
+                  {{ t.dream_image_title }} / {{ dream.image.provider }}
+                {% else %}
+                  {{ t.visual_memory_title }} / {{ ", ".join(dream.visual_memory.symbols[:3]) if dream.visual_memory else dream.dreamed_on }}
+                {% endif %}
+              </small>
             </a>
           {% else %}
             <article class="panel empty-gallery">
@@ -476,6 +485,38 @@
                 <input name="api_key" type="password" value="" placeholder="{{ t.api_key_placeholder }}">
               </label>
               <p class="runtime-note">{{ t.settings_secret_note }}</p>
+              <button type="submit">{{ t.save_settings }}</button>
+            </form>
+          </article>
+
+          <article class="panel settings-panel">
+            <div class="section-title">
+              <span>{{ t.image_provider_status }}</span>
+              <h2>{{ t.image_provider_title }}</h2>
+            </div>
+            <p class="lede">{{ t.image_provider_copy }}</p>
+            <form method="post" action="/settings/image?lang={{ lang }}" class="settings-form">
+              <label>
+                <span>{{ t.image_provider }}</span>
+                <select name="provider">
+                  <option value="local_card" {{ "selected" if image_config.provider == "local_card" else "" }}>{{ t.local_card_provider }}</option>
+                  <option value="local_comfyui" {{ "selected" if image_config.provider == "local_comfyui" else "" }}>{{ t.local_comfyui_provider }}</option>
+                  <option value="cloud_openai_compatible" {{ "selected" if image_config.provider == "cloud_openai_compatible" else "" }}>{{ t.cloud_image_provider }}</option>
+                </select>
+              </label>
+              <label>
+                <span>{{ t.model }}</span>
+                <input name="model" value="{{ image_config.model }}" placeholder="sdxl / image-model">
+              </label>
+              <label>
+                <span>{{ t.base_url }}</span>
+                <input name="base_url" value="{{ image_config.base_url }}" placeholder="http://127.0.0.1:8188">
+              </label>
+              <label>
+                <span>{{ t.api_key }}</span>
+                <input name="api_key" type="password" value="" placeholder="{{ t.api_key_placeholder }}">
+              </label>
+              <p class="runtime-note">{{ image.warning or t.image_ready }}</p>
               <button type="submit">{{ t.save_settings }}</button>
             </form>
           </article>

@@ -19,6 +19,7 @@ from .analysis import (
     normalize_report_payload,
     normalize_text_list,
 )
+from .images import ImageGenerator, build_image_generator, image_status
 
 FEEDBACK_RATINGS = {"resonates", "not_accurate", "unsure"}
 
@@ -28,11 +29,13 @@ class DreamLoop:
         self.root = Path(root or Path.cwd())
         self.data_dir = self.root / ".dreamloop"
         self.db_path = self.data_dir / "dreamloop.sqlite3"
+        self.images_dir = self.data_dir / "assets" / "images"
 
     def init(self) -> None:
         self.data_dir.mkdir(parents=True, exist_ok=True)
         for name in ("chroma", "exports", "imports"):
             (self.data_dir / name).mkdir(parents=True, exist_ok=True)
+        self.images_dir.mkdir(parents=True, exist_ok=True)
         self._ensure_gitignore()
         self._migrate()
 
@@ -118,6 +121,15 @@ class DreamLoop:
                 "SELECT * FROM dream_analyses WHERE dream_id = ? AND language = ?",
                 (dream_id, normalize_language(language)),
             ).fetchone()
+            image = db.execute(
+                """
+                SELECT * FROM dream_images
+                WHERE dream_id = ? AND language = ?
+                ORDER BY CASE WHEN status = 'complete' THEN 0 ELSE 1 END, id DESC
+                LIMIT 1
+                """,
+                (dream_id, normalize_language(language)),
+            ).fetchone()
         if analysis:
             raw_report = parse_json_any(analysis["raw_json"])
             report = normalize_report_payload(raw_report) if isinstance(raw_report, dict) else {}
@@ -133,6 +145,7 @@ class DreamLoop:
             }
         else:
             dream["analysis"] = None
+        dream["image"] = image_from_row(image) if image else None
         return dream
 
     def analyze_pending(
@@ -180,6 +193,7 @@ class DreamLoop:
         self.init()
         with self._connect() as db:
             db.execute("DELETE FROM user_feedback WHERE dream_id = ?", (dream_id,))
+            db.execute("DELETE FROM dream_images WHERE dream_id = ?", (dream_id,))
             db.execute("DELETE FROM dream_analyses WHERE dream_id = ?", (dream_id,))
             cursor = db.execute("DELETE FROM dreams WHERE id = ?", (dream_id,))
             return cursor.rowcount > 0
@@ -303,6 +317,74 @@ class DreamLoop:
                 (json.dumps(visual, ensure_ascii=False), dream_id),
             )
         return visual
+
+    def generate_dream_image(
+        self,
+        dream_id: int,
+        *,
+        language: str = "en",
+        generator: ImageGenerator | None = None,
+    ) -> dict[str, Any]:
+        self.init()
+        dream = self.get_dream(dream_id, language=language)
+        prompt = build_dream_image_prompt(dream)
+        status = image_status(self.root)
+        generator = generator or build_image_generator(self.root)
+        provider = getattr(generator, "provider", status.provider) if generator else status.provider
+        model = getattr(generator, "model", status.model) if generator else status.model
+        created_at = datetime.now().isoformat(timespec="seconds")
+        if generator is None:
+            error = status.warning or "Image provider is not ready."
+            with self._connect() as db:
+                image_id = self._store_image_record(
+                    db,
+                    dream_id,
+                    language=language,
+                    provider=provider,
+                    model=model or "",
+                    prompt=prompt,
+                    image_path="",
+                    status="error",
+                    error=error,
+                    created_at=created_at,
+                )
+            raise RuntimeError(f"{error} (image record #{image_id})")
+        try:
+            image_bytes = generator.generate(prompt)
+        except Exception as exc:
+            with self._connect() as db:
+                self._store_image_record(
+                    db,
+                    dream_id,
+                    language=language,
+                    provider=provider,
+                    model=model or "",
+                    prompt=prompt,
+                    image_path="",
+                    status="error",
+                    error=str(exc),
+                    created_at=created_at,
+                )
+            raise
+        filename = f"dream-{dream_id}-{normalize_language(language)}-{datetime.now().strftime('%Y%m%d%H%M%S%f')}.png"
+        image_path = self.images_dir / filename
+        image_path.write_bytes(image_bytes)
+        relative_path = f"assets/images/{filename}"
+        with self._connect() as db:
+            image_id = self._store_image_record(
+                db,
+                dream_id,
+                language=language,
+                provider=provider,
+                model=model or "",
+                prompt=prompt,
+                image_path=relative_path,
+                status="complete",
+                error="",
+                created_at=created_at,
+            )
+            row = db.execute("SELECT * FROM dream_images WHERE id = ?", (image_id,)).fetchone()
+        return image_from_row(row)
 
     def import_ics(self, path: str | Path) -> int:
         self.init()
@@ -481,6 +563,40 @@ class DreamLoop:
         )
         db.execute("UPDATE dreams SET analysis_status = 'analyzed' WHERE id = ?", (dream_id,))
 
+    def _store_image_record(
+        self,
+        db: sqlite3.Connection,
+        dream_id: int,
+        *,
+        language: str,
+        provider: str,
+        model: str,
+        prompt: str,
+        image_path: str,
+        status: str,
+        error: str,
+        created_at: str,
+    ) -> int:
+        cursor = db.execute(
+            """
+            INSERT INTO dream_images (
+                dream_id, language, provider, model, prompt, image_path, status, error, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                dream_id,
+                normalize_language(language),
+                provider,
+                model,
+                prompt,
+                image_path,
+                status,
+                error,
+                created_at,
+            ),
+        )
+        return int(cursor.lastrowid)
+
     def _migrate(self) -> None:
         with self._connect() as db:
             db.executescript(
@@ -524,6 +640,19 @@ class DreamLoop:
                     interpretation_index INTEGER NOT NULL DEFAULT 0,
                     rating TEXT NOT NULL,
                     reason TEXT NOT NULL DEFAULT '',
+                    created_at TEXT NOT NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS dream_images (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    dream_id INTEGER NOT NULL REFERENCES dreams(id) ON DELETE CASCADE,
+                    language TEXT NOT NULL DEFAULT 'en',
+                    provider TEXT NOT NULL,
+                    model TEXT NOT NULL DEFAULT '',
+                    prompt TEXT NOT NULL,
+                    image_path TEXT NOT NULL DEFAULT '',
+                    status TEXT NOT NULL,
+                    error TEXT NOT NULL DEFAULT '',
                     created_at TEXT NOT NULL
                 );
                 """
@@ -665,6 +794,43 @@ def normalize_visual_memory(payload: dict[str, Any]) -> dict[str, Any]:
     visual.setdefault("accent_2", "#8e63ff")
     visual.setdefault("accent_3", "#ff6ba8")
     return visual
+
+
+def image_from_row(row: sqlite3.Row | None) -> dict[str, Any] | None:
+    if row is None:
+        return None
+    image = dict(row)
+    image["image_url"] = image_url(image.get("image_path", ""))
+    return image
+
+
+def image_url(image_path: str) -> str:
+    if not image_path:
+        return ""
+    if image_path.startswith("assets/"):
+        return f"/dreamloop-assets/{image_path.removeprefix('assets/')}"
+    return f"/dreamloop-assets/{image_path.lstrip('/')}"
+
+
+def build_dream_image_prompt(dream: dict[str, Any]) -> str:
+    analysis = dream.get("analysis") or {}
+    report = analysis.get("report") or {}
+    parts = [
+        "Create a cinematic, dreamlike illustration based on this dream.",
+        f"Dream text: {dream.get('content', '')}",
+    ]
+    if analysis.get("summary"):
+        parts.append(f"Interpretive summary: {analysis['summary']}")
+    if analysis.get("emotional_tone"):
+        parts.append(f"Core emotion: {analysis['emotional_tone']}")
+    symbols = normalize_text_list(analysis.get("symbols"))
+    if symbols:
+        parts.append(f"Important people, objects, and scenes: {', '.join(symbols[:6])}")
+    details = normalize_text_list(report.get("dream_details"))
+    if details:
+        parts.append(f"Concrete dream details to preserve: {', '.join(details[:4])}")
+    parts.append("Avoid text, logos, UI, gore, and literal JSON. Keep it atmospheric but specific.")
+    return " ".join(part for part in parts if part.strip())
 
 
 def demo_samples() -> list[dict[str, Any]]:

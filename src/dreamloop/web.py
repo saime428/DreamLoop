@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 
 from .analysis import Analyzer, ai_status, build_analyzer, clean_reflections, load_ai_config, normalize_analysis, save_ai_config, save_secret
 from .core import DreamLoop, call_analyzer
+from .images import image_status, load_image_config, save_image_config, save_image_secret
 
 PACKAGE_DIR = Path(__file__).parent
 templates = Jinja2Templates(directory=str(PACKAGE_DIR / "templates"))
@@ -68,6 +69,9 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "generate_chinese_analysis": "Generate Chinese analysis",
         "generate_english_analysis": "Analyze now",
         "generate_dream_image": "Generate dream image",
+        "generate_local_card": "Generate local card",
+        "real_image_not_ready": "Real image provider is not configured.",
+        "dream_image_title": "Dream image",
         "regenerate_visual_memory": "Regenerate local card",
         "visual_memory_title": "Local visual memory",
         "visual_memory_saved": "Visual memory saved locally.",
@@ -158,6 +162,15 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "save_settings": "Save settings",
         "settings_saved": "Settings saved locally.",
         "settings_secret_note": "Existing keys are hidden. Leave API Key blank to keep the current secret.",
+        "image_provider_title": "Image Provider",
+        "image_provider_copy": "Keep local cards as the default, connect local ComfyUI, or explicitly opt into a custom cloud image endpoint.",
+        "image_provider": "Image provider",
+        "local_card_provider": "Local card only",
+        "local_comfyui_provider": "Local ComfyUI",
+        "cloud_image_provider": "Custom cloud image endpoint",
+        "image_provider_status": "Image provider status",
+        "image_ready": "Image generation ready.",
+        "image_not_ready": "Real image generation is off. Local visual cards still work.",
         "privacy_audit": "Privacy audit",
         "privacy_audit_copy": "Dream text stays in local SQLite by default. Cloud AI sends the dream and optional reflection fields only after you choose DeepSeek, OpenAI, or a custom endpoint. Weather sync sends coordinates to Open-Meteo. Future backup or Obsidian sync features should remain explicit opt-in actions.",
         "provider_status": "Provider status",
@@ -206,6 +219,9 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "generate_chinese_analysis": "生成中文分析",
         "generate_english_analysis": "生成英文分析",
         "generate_dream_image": "生成梦境画面",
+        "generate_local_card": "生成本地视觉卡片",
+        "real_image_not_ready": "真实图像 provider 尚未配置。",
+        "dream_image_title": "梦境图像",
         "regenerate_visual_memory": "重新生成本地卡片",
         "visual_memory_title": "本地视觉记忆",
         "visual_memory_saved": "视觉记忆已保存到本地。",
@@ -296,6 +312,15 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "save_settings": "保存设置",
         "settings_saved": "设置已保存到本地。",
         "settings_secret_note": "已有密钥会隐藏。API Key 留空表示保留当前密钥。",
+        "image_provider_title": "图像提供方",
+        "image_provider_copy": "默认只生成本地视觉卡片；也可以连接本机 ComfyUI，或显式开启自定义云端图像接口。",
+        "image_provider": "图像提供方",
+        "local_card_provider": "仅本地卡片",
+        "local_comfyui_provider": "本地 ComfyUI",
+        "cloud_image_provider": "自定义云端图像接口",
+        "image_provider_status": "图像状态",
+        "image_ready": "真实图像生成已就绪。",
+        "image_not_ready": "真实图像生成未开启，本地视觉卡片仍可使用。",
         "privacy_audit": "隐私审计",
         "privacy_audit_copy": "默认情况下，梦境正文只写入本地 SQLite。只有当你明确选择 DeepSeek、OpenAI 或自定义端点时，云模型才会收到梦境和你填写的可选补充。天气同步会把经纬度发送给 Open-Meteo。未来的备份或 Obsidian 同步也应该保持显式开启。",
         "provider_status": "模型状态",
@@ -371,6 +396,11 @@ def _dream_url(dream_id: int, lang: str) -> str:
 def _analyzer_override(app: FastAPI) -> Analyzer | None:
     analyzer = getattr(app.state, "analyzer", None)
     return analyzer if analyzer is not None else None
+
+
+def _image_generator_override(app: FastAPI) -> Any | None:
+    generator = getattr(app.state, "image_generator", None)
+    return generator if generator is not None else None
 
 
 def _analysis_terms(dream: dict[str, Any], key: str) -> set[str]:
@@ -461,11 +491,12 @@ class FeedbackCreate(BaseModel):
 
 
 def create_app(root: str | Path | None = None) -> FastAPI:
-    app = FastAPI(title="DreamLoop", version="0.1.1")
+    app = FastAPI(title="DreamLoop", version="0.1.2")
     loop = DreamLoop(root)
     loop.init()
     app.state.loop = loop
     app.mount("/static", StaticFiles(directory=str(PACKAGE_DIR / "static")), name="static")
+    app.mount("/dreamloop-assets", StaticFiles(directory=str(loop.data_dir / "assets")), name="dreamloop_assets")
 
     def render_home(
         request: Request,
@@ -508,11 +539,13 @@ def create_app(root: str | Path | None = None) -> FastAPI:
                 "dreams": localized_dreams,
                 "log_dreams": log_dreams,
                 "recent_dreams": localized_dreams[:3],
-                "gallery_cards": [dream for dream in localized_dreams if dream.get("visual_memory")],
+                "gallery_cards": [dream for dream in localized_dreams if dream.get("image") or dream.get("visual_memory")],
                 "latest_dream": latest_dream,
                 "heatmap": loop.heatmap(),
                 "ai": ai_payload,
                 "ai_config": load_ai_config(loop.root),
+                "image": image_status(loop.root),
+                "image_config": load_image_config(loop.root),
                 "trends": trends,
                 "feedback_summary": loop.feedback_summary(language=lang),
                 "dashboard_insight": _dashboard_insight(localized_dreams, trends, lang),
@@ -590,6 +623,22 @@ def create_app(root: str | Path | None = None) -> FastAPI:
                 "custom": "CUSTOM_API_KEY",
             }[provider]
             save_secret(loop.root, secret_name, api_key.strip())
+        return RedirectResponse(_page_url("settings", lang, saved="1"), status_code=status.HTTP_303_SEE_OTHER)
+
+    @app.post("/settings/image")
+    def save_image_settings(
+        lang: str = "en",
+        provider: str = Form(...),
+        model: str = Form(""),
+        base_url: str = Form(""),
+        api_key: str = Form(""),
+    ) -> RedirectResponse:
+        try:
+            save_image_config(loop.root, provider=provider, model=model.strip() or None, base_url=base_url.strip() or None)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        if api_key.strip() and provider == "cloud_openai_compatible":
+            save_image_secret(loop.root, api_key.strip())
         return RedirectResponse(_page_url("settings", lang, saved="1"), status_code=status.HTTP_303_SEE_OTHER)
 
     @app.post("/dreams")
@@ -726,6 +775,16 @@ def create_app(root: str | Path | None = None) -> FastAPI:
             raise HTTPException(status_code=404, detail="Dream not found") from exc
         return RedirectResponse(_dream_url(dream_id, lang), status_code=status.HTTP_303_SEE_OTHER)
 
+    @app.post("/dreams/{dream_id}/image")
+    def generate_image_form(request: Request, dream_id: int, lang: str = "en") -> RedirectResponse:
+        try:
+            loop.generate_dream_image(dream_id, language=_lang(lang), generator=_image_generator_override(request.app))
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="Dream not found") from exc
+        except Exception:
+            return RedirectResponse(_dream_url(dream_id, lang), status_code=status.HTTP_303_SEE_OTHER)
+        return RedirectResponse(_dream_url(dream_id, lang), status_code=status.HTTP_303_SEE_OTHER)
+
     @app.post("/dreams/{dream_id}/feedback")
     def save_feedback_form(
         dream_id: int,
@@ -764,6 +823,7 @@ def create_app(root: str | Path | None = None) -> FastAPI:
                 "feedback": loop.feedback_for_dream(dream_id, language=lang),
                 "context": context,
                 "ai": ai_status(loop.root),
+                "image": image_status(loop.root),
                 "lang": lang,
                 "t": TRANSLATIONS[lang],
             },
@@ -803,6 +863,19 @@ def create_app(root: str | Path | None = None) -> FastAPI:
             return loop.generate_visual_memory(dream_id, language=_lang(lang))
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="Dream not found") from exc
+
+    @app.post("/api/dreams/{dream_id}/image")
+    def api_generate_image(request: Request, dream_id: int, lang: str = "en") -> dict[str, Any]:
+        try:
+            return loop.generate_dream_image(
+                dream_id,
+                language=_lang(lang),
+                generator=_image_generator_override(request.app),
+            )
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="Dream not found") from exc
+        except RuntimeError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
 
     @app.post("/api/dreams/{dream_id}/feedback", status_code=201)
     def api_add_feedback(dream_id: int, payload: FeedbackCreate, lang: str = "en") -> dict[str, Any]:
@@ -881,5 +954,17 @@ def create_app(root: str | Path | None = None) -> FastAPI:
     @app.get("/api/feedback/summary")
     def api_feedback_summary(lang: str = "en") -> dict[str, list[dict[str, Any]]]:
         return loop.feedback_summary(language=_lang(lang))
+
+    @app.get("/api/images/status")
+    def api_images_status() -> dict[str, Any]:
+        status_payload = image_status(loop.root)
+        return {
+            "provider": status_payload.provider,
+            "model": status_payload.model,
+            "base_url": status_payload.base_url,
+            "mode": status_payload.mode,
+            "ready": status_payload.ready,
+            "warning": status_payload.warning,
+        }
 
     return app

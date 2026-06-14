@@ -6,6 +6,7 @@ from datetime import date
 from dreamloop.analysis import StaticAnalyzer
 from dreamloop.analysis import normalize_analysis
 from dreamloop.core import DreamLoop
+from dreamloop.images import image_status, save_image_config, save_image_secret
 
 
 class LanguageAnalyzer:
@@ -603,3 +604,127 @@ def test_seed_demo_adds_complete_local_sample_without_deleting_existing_data(tmp
     assert len(dreams) == 4
     assert visual_count >= 1
     assert all(loop.get_dream(dream_id, language="en")["analysis"] for dream_id in created)
+
+
+class FakeImageGenerator:
+    provider = "local_comfyui"
+    model = "test-image-model"
+
+    def generate(self, prompt: str) -> bytes:
+        self.prompt = prompt
+        return b"\x89PNG\r\n\x1a\nfake-dream-image"
+
+
+class FailingImageGenerator:
+    provider = "local_comfyui"
+    model = "broken-model"
+
+    def generate(self, prompt: str) -> bytes:
+        raise RuntimeError("image backend failed")
+
+
+def test_image_config_defaults_to_local_card_without_secret(tmp_path):
+    status = image_status(tmp_path)
+
+    assert status.provider == "local_card"
+    assert status.ready is False
+    assert "local visual cards" in (status.warning or "")
+
+
+def test_local_comfyui_requires_workflow_before_ready(tmp_path):
+    save_image_config(tmp_path, provider="local_comfyui", model="dream-model", base_url="http://127.0.0.1:8188")
+
+    status = image_status(tmp_path)
+
+    assert status.provider == "local_comfyui"
+    assert status.mode == "local"
+    assert status.ready is False
+    assert "workflow" in (status.warning or "")
+
+
+def test_save_image_config_preserves_ai_config_and_hides_secret(tmp_path):
+    from dreamloop.analysis import load_ai_config, save_ai_config
+
+    save_ai_config(tmp_path, provider="deepseek", model="deepseek-v4-flash")
+    save_image_config(
+        tmp_path,
+        provider="cloud_openai_compatible",
+        model="image-model",
+        base_url="https://images.example/v1",
+    )
+    save_image_secret(tmp_path, "image-secret")
+
+    ai = load_ai_config(tmp_path)
+    status = image_status(tmp_path)
+
+    assert ai["provider"] == "deepseek"
+    assert status.provider == "cloud_openai_compatible"
+    assert status.model == "image-model"
+    assert status.base_url == "https://images.example/v1"
+    assert status.ready is True
+    assert "image-secret" not in repr(status)
+
+
+def test_generate_dream_image_writes_file_and_database_record(tmp_path):
+    loop = DreamLoop(tmp_path)
+    loop.init()
+    save_image_config(tmp_path, provider="local_comfyui", model="dream-model", base_url="http://127.0.0.1:8188")
+    dream_id = loop.add_dream_with_analysis(
+        "I watched a silver train cross the night ocean.",
+        {
+            "emotional_tone": "awed",
+            "symbols": ["silver train", "night ocean"],
+            "themes": ["transition"],
+            "summary": "A luminous transition over dark water.",
+            "confidence": 0.8,
+        },
+        language="en",
+    )
+    generator = FakeImageGenerator()
+
+    image = loop.generate_dream_image(dream_id, language="en", generator=generator)
+    dream = loop.get_dream(dream_id, language="en")
+
+    assert image["status"] == "complete"
+    assert image["provider"] == "local_comfyui"
+    assert image["image_path"].startswith("assets/images/")
+    assert (tmp_path / ".dreamloop" / image["image_path"]).read_bytes().startswith(b"\x89PNG")
+    assert "silver train" in image["prompt"]
+    assert "night ocean" in generator.prompt
+    assert dream["image"]["id"] == image["id"]
+
+
+def test_delete_dream_removes_image_records(tmp_path):
+    loop = DreamLoop(tmp_path)
+    loop.init()
+    save_image_config(tmp_path, provider="local_comfyui", model="dream-model", base_url="http://127.0.0.1:8188")
+    dream_id = loop.add_dream("A red tower grew from a lake.")
+    loop.generate_dream_image(dream_id, generator=FakeImageGenerator())
+
+    assert loop.delete_dream(dream_id) is True
+    with loop._connect() as db:
+        rows = db.execute("SELECT * FROM dream_images WHERE dream_id = ?", (dream_id,)).fetchall()
+    assert rows == []
+
+
+def test_failed_image_retry_does_not_hide_existing_complete_image(tmp_path):
+    loop = DreamLoop(tmp_path)
+    loop.init()
+    dream_id = loop.add_dream("A green bridge crossed the night sky.")
+    first = loop.generate_dream_image(dream_id, generator=FakeImageGenerator())
+
+    try:
+        loop.generate_dream_image(dream_id, generator=FailingImageGenerator())
+    except RuntimeError:
+        pass
+
+    dream = loop.get_dream(dream_id)
+    with loop._connect() as db:
+        errors = db.execute(
+            "SELECT * FROM dream_images WHERE dream_id = ? AND status = 'error'",
+            (dream_id,),
+        ).fetchall()
+
+    assert errors
+    assert dream["image"]["id"] == first["id"]
+    assert dream["image"]["status"] == "complete"

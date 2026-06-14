@@ -3,6 +3,7 @@ from __future__ import annotations
 from typer.testing import CliRunner
 
 from dreamloop.cli import app
+from dreamloop.images import save_image_config
 
 
 def test_cli_help_renders_without_type_errors():
@@ -38,6 +39,7 @@ def test_cli_doctor_reports_local_status_without_revealing_secrets(tmp_path, mon
     assert "data_dir:" in result.output
     assert "sqlite:" in result.output
     assert "provider: deepseek" in result.output
+    assert "image_provider:" in result.output
     assert "DEEPSEEK_API_KEY is not configured" in result.output
     assert "sk-" not in result.output
 
@@ -55,3 +57,12 @@ def test_cli_demo_adds_sample_data_without_resetting_existing_dreams(tmp_path, m
     assert "Added 3 demo dream" in demo_result.output
     assert list_result.output.count("#") >= 4
     assert "Do not remove this dream." in list_result.output
+
+
+def test_cli_image_test_reports_provider_status(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    save_image_config(tmp_path, provider="local_card")
+    result = CliRunner().invoke(app, ["image", "test"])
+
+    assert result.exit_code == 0
+    assert "local visual cards" in result.output

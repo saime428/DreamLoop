@@ -63,3 +63,12 @@ def test_release_assets_and_docs_exist():
     assert "dreamloop init" in demo_script.read_text(encoding="utf-8")
     assert "v0.1.0" in changelog.read_text(encoding="utf-8")
     assert "uv run --extra dev pytest" in workflow.read_text(encoding="utf-8")
+
+
+def test_dashboard_css_has_subtle_transitions_and_reduced_motion():
+    css = Path("src/dreamloop/static/style.css").read_text(encoding="utf-8")
+
+    assert "@keyframes page-soft-enter" in css
+    assert "prefers-reduced-motion: reduce" in css
+    assert ".dashboard-hero h2" in css
+    assert "clamp(20px, 2vw, 28px)" in css

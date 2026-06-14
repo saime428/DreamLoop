@@ -6,6 +6,7 @@ import json
 from fastapi.testclient import TestClient
 
 from dreamloop.analysis import StaticAnalyzer
+from dreamloop.images import save_image_config, save_image_secret
 from dreamloop.web import create_app
 
 
@@ -30,6 +31,15 @@ class LanguageAwareAnalyzer:
             "summary": "A dream about finding a hidden door.",
             "confidence": 0.84,
         }
+
+
+class FakeImageGenerator:
+    provider = "local_comfyui"
+    model = "test-image-model"
+
+    def generate(self, prompt: str) -> bytes:
+        self.prompt = prompt
+        return b"\x89PNG\r\n\x1a\nfake-web-image"
 
 
 class DetailedReflectionAnalyzer:
@@ -626,7 +636,8 @@ def test_detail_generates_local_visual_memory_and_gallery_shows_it(tmp_path):
     updated = client.get(f"/dreams/{dream_id}?lang=en")
     assert "Local visual memory" in updated.text
     assert "No image API was called" in updated.text
-    assert "Generate dream image" not in updated.text
+    assert "Generate dream image" in updated.text
+    assert "Real image provider is not configured" in updated.text
 
     gallery = client.get("/gallery?lang=en")
     assert "Dream Gallery" in gallery.text
@@ -703,6 +714,82 @@ def test_api_generates_local_visual_memory(tmp_path):
     assert response.status_code == 200
     assert response.json()["kind"] == "local_card"
     assert client.get(f"/api/dreams/{dream_id}").json()["visual_memory"]["kind"] == "local_card"
+
+
+def test_detail_separates_local_card_from_real_image_generation(tmp_path):
+    app = create_app(tmp_path)
+    app.state.analyzer = LanguageAwareAnalyzer()
+    client = TestClient(app)
+    dream_id = client.post("/api/dreams", json={"content": "I found a silver train under the moon."}).json()["id"]
+    client.post(f"/api/dreams/{dream_id}/analyze?lang=en")
+
+    detail = client.get(f"/dreams/{dream_id}?lang=en")
+
+    assert detail.status_code == 200
+    assert f'action="/dreams/{dream_id}/visual?lang=en"' in detail.text
+    assert f'action="/dreams/{dream_id}/image?lang=en"' in detail.text
+    assert "Generate local card" in detail.text
+    assert "Real image provider is not configured" in detail.text
+    assert "disabled" in detail.text
+
+
+def test_api_generates_real_dream_image_with_configured_provider(tmp_path):
+    app = create_app(tmp_path)
+    app.state.analyzer = LanguageAwareAnalyzer()
+    app.state.image_generator = FakeImageGenerator()
+    save_image_config(tmp_path, provider="local_comfyui", model="dream-model", base_url="http://127.0.0.1:8188")
+    client = TestClient(app)
+    dream_id = client.post("/api/dreams", json={"content": "I found a silver train under the moon."}).json()["id"]
+    client.post(f"/api/dreams/{dream_id}/analyze?lang=en")
+
+    generated = client.post(f"/api/dreams/{dream_id}/image?lang=en")
+    dream = client.get(f"/api/dreams/{dream_id}?lang=en").json()
+    gallery = client.get("/gallery?lang=en")
+
+    assert generated.status_code == 200
+    assert generated.json()["status"] == "complete"
+    assert generated.json()["provider"] == "local_comfyui"
+    assert generated.json()["image_url"].startswith("/dreamloop-assets/images/")
+    assert dream["image"]["id"] == generated.json()["id"]
+    assert "dream-image" in gallery.text
+    assert "silver train" in gallery.text
+
+
+def test_settings_show_image_provider_without_leaking_secret(tmp_path):
+    save_image_config(
+        tmp_path,
+        provider="cloud_openai_compatible",
+        model="image-model",
+        base_url="https://images.example/v1",
+    )
+    save_image_secret(tmp_path, "image-secret-token")
+    app = create_app(tmp_path)
+    client = TestClient(app)
+
+    response = client.get("/settings?lang=en")
+    status_response = client.get("/api/images/status")
+
+    assert response.status_code == 200
+    assert "Image Provider" in response.text
+    assert "Custom cloud image endpoint" in response.text
+    assert "image-model" in response.text
+    assert "image-secret-token" not in response.text
+    assert status_response.json()["provider"] == "cloud_openai_compatible"
+    assert "image-secret-token" not in response.text + str(status_response.json())
+
+
+def test_dashboard_copy_and_language_toggle_do_not_use_mojibake(tmp_path):
+    app = create_app(tmp_path)
+    client = TestClient(app)
+
+    en = client.get("/?lang=en")
+    zh = client.get("/?lang=zh")
+
+    assert "Local-first dream intelligence" in en.text
+    assert "<h2>Your dreams have patterns. DreamLoop finds them locally.</h2>" not in en.text
+    mojibake_zh = "\u6d93\ue145\u67c3"
+    assert mojibake_zh not in en.text + zh.text
+    assert "中文" in en.text + zh.text
 
 
 def test_gallery_empty_state_explains_detail_driven_visual_memory(tmp_path):

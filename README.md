@@ -12,6 +12,7 @@
 - Free with Ollama. Optional DeepSeek/OpenAI or custom OpenAI-compatible endpoints.
 - CLI-first, forkable, and built for Obsidian-minded knowledge workers.
 - Detailed dream analysis that favors emotions, real-life context, and multiple verifiable interpretations.
+- Optional dream images are explicit opt-in: local cards by default, OpenAI-compatible cloud endpoints only when configured, and local ComfyUI reserved for workflow-backed generation.
 
 ```bash
 git clone https://github.com/saime428/DreamLoop.git
@@ -136,6 +137,19 @@ Provider defaults:
 - `custom`: any OpenAI-compatible `/v1` endpoint, including local gateways
 - `none`: capture-only local journal mode
 
+## Image Providers
+
+DreamLoop does not call an image API by default. Detail pages always support a local visual-memory card, and real image generation is opt-in. In v0.1.2 the cloud OpenAI-compatible path can generate files; the local ComfyUI option is a configuration and connectivity checkpoint until a workflow is attached.
+
+```bash
+dreamloop image use local_card
+dreamloop image use local_comfyui --base-url http://127.0.0.1:8188
+dreamloop image use cloud_openai_compatible --model image-model --base-url https://images.example/v1
+dreamloop image test
+```
+
+Generated image files are stored under `.dreamloop/assets/images/`; the database stores local metadata such as provider, model, prompt, path, status, and error. ComfyUI readiness can be checked with `dreamloop image test`, but prompt submission stays disabled until a workflow is configured.
+
 ## Web App Loop
 
 The FastAPI/Jinja dashboard is intentionally lightweight:
@@ -144,8 +158,8 @@ The FastAPI/Jinja dashboard is intentionally lightweight:
 - Log: draft-first dream capture, optional reflection prompts, and AI analysis before saving
 - Detail: original dream text, detailed interpretation, reality-grounded questions, raw JSON, and an opt-in visual-memory entry point
 - Patterns: clickable calendar, recurring symbols, theme trends, and filters back into Log
-- Gallery: v0.1 local visual cards derived from saved dreams; image generation remains opt-in
-- Settings: provider selection, launch notes, local data directory, and privacy status
+- Gallery: real generated images when configured, otherwise local visual cards derived from saved dreams
+- Settings: AI provider, image provider, launch notes, local data directory, and privacy status
 
 DreamLoop is currently launched with `uv run dreamloop web` from a checkout or `dreamloop web` after package install. A native desktop app is a later packaging task; v0.1 stays lightweight so the local-first core remains easy to inspect and fork.
 
@@ -157,7 +171,9 @@ The same app exposes JSON endpoints:
 - `GET /api/dreams/{id}/similar`
 - `POST /api/analyze/pending`
 - `POST /api/dreams/{id}/feedback`
+- `POST /api/dreams/{id}/image`
 - `GET /api/feedback/summary`
+- `GET /api/images/status`
 - `POST /api/import/ics`
 - `POST /api/weather/sync`
 - `GET /api/insights/heatmap`
@@ -170,6 +186,7 @@ The same app exposes JSON endpoints:
   dreamloop.sqlite3
   config.json
   secrets.env
+  assets/images/
   chroma/
   exports/
   imports/
@@ -216,6 +233,14 @@ dreamloop web
 - `dreamloop demo` for a fast no-AI walkthrough with sample dreams and local visual cards.
 - Local feedback buttons on interpretations: resonates, not accurate, unsure.
 - Patterns summary for high-resonance themes.
+
+### v0.1.2
+
+- Dashboard first-screen polish for screenshot quality.
+- Subtle page transitions with reduced-motion support.
+- Optional image provider settings for local visual cards, ComfyUI readiness checks, and custom cloud image endpoints.
+- Real generated image storage in `.dreamloop/assets/images/`.
+- Gallery prefers real dream images and falls back to local visual cards.
 
 ### v0.2
 
