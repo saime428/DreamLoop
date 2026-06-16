@@ -70,3 +70,17 @@ Expected result: pending dreams receive structured analysis while the original t
 - Keep the first 10 seconds focused on Dashboard -> Log -> Detail.
 - End on Settings to reinforce the privacy promise.
 - Do not show API keys, terminal history containing secrets, or `.dreamloop/secrets.env`.
+
+## Current CLI GIF asset
+
+The committed `docs/assets/cli-demo.gif` is a lightweight terminal-style asset generated with `ffmpeg`, using the no-cloud demo path:
+
+```bash
+pipx install dreamloop
+dreamloop init
+dreamloop demo
+dreamloop doctor
+dreamloop web
+```
+
+It is intentionally small and dependency-light. If you regenerate it, keep the same promise: no secrets, no cloud model calls, and a visible local-first flow.

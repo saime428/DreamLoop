@@ -8,7 +8,10 @@ def test_readme_leads_with_local_first_positioning_and_fast_start():
     first_screen = text[:1800]
 
     assert "docs/assets/dashboard-screenshot.png" in first_screen
+    assert "docs/assets/cli-demo.gif" in text
     assert "actions/workflows/ci.yml/badge.svg" in first_screen
+    assert "img.shields.io/pypi/v/dreamloop" in first_screen
+    assert "img.shields.io/pypi/pyversions/dreamloop" in first_screen
     assert "[English](README.md) | [中文](README.zh-CN.md)" in first_screen
     assert "Your dreams have patterns. DreamLoop finds them locally." in first_screen
     assert "Runs fully local. Your data never leaves your machine." in first_screen
@@ -19,6 +22,8 @@ def test_readme_leads_with_local_first_positioning_and_fast_start():
     assert "uv run dreamloop init" in first_screen
     assert "pipx install dreamloop" in first_screen
     assert "Future release assets" not in text
+    assert "add terminal demo assets" not in text
+    assert "cli-demo.cast" not in text
 
 
 def test_readme_has_privacy_and_obsidian_roadmap_without_secret():
@@ -42,6 +47,9 @@ def test_chinese_readme_covers_local_first_loop_and_providers():
     assert "DeepSeek" in text
     assert "Custom OpenAI-compatible" in text
     assert "隐私承诺" in text
+    assert "docs/assets/cli-demo.gif" in text
+    assert "img.shields.io/pypi/v/dreamloop" in text
+    assert "img.shields.io/pypi/pyversions/dreamloop" in text
     assert "git clone https://github.com/saime428/DreamLoop.git" in first_screen
     assert "uv run dreamloop web" in first_screen
     assert "pipx install dreamloop" in text
@@ -51,6 +59,7 @@ def test_chinese_readme_covers_local_first_loop_and_providers():
 
 def test_release_assets_and_docs_exist():
     dashboard = Path("docs/assets/dashboard-screenshot.png")
+    cli_demo = Path("docs/assets/cli-demo.gif")
     social = Path("docs/assets/social-preview.png")
     demo_script = Path("docs/demo-recording.md")
     changelog = Path("CHANGELOG.md")
@@ -58,6 +67,8 @@ def test_release_assets_and_docs_exist():
 
     assert dashboard.exists()
     assert dashboard.stat().st_size > 10_000
+    assert cli_demo.exists()
+    assert cli_demo.stat().st_size > 5_000
     assert social.exists()
     assert social.stat().st_size > 10_000
     assert "dreamloop init" in demo_script.read_text(encoding="utf-8")

@@ -516,7 +516,7 @@
                 <span>{{ t.api_key }}</span>
                 <input name="api_key" type="password" value="" placeholder="{{ t.api_key_placeholder }}">
               </label>
-              <p class="runtime-note">{{ image.warning or t.image_ready }}</p>
+              <p class="runtime-note image-status-note">{{ image_status_text }}</p>
               <button type="submit">{{ t.save_settings }}</button>
             </form>
           </article>

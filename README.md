@@ -3,8 +3,12 @@
 [English](README.md) | [中文](README.zh-CN.md)
 
 [![CI](https://github.com/saime428/DreamLoop/actions/workflows/ci.yml/badge.svg)](https://github.com/saime428/DreamLoop/actions/workflows/ci.yml)
+[![PyPI version](https://img.shields.io/pypi/v/dreamloop.svg)](https://pypi.org/project/dreamloop/)
+[![Python versions](https://img.shields.io/pypi/pyversions/dreamloop.svg)](https://pypi.org/project/dreamloop/)
 
 ![DreamLoop dashboard screenshot](docs/assets/dashboard-screenshot.png)
+
+![DreamLoop CLI demo](docs/assets/cli-demo.gif)
 
 **Your dreams have patterns. DreamLoop finds them locally.**
 
@@ -90,6 +94,7 @@ The default path is zero-cost Ollama. DeepSeek, OpenAI, and custom OpenAI-compat
 
 - Real dashboard screenshot: `docs/assets/dashboard-screenshot.png`
 - Social preview image: `docs/assets/social-preview.png`
+- CLI demo GIF: `docs/assets/cli-demo.gif`
 - Reproducible recording guide: `docs/demo-recording.md`
 
 The recording guide covers CLI capture, the Dashboard -> Log -> Detail flow, Patterns filtering, Gallery, and Settings without exposing secrets.
@@ -263,7 +268,7 @@ DreamLoop is deliberately small and forkable. Good first contributions:
 - add `.ics` fixtures
 - polish dashboard accessibility
 - expand Markdown/Obsidian export
-- add terminal demo assets
+- improve terminal demo recording automation
 
 Run tests with:
 

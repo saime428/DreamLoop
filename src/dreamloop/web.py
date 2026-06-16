@@ -171,6 +171,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "image_provider_status": "Image provider status",
         "image_ready": "Image generation ready.",
         "image_not_ready": "Real image generation is off. Local visual cards still work.",
+        "image_comfyui_pending": "Local ComfyUI is saved for future workflow-backed generation. Local visual cards still work.",
         "privacy_audit": "Privacy audit",
         "privacy_audit_copy": "Dream text stays in local SQLite by default. Cloud AI sends the dream and optional reflection fields only after you choose DeepSeek, OpenAI, or a custom endpoint. Weather sync sends coordinates to Open-Meteo. Future backup or Obsidian sync features should remain explicit opt-in actions.",
         "provider_status": "Provider status",
@@ -321,6 +322,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "image_provider_status": "图像状态",
         "image_ready": "真实图像生成已就绪。",
         "image_not_ready": "真实图像生成未开启，本地视觉卡片仍可使用。",
+        "image_comfyui_pending": "本地 ComfyUI 配置已保存；接入 workflow 前，本地视觉卡片仍可使用。",
         "privacy_audit": "隐私审计",
         "privacy_audit_copy": "默认情况下，梦境正文只写入本地 SQLite。只有当你明确选择 DeepSeek、OpenAI 或自定义端点时，云模型才会收到梦境和你填写的可选补充。天气同步会把经纬度发送给 Open-Meteo。未来的备份或 Obsidian 同步也应该保持显式开启。",
         "provider_status": "模型状态",
@@ -401,6 +403,15 @@ def _analyzer_override(app: FastAPI) -> Analyzer | None:
 def _image_generator_override(app: FastAPI) -> Any | None:
     generator = getattr(app.state, "image_generator", None)
     return generator if generator is not None else None
+
+
+def _localized_image_status(status_payload: Any, lang: str) -> str:
+    t = TRANSLATIONS[_lang(lang)]
+    if status_payload.ready:
+        return t["image_ready"]
+    if status_payload.provider == "local_comfyui":
+        return t["image_comfyui_pending"]
+    return t["image_not_ready"]
 
 
 def _analysis_terms(dream: dict[str, Any], key: str) -> set[str]:
@@ -517,6 +528,7 @@ def create_app(root: str | Path | None = None) -> FastAPI:
         localized_dreams = [loop.get_dream(dream["id"], language=lang) for dream in raw_dreams]
         trends = loop.trends(language=lang)
         ai_payload = ai_status(loop.root)
+        image_payload = image_status(loop.root)
         log_dreams = [
             dream
             for dream in localized_dreams
@@ -544,7 +556,8 @@ def create_app(root: str | Path | None = None) -> FastAPI:
                 "heatmap": loop.heatmap(),
                 "ai": ai_payload,
                 "ai_config": load_ai_config(loop.root),
-                "image": image_status(loop.root),
+                "image": image_payload,
+                "image_status_text": _localized_image_status(image_payload, lang),
                 "image_config": load_image_config(loop.root),
                 "trends": trends,
                 "feedback_summary": loop.feedback_summary(language=lang),

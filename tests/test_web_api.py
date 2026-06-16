@@ -778,6 +778,17 @@ def test_settings_show_image_provider_without_leaking_secret(tmp_path):
     assert "image-secret-token" not in response.text + str(status_response.json())
 
 
+def test_settings_image_status_is_localized_in_chinese(tmp_path):
+    app = create_app(tmp_path)
+    client = TestClient(app)
+
+    response = client.get("/settings?lang=zh")
+
+    assert response.status_code == 200
+    assert "真实图像生成未开启，本地视觉卡片仍可使用。" in response.text
+    assert "Real image generation is disabled" not in response.text
+
+
 def test_dashboard_copy_and_language_toggle_do_not_use_mojibake(tmp_path):
     app = create_app(tmp_path)
     client = TestClient(app)
