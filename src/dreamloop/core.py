@@ -763,12 +763,31 @@ def normalize_language(language: str | None) -> str:
 
 def visual_palette(seed: int) -> tuple[str, str, str]:
     palettes = (
-        ("#69f0d7", "#8e63ff", "#ff6ba8"),
-        ("#78d7ff", "#a68cff", "#ffe27a"),
-        ("#88f0a6", "#5cc8ff", "#f58bd1"),
-        ("#f7c66b", "#8d7aff", "#5de2d0"),
+        ("#8ba87a", "#d4a574", "#c47a5a"),
+        ("#9a7b56", "#e8c089", "#8ba87a"),
+        ("#a67c6a", "#b89164", "#6f7f64"),
+        ("#c47a5a", "#c49a6c", "#a67c6a"),
     )
     return palettes[seed % len(palettes)]
+
+
+def normalize_visual_accent(value: Any, fallback: str) -> str:
+    legacy_accents = {
+        "#69f0d7": "#8ba87a",
+        "#8e63ff": "#d4a574",
+        "#ff6ba8": "#c47a5a",
+        "#78d7ff": "#8ba87a",
+        "#a68cff": "#d4a574",
+        "#ffe27a": "#e8c089",
+        "#88f0a6": "#8ba87a",
+        "#5cc8ff": "#9a7b56",
+        "#f58bd1": "#c47a5a",
+        "#f7c66b": "#d4a574",
+        "#8d7aff": "#a67c6a",
+        "#5de2d0": "#8ba87a",
+    }
+    accent = str(value or fallback).strip().lower()
+    return legacy_accents.get(accent, accent if accent.startswith("#") and len(accent) == 7 else fallback)
 
 
 def normalize_visual_memory(payload: dict[str, Any]) -> dict[str, Any]:
@@ -790,9 +809,9 @@ def normalize_visual_memory(payload: dict[str, Any]) -> dict[str, Any]:
     visual["prompt"] = prompt
     visual["symbols"] = symbols[:5]
     visual["themes"] = themes[:5]
-    visual.setdefault("accent_1", "#69f0d7")
-    visual.setdefault("accent_2", "#8e63ff")
-    visual.setdefault("accent_3", "#ff6ba8")
+    visual["accent_1"] = normalize_visual_accent(visual.get("accent_1"), "#8ba87a")
+    visual["accent_2"] = normalize_visual_accent(visual.get("accent_2"), "#d4a574")
+    visual["accent_3"] = normalize_visual_accent(visual.get("accent_3"), "#c47a5a")
     return visual
 
 

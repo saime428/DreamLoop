@@ -30,7 +30,6 @@
         <a class="back-link" href="/?lang={{ lang }}">{{ t.back_dashboard }}</a>
 
         <article class="detail-hero constellation-sky">
-          <div class="star-field" aria-hidden="true"></div>
           <p class="eyebrow">{{ dream.dreamed_on }} / {{ dream.analysis_status }}</p>
           <h1>Dream #{{ dream.id }}</h1>
           <p class="dream-text">{{ dream.content }}</p>
@@ -52,9 +51,6 @@
           {% endif %}
           {% if dream.visual_memory %}
             <section class="local-visual-card" style="--visual-a: {{ dream.visual_memory.accent_1 }}; --visual-b: {{ dream.visual_memory.accent_2 }}; --visual-c: {{ dream.visual_memory.accent_3 }};">
-              <div class="visual-sky" aria-hidden="true">
-                <i></i><i></i><i></i>
-              </div>
               <span>{{ t.visual_memory_title }}</span>
               <strong>{{ dream.visual_memory.title }}</strong>
               <small>{{ ", ".join(dream.visual_memory.symbols) or dream.dreamed_on }}</small>

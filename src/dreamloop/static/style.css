@@ -1,21 +1,25 @@
 :root {
   color-scheme: dark;
-  --night: #090713;
-  --night-2: #110c24;
-  --panel: #171129;
-  --panel-2: #201735;
-  --line: rgba(178, 151, 255, 0.2);
-  --line-strong: rgba(201, 182, 255, 0.34);
-  --text: #f3edf7;
-  --muted: #a99fb9;
-  --quiet: #776f86;
-  --violet: #8e63ff;
-  --violet-2: #c16cff;
-  --rose: #ff6fa8;
-  --cyan: #52e7d2;
-  --amber: #f0c66a;
-  --green: #7df0a8;
-  --shadow: rgba(0, 0, 0, 0.42);
+  --ink: #1a1714;
+  --ink-2: #221e1a;
+  --paper: #2a2520;
+  --paper-2: #332d27;
+  --text: #e8e0d4;
+  --text-soft: #c4b8a8;
+  --muted: #8a7f72;
+  --quiet: #6b6155;
+  --amber: #d4a574;
+  --amber-2: #e8c089;
+  --amber-dim: #9a7b56;
+  --sage: #8ba87a;
+  --rust: #c47a5a;
+  --clay: #a67c6a;
+  --line: rgba(212, 165, 116, 0.15);
+  --line-strong: rgba(212, 165, 116, 0.3);
+  --shadow: rgba(40, 30, 20, 0.5);
+  --font-display: Georgia, "Times New Roman", serif;
+  --font-body: "Aptos", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "Cascadia Mono", "JetBrains Mono", Consolas, monospace;
 }
 
 * {
@@ -23,7 +27,7 @@
 }
 
 html {
-  background: var(--night);
+  background: var(--ink);
 }
 
 body {
@@ -31,26 +35,11 @@ body {
   min-height: 100vh;
   overflow-x: hidden;
   background:
-    radial-gradient(circle at 78% 8%, rgba(142, 99, 255, 0.28), transparent 34%),
-    radial-gradient(circle at 25% 18%, rgba(82, 231, 210, 0.12), transparent 28%),
-    linear-gradient(135deg, #090713 0%, #0f0a1d 42%, #07060d 100%);
+    radial-gradient(ellipse at 50% 0%, rgba(212, 165, 116, 0.06), transparent 52%),
+    var(--ink);
   color: var(--text);
-  font-family: "Aptos", "Segoe UI", sans-serif;
+  font-family: var(--font-body);
   line-height: 1.55;
-}
-
-body::before {
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  content: "";
-  background-image:
-    radial-gradient(circle, rgba(255, 255, 255, 0.72) 0 1px, transparent 1.7px),
-    radial-gradient(circle, rgba(193, 108, 255, 0.48) 0 1px, transparent 1.8px);
-  background-position: 0 0, 38px 42px;
-  background-size: 94px 94px, 132px 132px;
-  opacity: 0.24;
 }
 
 a {
@@ -68,9 +57,8 @@ a {
   top: 0;
   height: 100vh;
   border-right: 1px solid var(--line);
-  background: rgba(12, 8, 24, 0.78);
+  background: var(--ink-2);
   padding: 22px 16px;
-  backdrop-filter: blur(18px);
 }
 
 .brand-mark {
@@ -82,19 +70,29 @@ a {
 }
 
 .brand-mark strong {
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-display);
   font-size: 18px;
 }
 
 .brand-orbit {
-  width: 26px;
-  height: 26px;
-  border: 1px solid var(--violet-2);
+  position: relative;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--amber);
   border-radius: 50%;
-  background:
-    radial-gradient(circle at 68% 30%, var(--cyan) 0 2px, transparent 3px),
-    radial-gradient(circle at 42% 58%, var(--violet) 0 5px, transparent 6px);
-  box-shadow: 0 0 26px rgba(142, 99, 255, 0.5);
+  background: transparent;
+}
+
+.brand-orbit::after {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--amber);
+  content: "";
+  transform: translate(-50%, -50%);
 }
 
 .side-nav {
@@ -108,24 +106,23 @@ a {
   border: 1px solid transparent;
   border-radius: 6px;
   color: var(--muted);
-  font-family: "Cascadia Mono", "JetBrains Mono", Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   padding: 9px 10px;
   text-decoration: none;
   text-transform: uppercase;
-  transition: background 180ms ease, border-color 180ms ease, color 180ms ease, transform 180ms ease;
+  transition: background 180ms ease, border-color 180ms ease, color 180ms ease;
 }
 
 .side-nav a.active,
 .side-nav a:hover {
   border-color: var(--line);
-  background: rgba(142, 99, 255, 0.14);
+  background: rgba(212, 165, 116, 0.08);
   color: var(--text);
 }
 
 .side-nav a.active {
-  box-shadow: inset 3px 0 0 var(--cyan);
-  transform: translateX(2px);
+  box-shadow: inset 3px 0 0 var(--amber);
 }
 
 .side-note {
@@ -139,8 +136,8 @@ a {
 }
 
 .side-note span {
-  color: var(--cyan);
-  font-family: "Cascadia Mono", Consolas, monospace;
+  color: var(--amber);
+  font-family: var(--font-mono);
   font-size: 22px;
 }
 
@@ -176,13 +173,13 @@ a {
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(212, 165, 116, 0.04);
 }
 
 .language-toggle a {
   min-width: 86px;
   color: var(--muted);
-  font-family: "Cascadia Mono", "JetBrains Mono", Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   padding: 9px 12px;
   text-align: center;
@@ -190,8 +187,8 @@ a {
 }
 
 .language-toggle a.active {
-  background: var(--violet);
-  color: var(--text);
+  background: var(--amber);
+  color: var(--ink);
 }
 
 .hero-panel,
@@ -206,35 +203,14 @@ a {
 .status-strip > div {
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: linear-gradient(180deg, rgba(32, 23, 53, 0.88), rgba(16, 12, 29, 0.92));
-  box-shadow: 0 20px 70px var(--shadow);
+  background: var(--paper);
+  box-shadow: 0 1px 3px var(--shadow);
 }
 
 .constellation-sky {
   position: relative;
   isolation: isolate;
   overflow: hidden;
-}
-
-.star-field {
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background:
-    linear-gradient(115deg, rgba(82, 231, 210, 0.14), transparent 34%),
-    radial-gradient(circle at 75% 26%, rgba(193, 108, 255, 0.36), transparent 28%),
-    radial-gradient(circle at 44% 64%, rgba(255, 111, 168, 0.16), transparent 24%);
-}
-
-.star-field::before {
-  position: absolute;
-  inset: 0;
-  content: "";
-  background-image:
-    radial-gradient(circle, rgba(255, 255, 255, 0.86) 0 1px, transparent 1.7px),
-    linear-gradient(90deg, transparent 0 55%, rgba(142, 99, 255, 0.18) 55% 56%, transparent 56%);
-  background-size: 70px 70px, 100% 100%;
-  opacity: 0.34;
 }
 
 .hero-panel {
@@ -288,13 +264,13 @@ a {
   align-content: center;
   min-width: 0;
   padding: 20px;
-  background: rgba(9, 7, 19, 0.62);
+  background: var(--paper-2);
 }
 
 .insight-card strong {
   display: block;
   color: var(--text);
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-display);
   font-size: clamp(17px, 1.7vw, 24px);
   line-height: 1.12;
   overflow-wrap: anywhere;
@@ -316,21 +292,25 @@ a {
 .primary-cta {
   min-height: 42px;
   border-radius: 6px;
-  background: var(--text);
-  color: var(--night);
+  background: var(--amber);
+  color: var(--ink);
   display: inline-grid;
   place-items: center;
-  font-family: "Cascadia Mono", "JetBrains Mono", Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 13px;
   font-weight: 800;
   padding: 0 16px;
   text-decoration: none;
 }
 
+.primary-cta:hover {
+  background: var(--amber-2);
+}
+
 .hero-actions span,
 .filter-badge {
   color: var(--muted);
-  font-family: "Cascadia Mono", "JetBrains Mono", Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
 }
 
@@ -362,7 +342,7 @@ a {
 .recent-row {
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(212, 165, 116, 0.04);
   color: var(--text);
   display: grid;
   gap: 6px;
@@ -374,17 +354,17 @@ a {
 .trend-link:hover,
 .gallery-card:hover {
   border-color: var(--line-strong);
-  background: rgba(142, 99, 255, 0.12);
+  background: rgba(212, 165, 116, 0.08);
 }
 
 .recent-row span {
   color: var(--muted);
-  font-family: "Cascadia Mono", "JetBrains Mono", Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
 }
 
 .recent-row strong {
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-display);
   font-size: 18px;
   line-height: 1.18;
 }
@@ -429,8 +409,8 @@ a {
 .eyebrow,
 .section-title span,
 .stat-card span {
-  color: var(--cyan);
-  font-family: "Cascadia Mono", "JetBrains Mono", Consolas, monospace;
+  color: var(--amber);
+  font-family: var(--font-mono);
   font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
@@ -445,7 +425,7 @@ p {
 
 h1,
 h2 {
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-display);
   letter-spacing: 0;
   text-wrap: balance;
 }
@@ -489,9 +469,9 @@ p {
 
 .hero-capture {
   align-self: stretch;
-  border: 1px solid rgba(201, 182, 255, 0.28);
+  border: 1px solid var(--line);
   border-radius: 8px;
-  background: rgba(9, 7, 19, 0.62);
+  background: var(--paper-2);
   color: var(--text);
   display: grid;
   grid-template-rows: auto 1fr auto;
@@ -504,20 +484,20 @@ p {
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
-  border-bottom: 1px solid rgba(201, 182, 255, 0.16);
+  border-bottom: 1px solid var(--line);
   padding: 14px 16px 12px;
 }
 
 .capture-heading span,
 .capture-heading strong {
-  font-family: "Cascadia Mono", "JetBrains Mono", Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
 }
 
 .capture-heading span {
-  color: var(--cyan);
+  color: var(--amber);
 }
 
 .capture-heading strong {
@@ -528,8 +508,8 @@ p {
   display: grid;
   grid-template-columns: 22px minmax(0, 1fr);
   gap: 10px;
-  border-top: 1px solid rgba(201, 182, 255, 0.16);
-  background: rgba(255, 255, 255, 0.03);
+  border-top: 1px solid var(--line);
+  background: rgba(212, 165, 116, 0.04);
   padding: 13px 16px;
 }
 
@@ -544,11 +524,11 @@ button,
 .dream-card span,
 .dream-card small,
 .back-link {
-  font-family: "Cascadia Mono", "JetBrains Mono", Consolas, monospace;
+  font-family: var(--font-mono);
 }
 
 .hero-command span {
-  color: var(--cyan);
+  color: var(--amber);
 }
 
 .hero-command code {
@@ -556,7 +536,7 @@ button,
 }
 
 .dream-compose .hero-command {
-  border: 1px solid rgba(201, 182, 255, 0.18);
+  border: 1px solid var(--line);
   border-radius: 8px;
   margin-top: 12px;
 }
@@ -566,9 +546,9 @@ button,
 }
 
 .latest-dream-preview {
-  border: 1px solid rgba(201, 182, 255, 0.18);
+  border: 1px solid var(--line);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(212, 165, 116, 0.04);
   padding: 12px;
 }
 
@@ -577,7 +557,7 @@ button,
 .analysis-list dt,
 .status-strip span,
 .status-strip small {
-  font-family: "Cascadia Mono", "JetBrains Mono", Consolas, monospace;
+  font-family: var(--font-mono);
 }
 
 .latest-dream-preview span {
@@ -601,19 +581,22 @@ button,
 }
 
 .analysis-status.ready {
-  background: rgba(82, 231, 210, 0.12);
-  border-color: rgba(82, 231, 210, 0.38);
+  background: rgba(139, 168, 122, 0.12);
+  border-color: rgba(139, 168, 122, 0.35);
+  color: var(--sage);
 }
 
 .analysis-status.pending {
-  background: rgba(240, 198, 106, 0.12);
-  border-color: rgba(240, 198, 106, 0.4);
+  background: rgba(212, 165, 116, 0.12);
+  border-color: rgba(212, 165, 116, 0.35);
+  color: var(--amber);
 }
 
 .analysis-status.unavailable,
 .status-message.warning {
-  background: rgba(255, 111, 168, 0.12);
-  border-color: rgba(255, 111, 168, 0.36);
+  background: rgba(196, 122, 90, 0.12);
+  border-color: rgba(196, 122, 90, 0.35);
+  color: var(--rust);
 }
 
 .analysis-list {
@@ -641,7 +624,7 @@ button,
 }
 
 .analysis-summary {
-  border-left: 2px solid var(--cyan);
+  border-left: 2px solid var(--amber);
   margin-bottom: 0;
   padding-left: 12px;
 }
@@ -678,7 +661,7 @@ button,
 
 .status-strip span {
   display: block;
-  color: var(--cyan);
+  color: var(--amber);
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
@@ -688,7 +671,7 @@ button,
   display: block;
   margin: 5px 0 2px;
   color: var(--text);
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-display);
   font-size: 24px;
   line-height: 1;
   overflow-wrap: anywhere;
@@ -709,7 +692,7 @@ button,
   display: block;
   margin: 8px 0 3px;
   color: var(--text);
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-display);
   font-size: 30px;
   line-height: 1;
   overflow-wrap: anywhere;
@@ -754,9 +737,9 @@ button,
 
 .heat-cell {
   min-height: 48px;
-  border: 1px solid rgba(201, 182, 255, 0.13);
+  border: 1px solid var(--line);
   border-radius: 4px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--paper);
   color: var(--muted);
   display: grid;
   padding: 7px;
@@ -764,7 +747,7 @@ button,
 }
 
 .heat-cell span {
-  font-family: "Cascadia Mono", Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
 }
 
@@ -775,19 +758,19 @@ button,
 }
 
 .heat-level-1 {
-  background: rgba(142, 99, 255, 0.34);
+  background: rgba(212, 165, 116, 0.18);
 }
 
 .heat-level-2 {
-  background: rgba(193, 108, 255, 0.55);
+  background: rgba(212, 165, 116, 0.34);
 }
 
 .heat-level-3 {
-  background: rgba(255, 111, 168, 0.65);
+  background: rgba(212, 165, 116, 0.52);
 }
 
 .heat-level-4 {
-  background: linear-gradient(135deg, rgba(255, 111, 168, 0.78), rgba(82, 231, 210, 0.5));
+  background: rgba(212, 165, 116, 0.72);
 }
 
 .spectrum-list,
@@ -817,7 +800,7 @@ button,
 .symbol-row span,
 .runtime-list dt {
   color: var(--muted);
-  font-family: "Cascadia Mono", Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   overflow-wrap: anywhere;
 }
@@ -825,7 +808,7 @@ button,
 .spectrum-row strong,
 .symbol-row strong {
   color: var(--text);
-  font-family: "Cascadia Mono", Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   text-align: right;
 }
@@ -835,13 +818,13 @@ button,
   height: 6px;
   overflow: hidden;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(212, 165, 116, 0.12);
 }
 
 .spectrum-track i,
 .symbol-row i {
   display: block;
-  background: linear-gradient(90deg, var(--cyan), var(--violet-2), var(--rose));
+  background: var(--amber);
 }
 
 .spectrum-track i {
@@ -849,15 +832,15 @@ button,
 }
 
 .insight-callout {
-  border-left: 2px solid var(--cyan);
-  background: rgba(82, 231, 210, 0.08);
+  border-left: 2px solid var(--amber);
+  background: rgba(212, 165, 116, 0.08);
   margin-bottom: 16px;
   padding: 12px 14px;
 }
 
 .insight-callout strong {
   color: var(--text);
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-display);
   font-size: 26px;
   overflow-wrap: anywhere;
 }
@@ -905,9 +888,9 @@ button,
 }
 
 .image-status-note {
-  border: 1px solid rgba(105, 240, 215, 0.18);
+  border: 1px solid rgba(139, 168, 122, 0.24);
   border-radius: 8px;
-  background: rgba(105, 240, 215, 0.06);
+  background: rgba(139, 168, 122, 0.08);
   color: var(--text-soft);
   margin: 14px 0 12px;
   padding: 10px 12px;
@@ -930,14 +913,14 @@ button,
 .terminal-panel {
   overflow: hidden;
   padding: 0;
-  background: #0c1114;
+  background: #171410;
 }
 
 .terminal-bar {
   display: flex;
   align-items: center;
   gap: 8px;
-  border-bottom: 1px solid rgba(125, 240, 168, 0.18);
+  border-bottom: 1px solid var(--line);
   padding: 12px 14px;
 }
 
@@ -945,7 +928,7 @@ button,
   width: 10px;
   height: 10px;
   border-radius: 999px;
-  background: var(--rose);
+  background: var(--rust);
 }
 
 .terminal-bar span:nth-child(2) {
@@ -953,13 +936,13 @@ button,
 }
 
 .terminal-bar span:nth-child(3) {
-  background: var(--green);
+  background: var(--sage);
 }
 
 .terminal-bar strong {
   margin-left: 4px;
   color: var(--muted);
-  font-family: "Cascadia Mono", Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   text-transform: uppercase;
 }
@@ -968,12 +951,12 @@ pre {
   margin: 0;
   overflow: auto;
   padding: 18px;
-  color: #d9ffe8;
+  color: var(--text-soft);
   white-space: pre-wrap;
 }
 
 .quick-capture {
-  border-top: 1px solid rgba(125, 240, 168, 0.18);
+  border-top: 1px solid var(--line);
   padding: 16px;
 }
 
@@ -988,11 +971,20 @@ textarea,
 input,
 select {
   width: 100%;
-  border: 1px solid rgba(125, 240, 168, 0.22);
+  border: 1px solid var(--line);
   border-radius: 6px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--ink);
   color: var(--text);
+  font-family: var(--font-body);
   font-size: 14px;
+}
+
+textarea:focus,
+input:focus,
+select:focus {
+  border-color: var(--amber-dim);
+  box-shadow: 0 0 0 3px rgba(212, 165, 116, 0.12);
+  outline: none;
 }
 
 textarea {
@@ -1012,7 +1004,7 @@ select {
 }
 
 option {
-  background: var(--panel);
+  background: var(--paper);
   color: var(--text);
 }
 
@@ -1027,11 +1019,17 @@ button {
   min-height: 40px;
   border: 0;
   border-radius: 6px;
-  background: var(--text);
-  color: var(--night);
+  background: var(--amber);
+  color: var(--ink);
   cursor: pointer;
+  font-family: var(--font-mono);
   font-weight: 800;
   padding: 0 14px;
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+button:hover {
+  background: var(--amber-2);
 }
 
 button:disabled {
@@ -1054,32 +1052,33 @@ button:disabled {
 .privacy-line {
   margin: 0;
   color: var(--quiet);
-  font-family: "Cascadia Mono", "JetBrains Mono", Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
 }
 
 .secondary-button {
   border: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--muted);
+  background: transparent;
+  color: var(--text-soft);
 }
 
 .danger-button {
-  border: 1px solid rgba(255, 112, 156, 0.42);
-  background: rgba(255, 112, 156, 0.1);
-  color: #ff9ab9;
+  border: 1px solid rgba(196, 122, 90, 0.42);
+  background: rgba(196, 122, 90, 0.1);
+  color: var(--rust);
 }
 
 .danger-button:hover {
-  border-color: rgba(255, 112, 156, 0.74);
-  color: #ffd5e2;
+  border-color: rgba(196, 122, 90, 0.72);
+  background: rgba(196, 122, 90, 0.16);
+  color: var(--text);
 }
 
 .secondary-link {
   border: 1px solid var(--line);
   border-radius: 6px;
   color: var(--muted);
-  font-family: "Cascadia Mono", "JetBrains Mono", Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 13px;
   padding: 9px 12px;
   text-decoration: none;
@@ -1093,11 +1092,11 @@ button:disabled {
 
 .loading-message {
   display: none;
-  border: 1px solid rgba(105, 240, 215, 0.26);
+  border: 1px solid rgba(212, 165, 116, 0.28);
   border-radius: 10px;
-  background: rgba(105, 240, 215, 0.08);
-  color: var(--cyan);
-  font-family: "Cascadia Mono", "JetBrains Mono", Consolas, monospace;
+  background: rgba(212, 165, 116, 0.08);
+  color: var(--amber);
+  font-family: var(--font-mono);
   font-size: 12px;
   margin: 0;
   padding: 10px 12px;
@@ -1124,7 +1123,7 @@ button:disabled {
 
 .settings-form label span {
   color: var(--muted);
-  font-family: "Cascadia Mono", "JetBrains Mono", Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   text-transform: uppercase;
 }
@@ -1135,8 +1134,8 @@ button:disabled {
 }
 
 .ready-message {
-  background: rgba(82, 231, 210, 0.12);
-  border-color: rgba(82, 231, 210, 0.38);
+  background: rgba(139, 168, 122, 0.12);
+  border-color: rgba(139, 168, 122, 0.35);
 }
 
 .developer-note {
@@ -1146,8 +1145,8 @@ button:disabled {
 }
 
 .developer-note strong {
-  color: var(--cyan);
-  font-family: "Cascadia Mono", "JetBrains Mono", Consolas, monospace;
+  color: var(--amber);
+  font-family: var(--font-mono);
   font-size: 12px;
   text-transform: uppercase;
 }
@@ -1166,7 +1165,7 @@ button:disabled {
   min-height: 154px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(212, 165, 116, 0.04);
   color: var(--text);
   gap: 9px;
   padding: 14px;
@@ -1175,12 +1174,12 @@ button:disabled {
 
 .dream-card:hover {
   border-color: var(--line-strong);
-  background: rgba(142, 99, 255, 0.12);
+  background: rgba(212, 165, 116, 0.08);
 }
 
 .dream-card strong {
   color: var(--text);
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-display);
   font-size: 18px;
   font-weight: 600;
   line-height: 1.2;
@@ -1194,7 +1193,7 @@ button:disabled {
 .back-link {
   display: inline-block;
   margin-bottom: 14px;
-  color: var(--cyan);
+  color: var(--amber);
   font-size: 13px;
   text-decoration: none;
 }
@@ -1210,7 +1209,7 @@ button:disabled {
 .dream-text {
   max-width: 820px;
   color: var(--text);
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-display);
   font-size: clamp(24px, 4vw, 42px);
   line-height: 1.22;
 }
@@ -1227,7 +1226,7 @@ button:disabled {
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.05);
   color: var(--muted);
-  font-family: "Cascadia Mono", Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   padding: 6px 9px;
 }
@@ -1237,6 +1236,7 @@ button:disabled {
   isolation: isolate;
   overflow: hidden;
   min-height: 230px;
+  background: var(--paper);
   display: grid;
   align-content: end;
   gap: 10px;
@@ -1245,30 +1245,27 @@ button:disabled {
   text-decoration: none;
 }
 
-.gallery-card::before,
-.local-visual-card::before {
+.gallery-card::before {
   position: absolute;
   inset: 0;
   content: "";
-  background:
-    radial-gradient(circle at 22% 24%, color-mix(in srgb, var(--visual-a, #69f0d7) 72%, transparent), transparent 18%),
-    radial-gradient(circle at 78% 28%, color-mix(in srgb, var(--visual-c, #ff6ba8) 62%, transparent), transparent 20%),
-    linear-gradient(135deg, color-mix(in srgb, var(--visual-b, #8e63ff) 36%, transparent), rgba(8, 6, 20, 0.2));
-  opacity: 0.78;
+  border-top: 1px solid color-mix(in srgb, var(--visual-b, #d4a574) 42%, transparent);
+  background: color-mix(in srgb, var(--visual-b, #d4a574) 12%, transparent);
+  opacity: 0.7;
   z-index: -1;
 }
 
 .gallery-card span,
 .gallery-card small {
   color: var(--muted);
-  font-family: "Cascadia Mono", "JetBrains Mono", Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   overflow-wrap: anywhere;
 }
 
 .gallery-card strong {
   color: var(--text);
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-display);
   font-size: 24px;
   line-height: 1.12;
   overflow-wrap: anywhere;
@@ -1295,7 +1292,8 @@ button:disabled {
   isolation: isolate;
   overflow: hidden;
   border: 1px solid var(--line-strong);
-  border-radius: 16px;
+  border-radius: 12px;
+  background: var(--paper-2);
   display: grid;
   gap: 9px;
   margin-top: 22px;
@@ -1304,10 +1302,21 @@ button:disabled {
   padding: 18px;
 }
 
+.local-visual-card::before {
+  position: absolute;
+  top: 0;
+  right: 24px;
+  left: 24px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--amber-dim), transparent);
+  content: "";
+  opacity: 0.44;
+}
+
 .local-visual-card span,
 .local-visual-card small {
   color: var(--muted);
-  font-family: "Cascadia Mono", "JetBrains Mono", Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   overflow-wrap: anywhere;
   position: relative;
@@ -1325,47 +1334,13 @@ button:disabled {
 .local-visual-card strong {
   align-self: end;
   color: var(--text);
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-display);
   font-size: clamp(26px, 4vw, 42px);
   line-height: 1.06;
   max-width: 540px;
   overflow-wrap: anywhere;
   position: relative;
   z-index: 1;
-}
-
-.visual-sky {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-.visual-sky i {
-  position: absolute;
-  border-radius: 999px;
-  background: var(--visual-a, #69f0d7);
-  box-shadow: 0 0 24px currentColor;
-  color: inherit;
-  height: 8px;
-  opacity: 0.75;
-  width: 8px;
-}
-
-.visual-sky i:nth-child(1) {
-  left: 14%;
-  top: 18%;
-}
-
-.visual-sky i:nth-child(2) {
-  background: var(--visual-b, #8e63ff);
-  right: 18%;
-  top: 34%;
-}
-
-.visual-sky i:nth-child(3) {
-  background: var(--visual-c, #ff6ba8);
-  bottom: 18%;
-  left: 58%;
 }
 
 .empty-gallery {
@@ -1403,22 +1378,22 @@ button:disabled {
 }
 
 .filter-badge a {
-  color: var(--cyan);
+  color: var(--amber);
   text-decoration: none;
 }
 
 .reflection-fields {
-  border: 1px solid rgba(124, 94, 255, 0.28);
+  border: 1px solid var(--line);
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.035);
+  background: rgba(212, 165, 116, 0.04);
   display: grid;
   gap: 10px;
   padding: 12px;
 }
 
 .reflection-heading {
-  color: var(--cyan);
-  font-family: "Cascadia Mono", "JetBrains Mono", Consolas, monospace;
+  color: var(--amber);
+  font-family: var(--font-mono);
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.08em;
@@ -1437,7 +1412,7 @@ button:disabled {
 }
 
 .reflection-fields input {
-  background: rgba(8, 6, 20, 0.72);
+  background: rgba(26, 23, 20, 0.72);
   border: 1px solid var(--line);
   border-radius: 10px;
   color: var(--text);
@@ -1446,8 +1421,8 @@ button:disabled {
 }
 
 .reflection-fields input:focus {
-  border-color: rgba(105, 240, 215, 0.55);
-  box-shadow: 0 0 0 3px rgba(105, 240, 215, 0.12);
+  border-color: var(--amber-dim);
+  box-shadow: 0 0 0 3px rgba(212, 165, 116, 0.12);
   outline: none;
 }
 
@@ -1466,7 +1441,7 @@ button:disabled {
 
 .report-section h3 {
   color: var(--text);
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-display);
   font-size: 20px;
   margin: 0 0 10px;
 }
@@ -1488,8 +1463,8 @@ button:disabled {
 }
 
 .interpretation-list article {
-  border-left: 3px solid var(--cyan);
-  background: rgba(8, 6, 20, 0.38);
+  border-left: 3px solid var(--amber);
+  background: rgba(26, 23, 20, 0.38);
   border-radius: 10px;
   display: grid;
   gap: 7px;
@@ -1507,7 +1482,7 @@ button:disabled {
 }
 
 .interpretation-list em {
-  color: var(--cyan);
+  color: var(--amber);
   font-style: normal;
   line-height: 1.5;
 }
@@ -1526,24 +1501,25 @@ button:disabled {
 }
 
 .feedback-form button {
-  background: rgba(124, 94, 255, 0.16);
-  border: 1px solid rgba(124, 94, 255, 0.34);
+  background: rgba(212, 165, 116, 0.1);
+  border: 1px solid var(--line-strong);
   border-radius: 8px;
   color: var(--text);
   cursor: pointer;
-  font-family: "Cascadia Mono", Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   padding: 9px 11px;
 }
 
 .feedback-form button:hover {
-  border-color: rgba(105, 240, 215, 0.62);
-  color: var(--cyan);
+  border-color: rgba(212, 165, 116, 0.62);
+  background: rgba(212, 165, 116, 0.16);
+  color: var(--text);
 }
 
 .reality-focus {
-  border-color: rgba(105, 240, 215, 0.45);
-  background: linear-gradient(135deg, rgba(105, 240, 215, 0.12), rgba(124, 94, 255, 0.08));
+  border-color: rgba(139, 168, 122, 0.45);
+  background: rgba(139, 168, 122, 0.1);
 }
 
 details {
@@ -1554,8 +1530,8 @@ details {
 
 summary {
   cursor: pointer;
-  color: var(--cyan);
-  font-family: "Cascadia Mono", Consolas, monospace;
+  color: var(--amber);
+  font-family: var(--font-mono);
   font-size: 13px;
 }
 

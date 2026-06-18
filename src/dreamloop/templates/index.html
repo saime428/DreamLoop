@@ -59,7 +59,6 @@
 
         {% if page == "dashboard" %}
         <section class="dashboard-hero constellation-sky">
-          <div class="star-field" aria-hidden="true"></div>
           <article class="hero-copy">
             <p class="eyebrow">{{ t.quick_loop }}</p>
             <h2>{{ t.dashboard_hero_title }}</h2>
@@ -127,8 +126,6 @@
 
         {% elif page == "log" %}
         <section class="primary-workbench">
-          <div class="star-field" aria-hidden="true"></div>
-
           <article class="dream-compose">
             <div class="section-title">
               <span>{{ t.local_write }}</span>
@@ -419,14 +416,9 @@
         {% elif page == "gallery" %}
         <section class="gallery-grid">
           {% for dream in gallery_cards %}
-            <a class="gallery-card constellation-sky" href="/dreams/{{ dream.id }}?lang={{ lang }}" style="--visual-a: {{ dream.visual_memory.accent_1 if dream.visual_memory else '#69f0d7' }}; --visual-b: {{ dream.visual_memory.accent_2 if dream.visual_memory else '#8e63ff' }}; --visual-c: {{ dream.visual_memory.accent_3 if dream.visual_memory else '#ff6ba8' }};">
-              <div class="star-field" aria-hidden="true"></div>
+            <a class="gallery-card constellation-sky" href="/dreams/{{ dream.id }}?lang={{ lang }}" style="--visual-a: {{ dream.visual_memory.accent_1 if dream.visual_memory else '#8ba87a' }}; --visual-b: {{ dream.visual_memory.accent_2 if dream.visual_memory else '#d4a574' }}; --visual-c: {{ dream.visual_memory.accent_3 if dream.visual_memory else '#c47a5a' }};">
               {% if dream.image and dream.image.status == "complete" %}
                 <img class="dream-image" src="{{ dream.image.image_url }}" alt="{{ t.dream_image_title }}">
-              {% else %}
-                <div class="visual-sky" aria-hidden="true">
-                  <i></i><i></i><i></i>
-                </div>
               {% endif %}
               <span>#{{ dream.id }} / {{ dream.dreamed_on }}</span>
               <strong>{{ dream.visual_memory.title if dream.visual_memory else dream.content }}</strong>

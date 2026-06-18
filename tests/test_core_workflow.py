@@ -498,6 +498,9 @@ def test_legacy_json_string_terms_and_visual_memory_are_sanitized(tmp_path):
     assert visual["themes"] == ["blocked transition"]
     assert '"name"' not in visual["prompt"]
     assert "meaning" not in visual["prompt"]
+    assert visual["accent_1"] == "#8ba87a"
+    assert visual["accent_2"] == "#d4a574"
+    assert visual["accent_3"] == "#c47a5a"
 
 
 def test_generate_visual_memory_creates_local_card_without_external_api(tmp_path):
@@ -522,6 +525,9 @@ def test_generate_visual_memory_creates_local_card_without_external_api(tmp_path
     assert visual["title"] == "A threshold dream under water."
     assert "blue door" in visual["prompt"]
     assert "sea" in visual["symbols"]
+    assert visual["accent_1"] in {"#8ba87a", "#9a7b56", "#a67c6a", "#c47a5a"}
+    assert visual["accent_2"] in {"#d4a574", "#e8c089", "#b89164", "#c49a6c"}
+    assert visual["accent_3"] in {"#c47a5a", "#8ba87a", "#a67c6a", "#6f7f64"}
     assert dream["visual_memory"] == visual
 
 
