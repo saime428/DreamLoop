@@ -83,3 +83,32 @@ def test_dashboard_css_has_subtle_transitions_and_reduced_motion():
     assert "prefers-reduced-motion: reduce" in css
     assert ".dashboard-hero h2" in css
     assert "clamp(20px, 2vw, 28px)" in css
+
+
+def test_dashboard_css_uses_bedside_amber_tokens_without_remote_fonts():
+    css = Path("src/dreamloop/static/style.css").read_text(encoding="utf-8")
+
+    assert "--ink: #1a1714" in css
+    assert "--paper: #2a2520" in css
+    assert "--amber: #d4a574" in css
+    assert "--sage: #8ba87a" in css
+    assert "--rust: #c47a5a" in css
+    assert "fonts.googleapis" not in css
+    assert "@import url(" not in css
+    assert "--violet" not in css
+    assert "--cyan" not in css
+    assert "--rose" not in css
+
+
+def test_frontend_removes_neon_starfield_treatment():
+    css = Path("src/dreamloop/static/style.css").read_text(encoding="utf-8")
+    index = Path("src/dreamloop/templates/index.html").read_text(encoding="utf-8")
+    detail = Path("src/dreamloop/templates/detail.html").read_text(encoding="utf-8")
+
+    assert "body::before" not in css
+    assert ".star-field" not in css
+    assert "star-field" not in index
+    assert "star-field" not in detail
+    assert "#8e63ff" not in css
+    assert "#52e7d2" not in css
+    assert "#ff6ba8" not in css
