@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import html
 import json
+from pathlib import Path
 
 from fastapi.testclient import TestClient
 
@@ -776,6 +777,28 @@ def test_settings_show_image_provider_without_leaking_secret(tmp_path):
     assert "image-secret-token" not in response.text
     assert status_response.json()["provider"] == "cloud_openai_compatible"
     assert "image-secret-token" not in response.text + str(status_response.json())
+
+
+def test_website_surfaces_product_visual_assets(tmp_path):
+    app = create_app(tmp_path)
+    client = TestClient(app)
+
+    dashboard = client.get("/?lang=en")
+    settings = client.get("/settings?lang=en")
+
+    workflow_image = Path("src/dreamloop/static/images/readme-workflow-review.png")
+    privacy_image = Path("src/dreamloop/static/images/readme-local-first-privacy.png")
+
+    assert dashboard.status_code == 200
+    assert settings.status_code == 200
+    assert workflow_image.exists()
+    assert workflow_image.stat().st_size > 1_000_000
+    assert privacy_image.exists()
+    assert privacy_image.stat().st_size > 1_000_000
+    assert "/static/images/readme-workflow-review.png" in dashboard.text
+    assert "/static/images/readme-local-first-privacy.png" in settings.text
+    assert "product-visual-card" in dashboard.text
+    assert "product-visual-card" in settings.text
 
 
 def test_settings_image_status_is_localized_in_chinese(tmp_path):
