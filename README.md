@@ -93,6 +93,8 @@ The default path is zero-cost Ollama. DeepSeek, OpenAI, and custom OpenAI-compat
 ## Demo Assets
 
 - Real dashboard screenshot: `docs/assets/dashboard-screenshot.png`
+- Product workflow review image: `docs/assets/readme-workflow-review.png`
+- Local-first privacy review image: `docs/assets/readme-local-first-privacy.png`
 - Social preview image: `docs/assets/social-preview.png`
 - CLI demo GIF: `docs/assets/cli-demo.gif`
 - Reproducible recording guide: `docs/demo-recording.md`
@@ -121,6 +123,10 @@ Analyzed pending dreams when a provider is ready.
 - Ollama keeps analysis local on your machine.
 - DeepSeek/OpenAI only run after explicit configuration.
 - API keys live in `.dreamloop/secrets.env`; secrets do not belong in commits.
+
+<p align="center">
+  <img src="docs/assets/readme-local-first-privacy.png" alt="DreamLoop local-first privacy review desk with settings drafts" width="100%">
+</p>
 
 ## AI Providers
 
@@ -158,6 +164,10 @@ Generated image files are stored under `.dreamloop/assets/images/`; the database
 ## Web App Loop
 
 The FastAPI/Jinja dashboard is intentionally lightweight:
+
+<p align="center">
+  <img src="docs/assets/readme-workflow-review.png" alt="DreamLoop six-page web app workflow review with printed Figma screens" width="100%">
+</p>
 
 - Dashboard: README-ready overview with AI Insight, heatmap, stats, and recent dreams
 - Log: draft-first dream capture, optional reflection prompts, and AI analysis before saving
