@@ -92,7 +92,7 @@ def test_page_background_layer_sits_behind_content_but_above_page_floor():
     assert ".dashboard > *" in css
     assert ".dashboard::before {\n  z-index: 0;" in css
     assert ".dashboard::after {\n  z-index: 0;" in css
-    assert "--page-bg-opacity: 0.24" in css
+    assert "--page-bg-opacity: 1" in css
 
 
 def test_dashboard_css_uses_bedside_amber_tokens_without_remote_fonts():

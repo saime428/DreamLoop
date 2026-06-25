@@ -158,7 +158,7 @@ a {
 .dashboard::before,
 .dashboard::after {
   position: fixed;
-  inset: 0 0 0 198px;
+  inset: 0;
   pointer-events: none;
   content: "";
 }
@@ -170,14 +170,14 @@ a {
   background-position: var(--page-bg-position, center);
   background-size: cover;
   filter: saturate(0.7) contrast(0.92);
-  opacity: var(--page-bg-opacity, 0.18);
+  opacity: var(--page-bg-opacity, 0.5);
 }
 
 .dashboard::after {
   z-index: 0;
   background:
-    linear-gradient(90deg, rgba(26, 23, 20, 0.76), rgba(26, 23, 20, 0.42) 42%, rgba(26, 23, 20, 0.82)),
-    radial-gradient(ellipse at 50% 0%, rgba(212, 165, 116, 0.035), transparent 56%);
+    linear-gradient(90deg, rgba(26, 23, 20, 0.32), rgba(26, 23, 20, 0.08) 42%, rgba(26, 23, 20, 0.42)),
+    radial-gradient(ellipse at 50% 0%, rgba(212, 165, 116, 0.015), transparent 56%);
 }
 
 .dashboard > * {
@@ -187,37 +187,37 @@ a {
 
 .page-dashboard {
   --page-bg: url("/static/images/backgrounds/bg-dashboard.png");
-  --page-bg-opacity: 0.24;
+  --page-bg-opacity: 1;
   --page-bg-position: left top;
 }
 
 .page-log {
   --page-bg: url("/static/images/backgrounds/bg-log.png");
-  --page-bg-opacity: 0.24;
+  --page-bg-opacity: 0.95;
   --page-bg-position: center;
 }
 
 .page-detail {
   --page-bg: url("/static/images/backgrounds/bg-detail.png");
-  --page-bg-opacity: 0.2;
+  --page-bg-opacity: 0.9;
   --page-bg-position: center;
 }
 
 .page-patterns {
   --page-bg: url("/static/images/backgrounds/bg-patterns.png");
-  --page-bg-opacity: 0.16;
+  --page-bg-opacity: 0.75;
   --page-bg-position: center;
 }
 
 .page-gallery {
   --page-bg: url("/static/images/backgrounds/bg-gallery.png");
-  --page-bg-opacity: 0.22;
+  --page-bg-opacity: 0.9;
   --page-bg-position: right bottom;
 }
 
 .page-settings {
   --page-bg: url("/static/images/backgrounds/bg-settings.png");
-  --page-bg-opacity: 0.2;
+  --page-bg-opacity: 0.9;
   --page-bg-position: right bottom;
 }
 
@@ -271,8 +271,9 @@ a {
 .status-strip > div {
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: var(--paper);
+  background: rgba(42, 37, 32, 0.78);
   box-shadow: 0 1px 3px var(--shadow);
+  backdrop-filter: blur(1px);
 }
 
 .constellation-sky {
@@ -332,7 +333,7 @@ a {
   align-content: center;
   min-width: 0;
   padding: 20px;
-  background: var(--paper-2);
+  background: rgba(51, 45, 39, 0.82);
 }
 
 .insight-card strong {
