@@ -164,55 +164,60 @@ a {
 }
 
 .dashboard::before {
-  z-index: -2;
+  z-index: 0;
   background-image: var(--page-bg);
   background-repeat: no-repeat;
   background-position: var(--page-bg-position, center);
   background-size: cover;
   filter: saturate(0.7) contrast(0.92);
-  opacity: var(--page-bg-opacity, 0.06);
+  opacity: var(--page-bg-opacity, 0.18);
 }
 
 .dashboard::after {
-  z-index: -1;
+  z-index: 0;
   background:
-    linear-gradient(90deg, var(--ink), rgba(26, 23, 20, 0.9) 38%, var(--ink)),
-    radial-gradient(ellipse at 50% 0%, rgba(212, 165, 116, 0.045), transparent 56%);
+    linear-gradient(90deg, rgba(26, 23, 20, 0.76), rgba(26, 23, 20, 0.42) 42%, rgba(26, 23, 20, 0.82)),
+    radial-gradient(ellipse at 50% 0%, rgba(212, 165, 116, 0.035), transparent 56%);
+}
+
+.dashboard > * {
+  position: relative;
+  z-index: 1;
 }
 
 .page-dashboard {
   --page-bg: url("/static/images/backgrounds/bg-dashboard.png");
-  --page-bg-opacity: 0.06;
+  --page-bg-opacity: 0.24;
   --page-bg-position: left top;
 }
 
 .page-log {
   --page-bg: url("/static/images/backgrounds/bg-log.png");
-  --page-bg-opacity: 0.09;
+  --page-bg-opacity: 0.24;
   --page-bg-position: center;
 }
 
 .page-detail {
   --page-bg: url("/static/images/backgrounds/bg-detail.png");
-  --page-bg-opacity: 0.055;
+  --page-bg-opacity: 0.2;
   --page-bg-position: center;
 }
 
 .page-patterns {
   --page-bg: url("/static/images/backgrounds/bg-patterns.png");
-  --page-bg-opacity: 0.04;
+  --page-bg-opacity: 0.16;
   --page-bg-position: center;
 }
 
 .page-gallery {
   --page-bg: url("/static/images/backgrounds/bg-gallery.png");
-  --page-bg-opacity: 0.065;
+  --page-bg-opacity: 0.22;
   --page-bg-position: right bottom;
 }
 
 .page-settings {
   --page-bg: url("/static/images/backgrounds/bg-settings.png");
-  --page-bg-opacity: 0.055;
+  --page-bg-opacity: 0.2;
   --page-bg-position: right bottom;
 }
 
