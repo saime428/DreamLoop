@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import sys
+from types import SimpleNamespace
+
 from typer.testing import CliRunner
 
 from dreamloop.cli import app
@@ -66,3 +69,16 @@ def test_cli_image_test_reports_provider_status(tmp_path, monkeypatch):
 
     assert result.exit_code == 0
     assert "local visual cards" in result.output
+
+
+def test_cli_web_suggests_alt_port_when_bind_fails(monkeypatch):
+    def fail_to_start(*args, **kwargs):
+        raise OSError("address already in use")
+
+    monkeypatch.setitem(sys.modules, "uvicorn", SimpleNamespace(run=fail_to_start))
+
+    result = CliRunner().invoke(app, ["web"])
+
+    assert result.exit_code == 1
+    assert "Failed to start DreamLoop on 127.0.0.1:8765" in result.output
+    assert "dreamloop web --port 18080" in result.output

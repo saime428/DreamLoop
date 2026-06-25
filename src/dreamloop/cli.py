@@ -116,7 +116,13 @@ def web(host: str = "127.0.0.1", port: int = 8765) -> None:
 
     if host == "0.0.0.0":
         typer.echo("WARNING: binding to 0.0.0.0 can expose private dream data on your network.")
-    uvicorn.run("dreamloop.web:create_app", factory=True, host=host, port=port)
+    try:
+        uvicorn.run("dreamloop.web:create_app", factory=True, host=host, port=port)
+    except OSError as exc:
+        typer.echo(f"Failed to start DreamLoop on {host}:{port}: {exc}")
+        typer.echo("If this port is blocked or already bound, try:")
+        typer.echo("  dreamloop web --port 18080")
+        raise typer.Exit(code=1) from exc
 
 
 @app.command()

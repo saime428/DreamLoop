@@ -147,10 +147,73 @@ a {
 }
 
 .dashboard {
+  position: relative;
+  isolation: isolate;
   width: min(1180px, calc(100% - 42px));
   margin: 0 auto;
   padding: 22px 0 48px;
   animation: page-soft-enter 190ms ease-out both;
+}
+
+.dashboard::before,
+.dashboard::after {
+  position: fixed;
+  inset: 0 0 0 198px;
+  pointer-events: none;
+  content: "";
+}
+
+.dashboard::before {
+  z-index: -2;
+  background-image: var(--page-bg);
+  background-repeat: no-repeat;
+  background-position: var(--page-bg-position, center);
+  background-size: cover;
+  filter: saturate(0.7) contrast(0.92);
+  opacity: var(--page-bg-opacity, 0.06);
+}
+
+.dashboard::after {
+  z-index: -1;
+  background:
+    linear-gradient(90deg, var(--ink), rgba(26, 23, 20, 0.9) 38%, var(--ink)),
+    radial-gradient(ellipse at 50% 0%, rgba(212, 165, 116, 0.045), transparent 56%);
+}
+
+.page-dashboard {
+  --page-bg: url("/static/images/backgrounds/bg-dashboard.png");
+  --page-bg-opacity: 0.06;
+  --page-bg-position: left top;
+}
+
+.page-log {
+  --page-bg: url("/static/images/backgrounds/bg-log.png");
+  --page-bg-opacity: 0.09;
+  --page-bg-position: center;
+}
+
+.page-detail {
+  --page-bg: url("/static/images/backgrounds/bg-detail.png");
+  --page-bg-opacity: 0.055;
+  --page-bg-position: center;
+}
+
+.page-patterns {
+  --page-bg: url("/static/images/backgrounds/bg-patterns.png");
+  --page-bg-opacity: 0.04;
+  --page-bg-position: center;
+}
+
+.page-gallery {
+  --page-bg: url("/static/images/backgrounds/bg-gallery.png");
+  --page-bg-opacity: 0.065;
+  --page-bg-position: right bottom;
+}
+
+.page-settings {
+  --page-bg: url("/static/images/backgrounds/bg-settings.png");
+  --page-bg-opacity: 0.055;
+  --page-bg-position: right bottom;
 }
 
 .topbar {
@@ -324,42 +387,6 @@ a {
 
 .dashboard-grid {
   grid-template-columns: minmax(0, 1.2fr) minmax(300px, 0.8fr);
-}
-
-.product-visual-card {
-  --product-visual-height: clamp(260px, 34vw, 420px);
-  overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--paper);
-  box-shadow: 0 1px 3px var(--shadow);
-  margin: 14px 0 0;
-  padding: 0;
-}
-
-.product-visual-card img {
-  display: block;
-  width: 100%;
-  height: var(--product-visual-height);
-  object-fit: cover;
-}
-
-.product-visual-card-workflow img {
-  object-position: center 48%;
-}
-
-.product-visual-card-workflow {
-  --product-visual-height: clamp(240px, 28vw, 360px);
-}
-
-.settings-product-visual {
-  --product-visual-height: clamp(240px, 28vw, 330px);
-  align-self: start;
-  margin: 0;
-}
-
-.settings-product-visual img {
-  object-position: center 44%;
 }
 
 .pattern-grid {
@@ -1723,9 +1750,13 @@ button:disabled,
     min-height: 0;
   }
 
-  .product-visual-card,
-  .settings-product-visual {
-    --product-visual-height: 220px;
+  .dashboard::before,
+  .dashboard::after {
+    inset: 0;
+  }
+
+  .dashboard::before {
+    opacity: calc(var(--page-bg-opacity, 0.06) * 0.55);
   }
 
   .work-grid {

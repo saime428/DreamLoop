@@ -779,26 +779,46 @@ def test_settings_show_image_provider_without_leaking_secret(tmp_path):
     assert "image-secret-token" not in response.text + str(status_response.json())
 
 
-def test_website_surfaces_product_visual_assets(tmp_path):
+def test_website_uses_subtle_page_background_assets(tmp_path):
     app = create_app(tmp_path)
     client = TestClient(app)
 
     dashboard = client.get("/?lang=en")
+    log = client.get("/log?lang=en")
+    patterns = client.get("/patterns?lang=en")
+    gallery = client.get("/gallery?lang=en")
     settings = client.get("/settings?lang=en")
+    dream_id = client.post("/api/dreams", json={"content": "I found a folded map by the bed."}).json()["id"]
+    detail = client.get(f"/dreams/{dream_id}?lang=en")
 
-    workflow_image = Path("src/dreamloop/static/images/readme-workflow-review.png")
-    privacy_image = Path("src/dreamloop/static/images/readme-local-first-privacy.png")
+    backgrounds = {
+        "dashboard": "bg-dashboard.png",
+        "log": "bg-log.png",
+        "patterns": "bg-patterns.png",
+        "gallery": "bg-gallery.png",
+        "settings": "bg-settings.png",
+        "detail": "bg-detail.png",
+    }
 
     assert dashboard.status_code == 200
+    assert log.status_code == 200
+    assert patterns.status_code == 200
+    assert gallery.status_code == 200
     assert settings.status_code == 200
-    assert workflow_image.exists()
-    assert workflow_image.stat().st_size > 1_000_000
-    assert privacy_image.exists()
-    assert privacy_image.stat().st_size > 1_000_000
-    assert "/static/images/readme-workflow-review.png" in dashboard.text
-    assert "/static/images/readme-local-first-privacy.png" in settings.text
-    assert "product-visual-card" in dashboard.text
-    assert "product-visual-card" in settings.text
+    assert detail.status_code == 200
+    for page, filename in backgrounds.items():
+        asset = Path("src/dreamloop/static/images/backgrounds") / filename
+        assert asset.exists(), filename
+        assert asset.stat().st_size > 500_000
+    assert '<main class="dashboard page-dashboard">' in dashboard.text
+    assert '<main class="dashboard page-log">' in log.text
+    assert '<main class="dashboard page-patterns">' in patterns.text
+    assert '<main class="dashboard page-gallery">' in gallery.text
+    assert '<main class="dashboard page-settings">' in settings.text
+    assert '<main class="dashboard detail-dashboard page-detail">' in detail.text
+    assert "product-visual-card" not in dashboard.text
+    assert "readme-workflow-review.png" not in dashboard.text
+    assert "readme-local-first-privacy.png" not in settings.text
 
 
 def test_settings_image_status_is_localized_in_chinese(tmp_path):

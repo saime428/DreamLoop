@@ -26,7 +26,7 @@
         </div>
       </aside>
 
-      <main class="dashboard">
+      <main class="dashboard page-{{ page }}">
         <header class="topbar">
           <div>
             {% if page == "dashboard" %}
@@ -77,10 +77,6 @@
             <p>{{ dashboard_insight.body }}</p>
           </article>
         </section>
-
-        <figure class="product-visual-card product-visual-card-workflow" aria-label="DreamLoop six-page workflow review">
-          <img src="{{ url_for('static', path='/images/readme-workflow-review.png') }}" alt="DreamLoop six-page web app workflow review with printed design screens" loading="lazy" decoding="async">
-        </figure>
 
         <section class="status-strip dashboard-stats">
           {% for stat in dashboard_stats[:4] %}
@@ -544,9 +540,6 @@
             </div>
           </article>
 
-          <figure class="product-visual-card settings-product-visual" aria-label="DreamLoop local-first settings review">
-            <img src="{{ url_for('static', path='/images/readme-local-first-privacy.png') }}" alt="DreamLoop local-first privacy review desk with settings drafts" loading="lazy" decoding="async">
-          </figure>
         </section>
         {% endif %}
       </main>

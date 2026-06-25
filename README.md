@@ -222,6 +222,20 @@ dreamloop add "I was flying above a dark ocean."
 dreamloop web
 ```
 
+### Port already bound on Windows
+
+DreamLoop starts on `127.0.0.1:8765` by default. If Windows reports a socket permission error or the port is already bound, run:
+
+```bash
+dreamloop web --port 18080
+```
+
+Then open `http://127.0.0.1:18080`. You can inspect the default port in PowerShell:
+
+```powershell
+Get-NetTCPConnection -LocalPort 8765 -ErrorAction SilentlyContinue
+```
+
 ## Obsidian Roadmap
 
 - v0.2: Markdown export for dream entries and analysis summaries.

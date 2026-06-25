@@ -150,6 +150,7 @@ dreamloop image test
 - 不想用云：选择 `dreamloop ai use ollama --model qwen3:8b` 或 `dreamloop ai use none`。
 - 页面没内容：运行 `dreamloop demo` 添加本地示例数据。
 - 需要给别人看：运行 `dreamloop web` 后打开 `http://127.0.0.1:8765`。
+- Windows 提示端口被占用或 socket permission error：改用 `dreamloop web --port 18080`，然后打开 `http://127.0.0.1:18080`。PowerShell 可用 `Get-NetTCPConnection -LocalPort 8765 -ErrorAction SilentlyContinue` 检查默认端口。
 
 ## CLI 与 Obsidian 路线
 
