@@ -13,6 +13,11 @@
 - Add `CONTRIBUTING.md` and `CODE_OF_CONDUCT.md`.
 - Extract database, schema, demo data, importers, visuals, and graph modules, reducing `core.py` from 1074 to 751 lines.
 - Add 5 Chinese demo samples with full reflections.
+- Fix N+1 query problem in dashboard rendering: batch-load dreams with analysis in 3 queries instead of 10N+.
+- Fix ICS import path traversal: reject paths outside the `.dreamloop/` data directory.
+- Constrain `FeedbackCreate.rating` to `Literal["resonates", "not_accurate", "unsure"]`.
+- Remove unused `LegacyResponsesAnalyzer` class.
+- Add `--no-cache-dir` to Dockerfile `pip install` to reduce image size.
 
 ## v0.1.2 - 2026-06-14
 

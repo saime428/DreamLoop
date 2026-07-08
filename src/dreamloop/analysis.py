@@ -156,39 +156,6 @@ class OpenAIAnalyzer(OpenAICompatibleAnalyzer):
         )
 
 
-class LegacyResponsesAnalyzer:
-    def __init__(self, model: str = DEFAULT_OPENAI_MODEL) -> None:
-        self.model = model
-
-    def analyze(
-        self,
-        content: str,
-        language: str = "en",
-        reflections: dict[str, str] | None = None,
-    ) -> dict[str, Any]:
-        try:
-            from openai import OpenAI
-        except ImportError as exc:
-            raise RuntimeError("Install dreamloop[ai] to enable OpenAI analysis.") from exc
-
-        if not os.getenv("OPENAI_API_KEY"):
-            raise RuntimeError("OPENAI_API_KEY is not configured.")
-
-        client = OpenAI()
-        response = client.responses.create(
-            model=self.model,
-            input=[
-                {
-                    "role": "system",
-                    "content": analysis_system_prompt(language),
-                },
-                {"role": "user", "content": build_analysis_user_payload(content, reflections or {})},
-            ],
-        )
-        text = response.output_text
-        return json.loads(text)
-
-
 def save_ai_config(
     root: str | Path | None = None,
     *,

@@ -116,6 +116,39 @@ class DreamLoop:
             ).fetchall()
         return [self._dream_from_row(row) for row in rows]
 
+    def list_dreams_with_analysis(self, language: str = "en") -> list[dict[str, Any]]:
+        self.init()
+        language = normalize_language(language)
+        with self._connect() as db:
+            dream_rows = db.execute(
+                "SELECT * FROM dreams ORDER BY dreamed_on DESC, id DESC"
+            ).fetchall()
+            analysis_rows = db.execute(
+                "SELECT * FROM dream_analyses WHERE language = ?", (language,)
+            ).fetchall()
+            image_rows = db.execute(
+                """
+                SELECT * FROM dream_images
+                WHERE language = ?
+                ORDER BY CASE WHEN status = 'complete' THEN 0 ELSE 1 END, id DESC
+                """,
+                (language,),
+            ).fetchall()
+
+        analyses = {int(row["dream_id"]): row for row in analysis_rows}
+        images: dict[int, sqlite3.Row] = {}
+        for row in image_rows:
+            images.setdefault(int(row["dream_id"]), row)
+
+        dreams = []
+        for row in dream_rows:
+            dream = self._dream_from_row(row)
+            dream_id = int(dream["id"])
+            dream["analysis"] = analysis_from_row(analyses.get(dream_id))
+            dream["image"] = image_from_row(images.get(dream_id))
+            dreams.append(dream)
+        return dreams
+
     def get_dream(self, dream_id: int, language: str = "en") -> dict[str, Any]:
         self.init()
         with self._connect() as db:
@@ -138,25 +171,7 @@ class DreamLoop:
                 """,
                 (dream_id, normalize_language(language)),
             ).fetchone()
-        if analysis:
-            raw_report = parse_json_any(analysis["raw_json"])
-            report = (
-                normalize_report_payload(raw_report)
-                if isinstance(raw_report, dict)
-                else {}
-            )
-            dream["analysis"] = {
-                "language": analysis["language"],
-                "emotional_tone": analysis["emotional_tone"],
-                "symbols": normalize_text_list(json.loads(analysis["symbols_json"])),
-                "themes": normalize_text_list(json.loads(analysis["themes_json"])),
-                "summary": analysis["summary"],
-                "confidence": analysis["confidence"],
-                "report": report,
-                "raw_json": json.dumps(report, ensure_ascii=False),
-            }
-        else:
-            dream["analysis"] = None
+        dream["analysis"] = analysis_from_row(analysis)
         dream["image"] = image_from_row(image) if image else None
         return dream
 
@@ -428,7 +443,11 @@ class DreamLoop:
 
     def import_ics(self, path: str | Path) -> int:
         self.init()
-        events = parse_ics(Path(path).read_text(encoding="utf-8"))
+        resolved = Path(path).resolve()
+        allowed = self.data_dir.resolve()
+        if not resolved.is_relative_to(allowed):
+            raise ValueError(f"Import path must be under {self.data_dir}")
+        events = parse_ics(resolved.read_text(encoding="utf-8"))
         with self._connect() as db:
             for event in events:
                 db.execute(
@@ -536,14 +555,13 @@ class DreamLoop:
                 matches.append(dream)
         return sorted(matches, key=lambda item: item["score"], reverse=True)[:limit]
 
-    def trends(self, language: str = "en") -> dict[str, list[dict[str, Any]]]:
-        self.init()
+    def trends_from_dreams(self, dreams: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
         tags: Counter[str] = Counter()
         symbols: Counter[str] = Counter()
         themes: Counter[str] = Counter()
-        for dream in self.list_dreams():
+        for dream in dreams:
             tags.update(dream["tags"])
-            analysis = self.get_dream(dream["id"], language=language)["analysis"]
+            analysis = dream.get("analysis")
             if analysis:
                 symbols.update(analysis["symbols"])
                 themes.update(analysis["themes"])
@@ -553,12 +571,14 @@ class DreamLoop:
             "themes": counter_items(themes),
         }
 
-    def symbol_graph(self, language: str = "en") -> dict[str, list[dict[str, Any]]]:
-        dreams = [
-            self.get_dream(dream["id"], language=language)
-            for dream in self.list_dreams()
-        ]
+    def trends(self, language: str = "en") -> dict[str, list[dict[str, Any]]]:
+        return self.trends_from_dreams(self.list_dreams_with_analysis(language=language))
+
+    def symbol_graph_from_dreams(self, dreams: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
         return build_symbol_graph(dreams)
+
+    def symbol_graph(self, language: str = "en") -> dict[str, list[dict[str, Any]]]:
+        return self.symbol_graph_from_dreams(self.list_dreams_with_analysis(language=language))
 
     def _connect(self) -> sqlite3.Connection:
         return connect(self.db_path)
@@ -661,6 +681,23 @@ class DreamLoop:
             else None
         )
         return dream
+
+
+def analysis_from_row(row: sqlite3.Row | None) -> dict[str, Any] | None:
+    if row is None:
+        return None
+    raw_report = parse_json_any(row["raw_json"])
+    report = normalize_report_payload(raw_report) if isinstance(raw_report, dict) else {}
+    return {
+        "language": row["language"],
+        "emotional_tone": row["emotional_tone"],
+        "symbols": normalize_text_list(json.loads(row["symbols_json"])),
+        "themes": normalize_text_list(json.loads(row["themes_json"])),
+        "summary": row["summary"],
+        "confidence": row["confidence"],
+        "report": report,
+        "raw_json": json.dumps(report, ensure_ascii=False),
+    }
 
 
 def normalize_language(language: str | None) -> str:

@@ -711,7 +711,7 @@ def test_detail_feedback_buttons_and_api_summary(tmp_path):
         f"/api/dreams/{dream_id}/feedback?lang=en",
         json={"interpretation_index": 0, "rating": "too_mystical"},
     )
-    assert bad.status_code == 400
+    assert bad.status_code == 422
 
     summary = client.get("/api/feedback/summary?lang=en")
     assert summary.status_code == 200

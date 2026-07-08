@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -20,5 +21,5 @@ class WeatherSync(BaseModel):
 
 class FeedbackCreate(BaseModel):
     interpretation_index: int = Field(ge=0)
-    rating: str
+    rating: Literal["resonates", "not_accurate", "unsure"]
     reason: str = ""

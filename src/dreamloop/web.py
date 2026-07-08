@@ -546,10 +546,9 @@ def create_app(root: str | Path | None = None) -> FastAPI:
         theme_filter: str = "",
     ) -> Any:
         lang = _lang(lang)
-        raw_dreams = loop.list_dreams()
-        localized_dreams = [loop.get_dream(dream["id"], language=lang) for dream in raw_dreams]
-        trends = loop.trends(language=lang)
-        symbol_graph = loop.symbol_graph(language=lang)
+        localized_dreams = loop.list_dreams_with_analysis(language=lang)
+        trends = loop.trends_from_dreams(localized_dreams)
+        symbol_graph = loop.symbol_graph_from_dreams(localized_dreams)
         ai_payload = ai_status(loop.root)
         image_payload = image_status(loop.root)
         log_dreams = [

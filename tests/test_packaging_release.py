@@ -68,7 +68,7 @@ def test_docker_files_support_one_command_demo_without_uv_runtime():
     dockerignore = (ROOT / ".dockerignore").read_text(encoding="utf-8")
 
     assert "FROM python:3.11-slim" in dockerfile
-    assert "pip install /app" in dockerfile
+    assert "pip install --no-cache-dir /app" in dockerfile
     assert "pip install uv" not in dockerfile
     assert "dreamloop demo --if-empty" in compose
     assert "dreamloop web --host 0.0.0.0 --port 8765" in compose

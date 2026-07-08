@@ -328,7 +328,7 @@ def test_import_ics_and_weather_feed_heatmap_context(tmp_path):
     loop.init()
     loop.add_dream("A calm walk after the storm.", mood="calm", dreamed_on=date(2026, 6, 10))
 
-    ics = tmp_path / "calendar.ics"
+    ics = loop.data_dir / "imports" / "calendar.ics"
     ics.write_text(
         "\n".join(
             [
@@ -369,6 +369,29 @@ def test_import_ics_and_weather_feed_heatmap_context(tmp_path):
     assert heatmap[0]["moods"] == {"calm": 1}
     assert context["events"][0]["summary"] == "Therapy session"
     assert context["weather"]["precipitation_sum"] == 4.2
+
+
+def test_import_ics_rejects_path_outside_data_dir(tmp_path):
+    loop = DreamLoop(tmp_path)
+    loop.init()
+    outside_file = tmp_path / "outside.ics"
+    outside_file.write_text(
+        "\n".join(
+            [
+                "BEGIN:VCALENDAR",
+                "BEGIN:VEVENT",
+                "UID:x",
+                "DTSTART;VALUE=DATE:20260610",
+                "SUMMARY:Should not import",
+                "END:VEVENT",
+                "END:VCALENDAR",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    import pytest
+    with pytest.raises(ValueError, match="must be under"):
+        loop.import_ics(outside_file)
 
 
 def test_pattern_tracking_finds_similar_dreams_and_symbol_trends(tmp_path):
@@ -595,6 +618,30 @@ def test_feedback_lifecycle_and_resonance_summary(tmp_path):
 
     assert loop.delete_dream(dream_id) is True
     assert loop.feedback_for_dream(dream_id, language="en") == []
+
+
+def test_list_dreams_with_analysis_matches_single_dream_loading(tmp_path):
+    loop = DreamLoop(tmp_path)
+    loop.init()
+    analyzed_id = loop.add_dream_with_analysis(
+        "Water dream",
+        {
+            "emotional_tone": "calm",
+            "symbols": ["water"],
+            "themes": ["flow"],
+            "summary": "A water dream.",
+            "confidence": 0.8,
+        },
+        language="en",
+    )
+    pending_id = loop.add_dream("Pending dream")
+
+    batch = {dream["id"]: dream for dream in loop.list_dreams_with_analysis(language="en")}
+
+    assert batch[analyzed_id] == loop.get_dream(analyzed_id, language="en")
+    assert batch[pending_id] == loop.get_dream(pending_id, language="en")
+    assert batch[analyzed_id]["analysis"]["symbols"] == ["water"]
+    assert batch[pending_id]["analysis"] is None
 
 
 def test_seed_demo_adds_complete_local_sample_without_deleting_existing_data(tmp_path):
