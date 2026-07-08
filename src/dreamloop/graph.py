@@ -14,10 +14,11 @@ def build_symbol_graph(dreams: list[dict[str, Any]], *, max_nodes: int = 12, max
     for dream in dreams:
         analysis = dream.get("analysis") or {}
         terms = []
-        for value in analysis.get("symbols") or []:
-            text = str(value).strip()
-            if is_meaningful_term(text):
-                terms.append(text)
+        for key in ("symbols", "themes"):
+            for value in analysis.get(key) or []:
+                text = str(value).strip()
+                if is_meaningful_term(text):
+                    terms.append(text)
         unique_terms = sorted(set(terms), key=str.casefold)
         node_counts.update(unique_terms)
         edge_counts.update(tuple(pair) for pair in combinations(unique_terms, 2))

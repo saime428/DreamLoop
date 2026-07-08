@@ -656,8 +656,10 @@ def test_symbol_graph_counts_symbol_cooccurrence(tmp_path):
     graph = loop.symbol_graph()
 
     assert graph["nodes"][0] == {"id": "water", "label": "water", "count": 2}
+    assert {"id": "transition", "label": "transition", "count": 1} in graph["nodes"]
     assert {"source": "station", "target": "water", "weight": 1} in graph["edges"]
     assert {"source": "bridge", "target": "water", "weight": 1} in graph["edges"]
+    assert {"source": "transition", "target": "water", "weight": 1} in graph["edges"]
 
 
 class FakeImageGenerator:
