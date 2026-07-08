@@ -18,7 +18,7 @@
 - Free with Ollama. Optional DeepSeek/OpenAI or custom OpenAI-compatible endpoints.
 - CLI-first, forkable, and built for Obsidian-minded knowledge workers.
 - Detailed dream analysis favors emotions, real-life context, and verifiable interpretations.
-- Docker demo, PyPI install, and source checkout all keep data in `.dreamloop/`.
+- PyPI and source checkout keep data in `.dreamloop/`; Docker uses a named volume by default.
 
 ```bash
 pipx install dreamloop
@@ -79,7 +79,7 @@ Open `http://127.0.0.1:8765`. The demo seeds local sample dreams, mock analyses,
 docker compose up
 ```
 
-Open `http://localhost:8765`. Demo data is only added when the local store is empty.
+Open `http://localhost:8765`. Demo data is only added when the local store is empty. Docker Compose stores `.dreamloop/` in the `dreamloop-data` named volume; switch the volume to `./.dreamloop:/app/.dreamloop` if you want host-visible files.
 
 ### Markdown / Obsidian export
 
@@ -172,16 +172,21 @@ The same FastAPI app exposes JSON endpoints for dreams, feedback, images, heatma
   imports/
 ```
 
-## Roadmap
+## Status
 
-### v0.2
+### Available now
 
-- Markdown export for dream entries and analysis summaries.
-- Docker and GHCR image publishing.
-- Symbol relationship graph for shareable pattern screenshots.
-- Obsidian-ready export polish.
+DreamLoop v0.2 adds:
 
-### v0.3+
+- Docker demo with `docker compose up`.
+- Markdown / Obsidian export via `dreamloop export --format markdown`.
+- Symbol co-occurrence graph on Patterns for shareable screenshots.
+- Chinese demo data via `dreamloop demo --language zh`.
+- GHCR image publishing on GitHub releases.
+
+The source-based Docker demo builds locally today. Release images publish as `ghcr.io/saime428/dreamloop` when a GitHub release is published.
+
+### Next
 
 - Obsidian vault sync.
 - Obsidian community plugin.

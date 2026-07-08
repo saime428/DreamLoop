@@ -18,7 +18,7 @@
 - Ollama 零成本运行；需要云模型时再显式配置 DeepSeek、OpenAI 或 Custom OpenAI-compatible。
 - CLI-first，容易 fork，适合开发者和 Obsidian 式知识工作流。
 - AI 解读会关注情绪、现实处境、多种可验证解释，而不是只给玄学摘要。
-- Docker、PyPI 和源码运行都会把数据保存在 `.dreamloop/`。
+- Docker 默认使用 named volume；PyPI 和源码运行会把数据放在 `.dreamloop/`。
 
 ```bash
 pipx install dreamloop
@@ -79,7 +79,7 @@ dreamloop web
 docker compose up
 ```
 
-打开 `http://localhost:8765`。只有本地库为空时才会写入 demo 数据。
+打开 `http://localhost:8765`。只有本地库为空时才会写入 demo 数据。Docker Compose 默认把 `.dreamloop/` 放在 `dreamloop-data` named volume；如果想在宿主机直接看到文件，把 volume 改成 `./.dreamloop:/app/.dreamloop`。
 
 ### Markdown / Obsidian 导出
 
@@ -90,7 +90,7 @@ dreamloop export --format markdown
 DreamLoop 会在 `.dreamloop/exports/` 下写入每条梦境的 Markdown 文件和一个 `_index.md` wikilink 索引。
 
 <details>
-<summary>Advanced Setup</summary>
+<summary>高级设置</summary>
 
 ### 从源码运行
 
@@ -112,7 +112,7 @@ uv run dreamloop ai test
 uv run dreamloop analyze --pending
 ```
 
-### 配置 provider
+### 配置提供方
 
 ```bash
 uv run dreamloop ai status
@@ -170,18 +170,23 @@ Dashboard -> Log -> Detail -> Patterns -> Gallery -> Settings。
   imports/
 ```
 
-## 路线图
+## 当前状态
 
-### v0.2
+### 当前可用
 
-- Markdown/Obsidian 导出。
-- Docker 和 GHCR 镜像发布。
-- 符号关系网络图，适合截图传播。
-- Obsidian-ready export polish。
+DreamLoop v0.2 新增：
 
-### v0.3+
+- `docker compose up` 一键 demo。
+- `dreamloop export --format markdown` Markdown / Obsidian 导出。
+- Patterns 页符号共现图，适合截图传播。
+- `dreamloop demo --language zh` 中文 demo 数据。
+- GitHub release 发布时推送 GHCR 镜像。
 
-- Obsidian vault sync。
+源码 Docker demo 现在会本地构建。发布 GitHub release 后，会推送 `ghcr.io/saime428/dreamloop` 镜像。
+
+### 下一步
+
+- Obsidian vault 同步。
 - Obsidian community plugin。
 - ChromaDB 聚类。
 - 备份和恢复流程。

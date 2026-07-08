@@ -37,8 +37,11 @@ def test_readme_has_privacy_and_obsidian_roadmap_without_secret():
     text = Path("README.md").read_text(encoding="utf-8")
 
     assert "Privacy Promise" in text
-    assert "Obsidian" in text
-    assert "v0.3" in text
+    assert "Status" in text
+    assert "Available now" in text
+    assert "Next" in text
+    assert "ghcr.io/saime428/dreamloop" in text
+    assert "named volume" in text
     assert "secrets.env" in text
     assert "sk-" not in text
 
@@ -56,6 +59,9 @@ def test_chinese_readme_covers_local_first_loop_and_providers():
     assert "DeepSeek" in text
     assert "Custom OpenAI-compatible" in text
     assert "隐私承诺" in text
+    assert "高级设置" in text
+    assert "当前可用" in text
+    assert "named volume" in text
     assert "docs/assets/cli-demo.gif" in text
     assert "img.shields.io/pypi/v/dreamloop" in text
     assert "img.shields.io/pypi/pyversions/dreamloop" in text
