@@ -41,6 +41,17 @@ def test_ci_installs_checks_console_script_and_package_metadata():
     assert "uv run --extra dev twine check dist/*" in workflow
 
 
+def test_ci_runs_clean_wheel_smoke_test_for_runtime_assets():
+    workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+
+    assert "Smoke test installed wheel" in workflow
+    assert "pip install dist/*.whl" in workflow
+    assert "dreamloop --help" in workflow
+    assert "templates" in workflow
+    assert "static" in workflow
+    assert "create_app().title == \"DreamLoop\"" in workflow
+
+
 def test_publish_workflow_uses_trusted_publishing_without_secrets():
     workflow = (ROOT / ".github" / "workflows" / "publish.yml").read_text(encoding="utf-8")
 
