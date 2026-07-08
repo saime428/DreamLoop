@@ -1,0 +1,17 @@
+services:
+  dreamloop:
+    build: .
+    image: dreamloop:local
+    ports:
+      - "8765:8765"
+    environment:
+      DREAMLOOP_DEMO_LANGUAGE: en
+    command: >
+      sh -c "dreamloop init &&
+      dreamloop demo --if-empty --language $${DREAMLOOP_DEMO_LANGUAGE:-en} &&
+      dreamloop web --host 0.0.0.0 --port 8765"
+    volumes:
+      - dreamloop-data:/app/.dreamloop
+
+volumes:
+  dreamloop-data:

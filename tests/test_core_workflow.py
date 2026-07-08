@@ -5,6 +5,7 @@ from datetime import date
 
 from dreamloop.analysis import StaticAnalyzer
 from dreamloop.analysis import normalize_analysis
+from dreamloop.analysis import REFLECTION_LABELS
 from dreamloop.core import DreamLoop
 from dreamloop.images import image_status, save_image_config, save_image_secret
 
@@ -610,6 +611,53 @@ def test_seed_demo_adds_complete_local_sample_without_deleting_existing_data(tmp
     assert len(dreams) == 4
     assert visual_count >= 1
     assert all(loop.get_dream(dream_id, language="en")["analysis"] for dream_id in created)
+
+
+def test_seed_demo_supports_chinese_samples_with_full_reflections(tmp_path):
+    loop = DreamLoop(tmp_path)
+    loop.init()
+
+    created = loop.seed_demo(language="zh")
+
+    assert len(created) == 5
+    first = loop.get_dream(created[0], language="zh")
+    assert first["analysis"]
+    assert first["analysis"]["language"] == "zh"
+    assert first["analysis"]["report"]["dream_details"]
+    assert first["analysis"]["report"]["possible_interpretations"]
+    assert all(first["reflections"].get(key) for key in REFLECTION_LABELS)
+    assert loop.get_dream(created[0], language="en")["analysis"] is None
+
+
+def test_symbol_graph_counts_symbol_cooccurrence(tmp_path):
+    loop = DreamLoop(tmp_path)
+    loop.init()
+    loop.add_dream_with_analysis(
+        "A station filled with water.",
+        {
+            "emotional_tone": "uneasy",
+            "symbols": ["station", "water"],
+            "themes": ["transition"],
+            "summary": "A transition dream.",
+            "confidence": 0.8,
+        },
+    )
+    loop.add_dream_with_analysis(
+        "Water covered a bridge.",
+        {
+            "emotional_tone": "curious",
+            "symbols": ["water", "bridge"],
+            "themes": ["crossing"],
+            "summary": "A crossing dream.",
+            "confidence": 0.78,
+        },
+    )
+
+    graph = loop.symbol_graph()
+
+    assert graph["nodes"][0] == {"id": "water", "label": "water", "count": 2}
+    assert {"source": "station", "target": "water", "weight": 1} in graph["edges"]
+    assert {"source": "bridge", "target": "water", "weight": 1} in graph["edges"]
 
 
 class FakeImageGenerator:

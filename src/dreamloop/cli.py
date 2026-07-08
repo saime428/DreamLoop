@@ -10,6 +10,7 @@ import typer
 
 from .analysis import ai_status, save_ai_config, test_provider_connection
 from .core import DreamLoop
+from .export_markdown import export_markdown
 from .images import image_status, save_image_config, test_image_provider_connection
 
 app = typer.Typer(help="Local-first AI dream journal.")
@@ -101,11 +102,19 @@ def demo(
         bool,
         typer.Option("--reset/--no-reset", help="Reset .dreamloop before adding demo dreams."),
     ] = False,
+    language: Annotated[str, typer.Option("--language", "-l", help="Demo language: en or zh.")] = "en",
+    if_empty: Annotated[bool, typer.Option("--if-empty", help="Only seed demo data when no dreams exist.")] = False,
 ) -> None:
     loop = DreamLoop()
     if reset and loop.data_dir.exists():
         shutil.rmtree(loop.data_dir)
-    created = loop.seed_demo()
+    if language not in {"en", "zh"}:
+        typer.echo("Language must be one of: en, zh.")
+        raise typer.Exit(code=1)
+    if if_empty and loop.list_dreams():
+        typer.echo("Demo skipped because local dreams already exist.")
+        return
+    created = loop.seed_demo(language=language)
     typer.echo(f"Added {len(created)} demo dream(s): {', '.join(f'#{dream_id}' for dream_id in created)}")
     typer.echo("Run `dreamloop web` and open the Dashboard, Patterns, and Gallery pages.")
 
@@ -126,12 +135,37 @@ def web(host: str = "127.0.0.1", port: int = 8765) -> None:
 
 
 @app.command()
-def export() -> None:
+def export(
+    format: Annotated[
+        str,
+        typer.Option("--format", "-f", help="Export format: json or markdown."),
+    ] = "json",
+    language: Annotated[
+        str,
+        typer.Option("--language", "-l", help="Analysis language for markdown export."),
+    ] = "en",
+    output: Annotated[
+        Path | None,
+        typer.Option("--output", "-o", help="Output file for json or directory for markdown."),
+    ] = None,
+) -> None:
     loop = DreamLoop()
-    out = loop.data_dir / "exports" / f"dreamloop-export-{date.today().isoformat()}.json"
     loop.init()
-    out.write_text(json.dumps(loop.list_dreams(), ensure_ascii=False, indent=2), encoding="utf-8")
-    typer.echo(f"Exported dreams to {out}")
+    export_format = format.strip().lower()
+    if export_format == "json":
+        out = output or (loop.data_dir / "exports" / f"dreamloop-export-{date.today().isoformat()}.json")
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(loop.list_dreams(), ensure_ascii=False, indent=2), encoding="utf-8")
+        typer.echo(f"Exported dreams to {out}")
+        return
+    if export_format == "markdown":
+        out_dir = export_markdown(loop, output_dir=output, language=language)
+        count = len(loop.list_dreams())
+        typer.echo(f"Exported {count} dream(s) to {out_dir}")
+        typer.echo(f"Index: {out_dir / '_index.md'}")
+        return
+    typer.echo("Format must be one of: json, markdown.")
+    raise typer.Exit(code=1)
 
 
 @import_app.command("ics")

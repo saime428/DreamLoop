@@ -516,6 +516,44 @@ def test_patterns_symbol_links_filter_log(tmp_path):
     assert "I flew over rooftops." not in filtered.text
 
 
+def test_symbol_graph_api_and_patterns_empty_state(tmp_path):
+    app = create_app(tmp_path)
+    client = TestClient(app)
+
+    graph = client.get("/api/insights/symbol-graph?lang=en")
+    patterns = client.get("/patterns?lang=en")
+
+    assert graph.status_code == 200
+    assert graph.json() == {"nodes": [], "edges": []}
+    assert "Analyze some dreams first." in patterns.text
+    assert "symbol-network" not in patterns.text
+
+
+def test_symbol_graph_api_and_patterns_svg(tmp_path):
+    app = create_app(tmp_path)
+    app.state.analyzer = StaticAnalyzer(
+        {
+            "emotional_tone": "uneasy",
+            "symbols": ["water", "station", "bridge"],
+            "themes": ["transition"],
+            "summary": "A dream about crossing water.",
+            "confidence": 0.82,
+        }
+    )
+    client = TestClient(app)
+    dream_id = client.post("/api/dreams", json={"content": "Water covered a bridge by the station."}).json()["id"]
+    client.post(f"/api/dreams/{dream_id}/analyze?lang=en")
+
+    graph = client.get("/api/insights/symbol-graph?lang=en")
+    patterns = client.get("/patterns?lang=en")
+
+    assert graph.status_code == 200
+    assert {"id": "water", "label": "water", "count": 1} in graph.json()["nodes"]
+    assert {"source": "station", "target": "water", "weight": 1} in graph.json()["edges"]
+    assert "symbol-network" in patterns.text
+    assert "water" in patterns.text
+
+
 def test_settings_updates_ai_provider_without_leaking_secret(tmp_path, monkeypatch):
     from dreamloop.analysis import ai_status
 

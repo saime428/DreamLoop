@@ -849,6 +849,35 @@ button,
   gap: 10px;
 }
 
+.symbol-network-wrap {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(26, 23, 20, 0.18);
+  overflow: hidden;
+}
+
+.symbol-network {
+  display: block;
+  width: 100%;
+  min-height: 240px;
+}
+
+.symbol-network line {
+  stroke: rgba(212, 165, 116, 0.48);
+}
+
+.symbol-network circle {
+  fill: rgba(139, 168, 122, 0.82);
+  stroke: rgba(232, 192, 137, 0.72);
+}
+
+.symbol-network text {
+  fill: var(--text);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-anchor: middle;
+}
+
 .spectrum-row,
 .symbol-row {
   display: grid;

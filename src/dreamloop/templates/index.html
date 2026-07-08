@@ -335,6 +335,20 @@
             <p class="runtime-note">{{ t.open_dream_day }}</p>
           </article>
 
+          <article class="panel panel-wide">
+            <div class="section-title">
+              <span>{{ t.structured_output }}</span>
+              <h2>{{ t.symbol_graph }}</h2>
+            </div>
+            {% if symbol_graph.nodes %}
+              <div class="symbol-network-wrap">
+                {{ symbol_graph_svg|safe }}
+              </div>
+            {% else %}
+              <p class="empty-state">{{ t.symbol_graph_empty }}</p>
+            {% endif %}
+          </article>
+
           <article class="panel">
             <div class="section-title">
               <span>{{ t.signals }}</span>

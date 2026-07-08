@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+- Bump the next release target to v0.2.0.
+- Add Markdown export with Obsidian-friendly frontmatter via `dreamloop export --format markdown`.
+- Export one `.md` file per dream plus an `_index.md` wikilink index under `.dreamloop/exports/dreamloop-export-markdown-YYYY-MM-DD/`.
+- Add Docker and docker-compose one-command demo.
+- Add GHCR publish workflow.
+- Add `dreamloop demo --language zh --if-empty`.
+- Add symbol relationship network graph on Patterns.
+- Add `/api/insights/symbol-graph` endpoint.
+- Add `CONTRIBUTING.md` and `CODE_OF_CONDUCT.md`.
+- Extract database, schema, demo data, importers, visuals, and graph modules, reducing `core.py` from 1074 to 751 lines.
+- Add 5 Chinese demo samples with full reflections.
+
 ## v0.1.2 - 2026-06-14
 
 DreamLoop's second patch tightens first-screen quality and introduces an explicit image-generation path:

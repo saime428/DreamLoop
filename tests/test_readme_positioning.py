@@ -5,8 +5,9 @@ from pathlib import Path
 
 def test_readme_leads_with_local_first_positioning_and_fast_start():
     text = Path("README.md").read_text(encoding="utf-8")
-    first_screen = text[:1800]
+    first_screen = text[:2400]
 
+    assert "docs/assets/detail-analysis-screenshot.png" in first_screen
     assert "docs/assets/dashboard-screenshot.png" in first_screen
     assert "docs/assets/cli-demo.gif" in text
     assert "actions/workflows/ci.yml/badge.svg" in first_screen
@@ -14,6 +15,10 @@ def test_readme_leads_with_local_first_positioning_and_fast_start():
     assert "img.shields.io/pypi/pyversions/dreamloop" in first_screen
     assert "[English](README.md) | [中文](README.zh-CN.md)" in first_screen
     assert "Your dreams have patterns. DreamLoop finds them locally." in first_screen
+    assert "What You Get" in text
+    assert "Private local journal" in text
+    assert "AI interpretation" in text
+    assert "Visual memory" in text
     assert "Runs fully local. Your data never leaves your machine." in first_screen
     assert "Free with Ollama." in first_screen
     assert "CLI-first" in first_screen
@@ -21,6 +26,8 @@ def test_readme_leads_with_local_first_positioning_and_fast_start():
     assert "uv sync --extra dev" in first_screen
     assert "uv run dreamloop init" in first_screen
     assert "pipx install dreamloop" in first_screen
+    assert "dreamloop export --format markdown" in text
+    assert "Advanced Setup" in text
     assert "Future release assets" not in text
     assert "add terminal demo assets" not in text
     assert "cli-demo.cast" not in text
@@ -38,9 +45,11 @@ def test_readme_has_privacy_and_obsidian_roadmap_without_secret():
 
 def test_chinese_readme_covers_local_first_loop_and_providers():
     text = Path("README.zh-CN.md").read_text(encoding="utf-8")
-    first_screen = text[:1800]
+    first_screen = text[:2400]
 
     assert "DreamLoop" in text
+    assert "docs/assets/detail-analysis-screenshot.png" in first_screen
+    assert "你能得到什么" in text
     assert "本地优先" in text
     assert "六页闭环" in text
     assert "Ollama" in text
@@ -54,11 +63,13 @@ def test_chinese_readme_covers_local_first_loop_and_providers():
     assert "uv run dreamloop web" in first_screen
     assert "pipx install dreamloop" in text
     assert "pipx install dreamloop" in first_screen
+    assert "dreamloop export --format markdown" in text
     assert "sk-" not in text
 
 
 def test_release_assets_and_docs_exist():
     dashboard = Path("docs/assets/dashboard-screenshot.png")
+    detail = Path("docs/assets/detail-analysis-screenshot.png")
     cli_demo = Path("docs/assets/cli-demo.gif")
     social = Path("docs/assets/social-preview.png")
     demo_script = Path("docs/demo-recording.md")
@@ -67,6 +78,8 @@ def test_release_assets_and_docs_exist():
 
     assert dashboard.exists()
     assert dashboard.stat().st_size > 10_000
+    assert detail.exists()
+    assert detail.stat().st_size > 10_000
     assert cli_demo.exists()
     assert cli_demo.stat().st_size > 5_000
     assert social.exists()

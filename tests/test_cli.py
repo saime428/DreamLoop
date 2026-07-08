@@ -62,6 +62,21 @@ def test_cli_demo_adds_sample_data_without_resetting_existing_dreams(tmp_path, m
     assert "Do not remove this dream." in list_result.output
 
 
+def test_cli_demo_language_and_if_empty_skip_existing_data(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+
+    first = runner.invoke(app, ["demo", "--language", "zh", "--if-empty"])
+    second = runner.invoke(app, ["demo", "--language", "zh", "--if-empty"])
+    list_result = runner.invoke(app, ["list"])
+
+    assert first.exit_code == 0
+    assert "Added 5 demo dream" in first.output
+    assert second.exit_code == 0
+    assert "Demo skipped" in second.output
+    assert list_result.output.count("#") == 5
+
+
 def test_cli_image_test_reports_provider_status(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     save_image_config(tmp_path, provider="local_card")

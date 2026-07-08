@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import html as html_lib
+import math
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -10,11 +12,11 @@ from fastapi import FastAPI, Form, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel, Field
 
 from .analysis import Analyzer, ai_status, build_analyzer, clean_reflections, load_ai_config, normalize_analysis, save_ai_config, save_secret
 from .core import DreamLoop, call_analyzer
 from .images import image_status, load_image_config, save_image_config, save_image_secret
+from .schema import DreamCreate, FeedbackCreate, WeatherSync
 
 PACKAGE_DIR = Path(__file__).parent
 templates = Jinja2Templates(directory=str(PACKAGE_DIR / "templates"))
@@ -126,6 +128,8 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "structured_output": "Structured output",
         "most_recurring": "Most recurring symbol across analyzed dreams.",
         "no_symbols": "No recurring symbols yet",
+        "symbol_graph": "Symbol network",
+        "symbol_graph_empty": "Analyze some dreams first.",
         "pattern_summary": "Pattern summary",
         "theme_trends": "Theme trends",
         "runtime": "Runtime",
@@ -277,6 +281,8 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "structured_output": "结构化输出",
         "most_recurring": "分析结果里最常出现的符号。",
         "no_symbols": "还没有反复出现的符号",
+        "symbol_graph": "符号网络",
+        "symbol_graph_empty": "先分析一些梦境。",
         "pattern_summary": "模式摘要",
         "theme_trends": "主题趋势",
         "runtime": "运行状态",
@@ -482,27 +488,43 @@ def _dashboard_stats(dreams: list[dict[str, Any]], trends: dict[str, list[dict[s
     ]
 
 
-class DreamCreate(BaseModel):
-    content: str = Field(min_length=1)
-    tags: list[str] = Field(default_factory=list)
-    manual_mood: str | None = None
-    dreamed_on: date | None = None
-    reflections: dict[str, str] = Field(default_factory=dict)
+def _symbol_graph_svg(graph: dict[str, list[dict[str, Any]]]) -> str:
+    nodes = graph.get("nodes") or []
+    if not nodes:
+        return ""
+    width = 420
+    height = 260
+    center_x = width / 2
+    center_y = height / 2
+    radius = 92
+    positions: dict[str, tuple[float, float]] = {}
+    for index, node in enumerate(nodes):
+        angle = (2 * math.pi * index / len(nodes)) - (math.pi / 2)
+        positions[str(node["id"])] = (center_x + radius * math.cos(angle), center_y + radius * math.sin(angle))
 
-
-class WeatherSync(BaseModel):
-    lat: float
-    lon: float
-
-
-class FeedbackCreate(BaseModel):
-    interpretation_index: int = Field(ge=0)
-    rating: str
-    reason: str = ""
+    parts = [f'<svg class="symbol-network" viewBox="0 0 {width} {height}" role="img" aria-label="Symbol network">']
+    for edge in graph.get("edges") or []:
+        source = positions.get(str(edge["source"]))
+        target = positions.get(str(edge["target"]))
+        if not source or not target:
+            continue
+        stroke_width = 1 + min(int(edge.get("weight") or 1), 4)
+        parts.append(
+            f'<line x1="{source[0]:.1f}" y1="{source[1]:.1f}" x2="{target[0]:.1f}" y2="{target[1]:.1f}" stroke-width="{stroke_width}" />'
+        )
+    for node in nodes:
+        x, y = positions[str(node["id"])]
+        label = html_lib.escape(str(node["label"]))
+        count = int(node.get("count") or 1)
+        circle_radius = 12 + min(count * 3, 12)
+        parts.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{circle_radius}" />')
+        parts.append(f'<text x="{x:.1f}" y="{y + circle_radius + 14:.1f}">{label}</text>')
+    parts.append("</svg>")
+    return "".join(parts)
 
 
 def create_app(root: str | Path | None = None) -> FastAPI:
-    app = FastAPI(title="DreamLoop", version="0.1.2")
+    app = FastAPI(title="DreamLoop", version="0.2.0")
     loop = DreamLoop(root)
     loop.init()
     app.state.loop = loop
@@ -527,6 +549,7 @@ def create_app(root: str | Path | None = None) -> FastAPI:
         raw_dreams = loop.list_dreams()
         localized_dreams = [loop.get_dream(dream["id"], language=lang) for dream in raw_dreams]
         trends = loop.trends(language=lang)
+        symbol_graph = loop.symbol_graph(language=lang)
         ai_payload = ai_status(loop.root)
         image_payload = image_status(loop.root)
         log_dreams = [
@@ -560,6 +583,8 @@ def create_app(root: str | Path | None = None) -> FastAPI:
                 "image_status_text": _localized_image_status(image_payload, lang),
                 "image_config": load_image_config(loop.root),
                 "trends": trends,
+                "symbol_graph": symbol_graph,
+                "symbol_graph_svg": _symbol_graph_svg(symbol_graph),
                 "feedback_summary": loop.feedback_summary(language=lang),
                 "dashboard_insight": _dashboard_insight(localized_dreams, trends, lang),
                 "dashboard_stats": _dashboard_stats(localized_dreams, trends, ai_payload, lang),
@@ -963,6 +988,10 @@ def create_app(root: str | Path | None = None) -> FastAPI:
     @app.get("/api/insights/trends")
     def api_trends(lang: str = "en") -> dict[str, list[dict[str, Any]]]:
         return loop.trends(language=_lang(lang))
+
+    @app.get("/api/insights/symbol-graph")
+    def api_symbol_graph(lang: str = "en") -> dict[str, list[dict[str, Any]]]:
+        return loop.symbol_graph(language=_lang(lang))
 
     @app.get("/api/feedback/summary")
     def api_feedback_summary(lang: str = "en") -> dict[str, list[dict[str, Any]]]:
