@@ -9,22 +9,26 @@ git clone https://github.com/saime428/DreamLoop.git
 cd DreamLoop
 uv sync --extra dev
 uv run dreamloop init
+uv run dreamloop demo --if-empty
 ```
 
 Expected output:
 
 ```text
-DreamLoop workspace ready
+DreamLoop initialized at .dreamloop
+Added 3 demo dream(s): #1, #2, #3
 ```
+
+Use `uv run dreamloop demo --if-empty --language zh` when recording the Chinese flow. The `--if-empty` flag keeps repeated recording runs from duplicating sample dreams.
 
 ## CLI capture
 
 ```bash
-uv run dreamloop add "I found a blue door under the sea."
 uv run dreamloop list
+uv run dreamloop export --format markdown
 ```
 
-Show that DreamLoop saves locally under `.dreamloop/dreamloop.sqlite3` and marks analysis as pending when no model is configured.
+Show that DreamLoop seeds local sample dreams under `.dreamloop/dreamloop.sqlite3`, keeps mock analysis local, and can export Obsidian-friendly Markdown without a cloud model.
 
 ## Web loop
 
@@ -41,10 +45,11 @@ http://127.0.0.1:8765/?lang=en
 Record these beats:
 
 1. Dashboard shows the local-first overview, AI Insight, heatmap, stats, and recent dreams.
-2. Log page shows the dream input and AI Analysis panel above the timeline.
-3. Detail page shows dream text, structured analysis state, raw JSON foldout, and optional visual-memory action.
-4. Patterns page shows clickable calendar, symbols, and themes that filter back to Log.
-5. Settings page shows Ollama, DeepSeek, OpenAI, Custom OpenAI-compatible, and None without rendering secrets.
+2. Log page shows the dream input, optional reflection prompts, and saved demo timeline.
+3. Detail page shows dream text, structured analysis, feedback, raw JSON foldout, and visual-memory action.
+4. Patterns page shows clickable calendar, symbols, themes, and the symbol network that filters back to Log.
+5. Gallery shows local visual memory cards.
+6. Settings page shows Ollama, DeepSeek, OpenAI, Custom OpenAI-compatible, and None without rendering secrets.
 
 ## Optional Ollama analysis
 
