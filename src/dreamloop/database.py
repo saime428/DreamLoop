@@ -1,13 +1,21 @@
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 
-def connect(db_path: Path) -> sqlite3.Connection:
+@contextmanager
+def connect(db_path: Path) -> Iterator[sqlite3.Connection]:
     db = sqlite3.connect(db_path)
-    db.row_factory = sqlite3.Row
-    return db
+    try:
+        db.row_factory = sqlite3.Row
+        db.execute("PRAGMA foreign_keys = ON")
+        with db:
+            yield db
+    finally:
+        db.close()
 
 
 def migrate(db_path: Path) -> None:

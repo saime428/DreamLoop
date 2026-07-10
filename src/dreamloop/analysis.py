@@ -5,6 +5,7 @@ import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 from typing import Any, Protocol
 
 import httpx
@@ -92,9 +93,8 @@ class OpenAICompatibleAnalyzer:
         try:
             from openai import OpenAI
         except ImportError as exc:
-            raise RuntimeError("Install dreamloop[ai] to enable cloud model analysis.") from exc
+            raise RuntimeError("The OpenAI client dependency is unavailable.") from exc
 
-        output_language = "Simplified Chinese" if language == "zh" else "English"
         client = OpenAI(api_key=self.api_key, base_url=self.base_url)
         response = client.chat.completions.create(
             model=self.model,
@@ -180,14 +180,31 @@ def save_ai_config(
 
 
 def save_secret(root: str | Path | None, name: str, value: str) -> Path:
+    if not re.fullmatch(r"[A-Z][A-Z0-9_]*", name):
+        raise ValueError("Secret name must use uppercase letters, numbers, and underscores.")
+    if "\n" in value or "\r" in value:
+        raise ValueError("Secret values must be a single line.")
     path = dreamloop_dir(root) / "secrets.env"
     path.parent.mkdir(parents=True, exist_ok=True)
     secrets = read_secret_file(path)
     secrets[name] = value
-    path.write_text(
-        "\n".join(f"{key}={val}" for key, val in sorted(secrets.items())) + "\n",
-        encoding="utf-8",
-    )
+    content = "\n".join(f"{key}={val}" for key, val in sorted(secrets.items())) + "\n"
+    temporary_path: Path | None = None
+    try:
+        with NamedTemporaryFile(
+            "w",
+            encoding="utf-8",
+            dir=path.parent,
+            prefix=f".{path.name}.",
+            delete=False,
+        ) as temporary:
+            temporary.write(content)
+            temporary_path = Path(temporary.name)
+        os.chmod(temporary_path, 0o600)
+        temporary_path.replace(path)
+    finally:
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
     ensure_gitignore(root)
     return path
 
@@ -216,10 +233,6 @@ def ai_status(root: str | Path | None = None) -> AIStatus:
         warning = None if ready else "Custom provider needs both model and base URL."
         return AIStatus("custom", model, base_url, "custom", ready, warning)
     return AIStatus(provider, model, base_url, "unknown", False, f"Unknown AI provider: {provider}")
-
-
-def ai_is_configured(root: str | Path | None = None) -> bool:
-    return ai_status(root).ready
 
 
 def build_analyzer(root: str | Path | None = None) -> Analyzer | None:

@@ -167,7 +167,6 @@ The same FastAPI app exposes JSON endpoints for dreams, feedback, images, heatma
   config.json
   secrets.env
   assets/images/
-  chroma/
   exports/
   imports/
 ```
@@ -190,7 +189,7 @@ The source-based Docker demo builds locally today. Release images publish as `gh
 
 - Obsidian vault sync.
 - Obsidian community plugin.
-- ChromaDB-backed clustering.
+- Lightweight local clustering without a required vector database.
 - Backup and restore flows.
 
 ## Contributing

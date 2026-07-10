@@ -12,6 +12,7 @@ from dreamloop.core import DreamLoop
 from dreamloop.export_markdown import (
     default_markdown_export_dir,
     export_markdown,
+    render_frontmatter,
     render_dream_markdown,
 )
 
@@ -56,12 +57,12 @@ def test_export_markdown_writes_frontmatter_and_analysis_sections(tmp_path):
     assert index_file.exists()
     text = dream_file.read_text(encoding="utf-8")
     assert text.startswith("---\n")
-    assert "dreamed_on: 2026-06-24" in text
-    assert "source: dreamloop" in text
+    assert 'dreamed_on: "2026-06-24"' in text
+    assert 'source: "dreamloop"' in text
     assert "tags:" in text
-    assert "  - night" in text
+    assert '  - "night"' in text
     assert "themes:" in text
-    assert "  - threshold" in text
+    assert '  - "threshold"' in text
     assert "## Dream text" in text
     assert "I saw a moonlit door." in text
     assert "## Analysis summary" in text
@@ -78,10 +79,26 @@ def test_render_dream_markdown_handles_pending_dream_without_analysis(tmp_path):
 
     text = render_dream_markdown(dream, language="en")
 
-    assert "analysis_status: pending" in text
+    assert 'analysis_status: "pending"' in text
     assert "themes: []" in text
     assert "## Analysis summary" not in text
     assert "Pending dream only." in text
+
+
+def test_frontmatter_quotes_yaml_ambiguous_strings():
+    dream = {
+        "id": 1,
+        "dreamed_on": "2026-01-01",
+        "created_at": "2026-01-01T08:00:00",
+        "manual_mood": "null",
+        "analysis_status": "true",
+        "tags": ["true", "null", "123", "- item"],
+    }
+
+    text = render_frontmatter(dream, None, language="en")
+
+    for value in ("2026-01-01", "null", "true", "123", "- item"):
+        assert json.dumps(value) in text
 
 
 def test_cli_export_supports_json_and_markdown_formats(tmp_path, monkeypatch):

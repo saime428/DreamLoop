@@ -19,6 +19,7 @@ def test_project_has_pipx_ready_package_structure():
     assert (ROOT / "src" / "dreamloop" / "templates" / "detail.html").exists()
     assert (ROOT / "src" / "dreamloop" / "static" / "style.css").exists()
     assert pyproject["project"]["scripts"]["dreamloop"] == "dreamloop.cli:main"
+    assert "ai" not in pyproject["project"]["optional-dependencies"]
     assert callable(main)
 
 
@@ -35,6 +36,9 @@ def test_ci_installs_checks_console_script_and_package_metadata():
     workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
 
     assert "uv sync --extra dev" in workflow
+    assert "uv sync --extra dev --locked" in workflow
+    assert "uv lock --check" in workflow
+    assert "uv audit --frozen" in workflow
     assert "uv run dreamloop --help" in workflow
     assert "uv run --extra dev pytest" in workflow
     assert "uv build" in workflow
@@ -71,6 +75,7 @@ def test_docker_files_support_one_command_demo_without_uv_runtime():
     assert "pip install --no-cache-dir /app" in dockerfile
     assert "pip install uv" not in dockerfile
     assert "dreamloop demo --if-empty" in compose
+    assert '"127.0.0.1:8765:8765"' in compose
     assert "dreamloop web --host 0.0.0.0 --port 8765" in compose
     assert ".dreamloop/" in dockerignore
     assert ".git/" in dockerignore

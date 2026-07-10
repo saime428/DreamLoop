@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -23,11 +24,7 @@ def _yaml_scalar(value: Any) -> str:
         return "true" if value else "false"
     if isinstance(value, (int, float)):
         return str(value)
-    text = str(value)
-    if text == "" or any(char in text for char in ':\n"#[]{}&*!|>'):
-        escaped = text.replace("\\", "\\\\").replace('"', '\\"')
-        return f'"{escaped}"'
-    return text
+    return json.dumps(str(value), ensure_ascii=False)
 
 
 def _yaml_list_block(key: str, items: list[str]) -> list[str]:

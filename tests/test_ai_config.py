@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+import os
+import stat
+
+import pytest
+
 import dreamloop.analysis as analysis
 from dreamloop.analysis import (
     DeepSeekAnalyzer,
@@ -17,6 +22,13 @@ def test_local_secret_is_written_inside_ignored_dreamloop_dir(tmp_path):
     assert path == tmp_path / ".dreamloop" / "secrets.env"
     assert "DEEPSEEK_API_KEY=secret-value" in path.read_text(encoding="utf-8")
     assert ".dreamloop/" in (tmp_path / ".gitignore").read_text(encoding="utf-8")
+    if os.name != "nt":
+        assert stat.S_IMODE(path.stat().st_mode) == 0o600
+
+
+def test_secret_rejects_newline_injection(tmp_path):
+    with pytest.raises(ValueError, match="single line"):
+        save_secret(tmp_path, "CUSTOM_API_KEY", "safe\nOPENAI_API_KEY=overwritten")
 
 
 def test_deepseek_provider_uses_official_openai_compatible_defaults(tmp_path):

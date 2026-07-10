@@ -6,10 +6,11 @@ import math
 from datetime import date
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
 
 from fastapi import FastAPI, Form, HTTPException, Request, status
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -401,6 +402,24 @@ def _dream_url(dream_id: int, lang: str) -> str:
     return f"/dreams/{dream_id}?" + urlencode({"lang": _lang(lang)})
 
 
+def _origin_tuple(value: str) -> tuple[str, str, int] | None:
+    try:
+        parsed = urlsplit(value)
+        if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+            return None
+        port = parsed.port or (443 if parsed.scheme == "https" else 80)
+    except ValueError:
+        return None
+    return parsed.scheme, parsed.hostname.rstrip(".").lower(), port
+
+
+def _is_same_origin_write(request: Request) -> bool:
+    source = request.headers.get("origin") or request.headers.get("referer")
+    if not source:
+        return True
+    return _origin_tuple(source) == _origin_tuple(str(request.base_url))
+
+
 def _analyzer_override(app: FastAPI) -> Analyzer | None:
     analyzer = getattr(app.state, "analyzer", None)
     return analyzer if analyzer is not None else None
@@ -525,6 +544,20 @@ def _symbol_graph_svg(graph: dict[str, list[dict[str, Any]]]) -> str:
 
 def create_app(root: str | Path | None = None) -> FastAPI:
     app = FastAPI(title="DreamLoop", version="0.2.0")
+    app.add_middleware(
+        TrustedHostMiddleware,
+        allowed_hosts=["127.0.0.1", "localhost", "*.localhost", "[::1]", "testserver"],
+    )
+
+    @app.middleware("http")
+    async def reject_cross_origin_writes(request: Request, call_next: Any) -> Any:
+        if request.method not in {"GET", "HEAD", "OPTIONS"} and not _is_same_origin_write(request):
+            return JSONResponse(
+                {"detail": "Cross-origin write requests are not allowed."},
+                status_code=status.HTTP_403_FORBIDDEN,
+            )
+        return await call_next(request)
+
     loop = DreamLoop(root)
     loop.init()
     app.state.loop = loop
@@ -937,9 +970,9 @@ def create_app(root: str | Path | None = None) -> FastAPI:
         }
 
     @app.get("/api/dreams/{dream_id}/similar")
-    def api_similar_dreams(dream_id: int) -> list[dict[str, Any]]:
+    def api_similar_dreams(dream_id: int, lang: str = "en") -> list[dict[str, Any]]:
         try:
-            return loop.similar_dreams(dream_id)
+            return loop.similar_dreams(dream_id, language=_lang(lang))
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="Dream not found") from exc
 

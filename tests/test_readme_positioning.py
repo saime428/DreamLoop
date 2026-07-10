@@ -101,7 +101,7 @@ def test_dashboard_css_has_subtle_transitions_and_reduced_motion():
     assert "@keyframes page-soft-enter" in css
     assert "prefers-reduced-motion: reduce" in css
     assert ".dashboard-hero h2" in css
-    assert "clamp(20px, 2vw, 28px)" in css
+    assert "clamp(28px, 2.3vw, 34px)" in css
 
 
 def test_page_background_layer_sits_behind_content_but_above_page_floor():
@@ -114,14 +114,14 @@ def test_page_background_layer_sits_behind_content_but_above_page_floor():
     assert "--page-bg-opacity: 1" in css
 
 
-def test_dashboard_css_uses_bedside_amber_tokens_without_remote_fonts():
+def test_dashboard_css_uses_reference_violet_tokens_without_remote_fonts():
     css = Path("src/dreamloop/static/style.css").read_text(encoding="utf-8")
 
-    assert "--ink: #1a1714" in css
-    assert "--paper: #2a2520" in css
-    assert "--amber: #d4a574" in css
-    assert "--sage: #8ba87a" in css
-    assert "--rust: #c47a5a" in css
+    assert "--ink: #080711" in css
+    assert "--paper: #110e24" in css
+    assert "--amber: #e2c181" in css
+    assert "--sage: #a7d18d" in css
+    assert "--rust: #d07d7d" in css
     assert "fonts.googleapis" not in css
     assert "@import url(" not in css
     assert "--violet" not in css
@@ -141,3 +141,23 @@ def test_frontend_removes_neon_starfield_treatment():
     assert "#8e63ff" not in css
     assert "#52e7d2" not in css
     assert "#ff6ba8" not in css
+
+
+def test_frontend_prioritizes_capture_and_bundles_chinese_fonts():
+    css = Path("src/dreamloop/static/style.css").read_text(encoding="utf-8")
+    index = Path("src/dreamloop/templates/index.html").read_text(encoding="utf-8")
+    detail = Path("src/dreamloop/templates/detail.html").read_text(encoding="utf-8")
+    font_dir = Path("src/dreamloop/static/fonts/noto")
+
+    assert index.index("data-loading-button") < index.index('class="reflection-disclosure"')
+    assert "autofocus" not in index
+    assert 'aria-current="page"' in index
+    assert 'aria-current="page"' in detail
+    assert 'font-family: "Noto Sans SC"' in css
+    assert 'font-family: "Noto Serif SC"' in css
+    assert "grid-template-columns: minmax(0, 1fr) 280px" in css
+    assert (font_dir / "NotoSansSC-DreamLoop.woff2").stat().st_size > 100_000
+    assert (font_dir / "NotoSerifSC-DreamLoop.woff2").stat().st_size > 100_000
+    assert (font_dir / "OFL.txt").exists()
+    assert not Path("src/dreamloop/static/fonts/aptos").exists()
+    assert Path("src/dreamloop/static/fonts/cascadia/OFL.txt").exists()

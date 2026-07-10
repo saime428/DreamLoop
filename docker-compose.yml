@@ -3,7 +3,7 @@ services:
     build: .
     image: dreamloop:local
     ports:
-      - "8765:8765"
+      - "127.0.0.1:8765:8765"
     environment:
       DREAMLOOP_DEMO_LANGUAGE: en
     command: >

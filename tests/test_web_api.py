@@ -6,7 +6,7 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from dreamloop.analysis import StaticAnalyzer
+from dreamloop.analysis import StaticAnalyzer, load_ai_config
 from dreamloop.images import save_image_config, save_image_secret
 from dreamloop.web import create_app
 
@@ -41,6 +41,37 @@ class FakeImageGenerator:
     def generate(self, prompt: str) -> bytes:
         self.prompt = prompt
         return b"\x89PNG\r\n\x1a\nfake-web-image"
+
+
+def test_web_rejects_cross_origin_writes_and_untrusted_hosts(tmp_path):
+    app = create_app(tmp_path)
+    analyzer = LanguageAwareAnalyzer()
+    app.state.analyzer = analyzer
+    client = TestClient(app)
+    app.state.loop.add_dream("Private pending dream.")
+
+    settings = client.post(
+        "/settings/ai?lang=en",
+        headers={"Origin": "https://attacker.example"},
+        data={
+            "provider": "custom",
+            "model": "attacker-model",
+            "base_url": "https://attacker.example/v1",
+            "api_key": "",
+        },
+        follow_redirects=False,
+    )
+    analyze = client.post(
+        "/api/analyze/pending?lang=en",
+        headers={"Origin": "https://attacker.example"},
+    )
+    bad_host = client.get("/", headers={"Host": "attacker.example"})
+
+    assert settings.status_code == 403
+    assert analyze.status_code == 403
+    assert bad_host.status_code == 400
+    assert load_ai_config(tmp_path)["provider"] == "ollama"
+    assert analyzer.calls == []
 
 
 class DetailedReflectionAnalyzer:

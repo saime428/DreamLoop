@@ -4,6 +4,7 @@ import json
 import sqlite3
 import re
 from collections import Counter
+from contextlib import AbstractContextManager
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Callable
@@ -37,7 +38,7 @@ class DreamLoop:
 
     def init(self) -> None:
         self.data_dir.mkdir(parents=True, exist_ok=True)
-        for name in ("chroma", "exports", "imports"):
+        for name in ("exports", "imports"):
             (self.data_dir / name).mkdir(parents=True, exist_ok=True)
         self.images_dir.mkdir(parents=True, exist_ok=True)
         ensure_gitignore(self.root)
@@ -183,36 +184,48 @@ class DreamLoop:
         language: str = "en",
     ) -> list[int]:
         self.init()
+        language = normalize_language(language)
         if analyzer is None:
             analyzer = build_analyzer(self.root)
             if analyzer is None:
                 return []
 
-        sql = "SELECT * FROM dreams WHERE analysis_status = 'pending' ORDER BY id"
-        params: tuple[Any, ...] = ()
+        if limit is not None and limit < 0:
+            raise ValueError("Analysis limit cannot be negative.")
+        sql = """
+            SELECT dreams.* FROM dreams
+            WHERE NOT EXISTS (
+                SELECT 1 FROM dream_analyses
+                WHERE dream_analyses.dream_id = dreams.id
+                  AND dream_analyses.language = ?
+            )
+            ORDER BY dreams.id
+        """
+        params: list[Any] = [language]
         if limit is not None:
             sql += " LIMIT ?"
-            params = (limit,)
+            params.append(limit)
 
-        analyzed: list[int] = []
         with self._connect() as db:
             rows = db.execute(sql, params).fetchall()
-            for row in rows:
-                self._write_analysis(
-                    db,
-                    int(row["id"]),
-                    row["content"],
-                    analyzer,
-                    language,
-                    row["reflection_json"],
-                )
-                analyzed.append(int(row["id"]))
+
+        analyzed: list[int] = []
+        for row in rows:
+            reflections = parse_json_object(row["reflection_json"])
+            normalized = normalize_analysis(
+                call_analyzer(analyzer, row["content"], language, reflections)
+            )
+            dream_id = int(row["id"])
+            with self._connect() as db:
+                self._store_analysis(db, dream_id, normalized, language)
+            analyzed.append(dream_id)
         return analyzed
 
     def analyze_dream(
         self, dream_id: int, analyzer: Analyzer | None = None, *, language: str = "en"
     ) -> int:
         self.init()
+        language = normalize_language(language)
         if analyzer is None:
             analyzer = build_analyzer(self.root)
             if analyzer is None:
@@ -224,19 +237,41 @@ class DreamLoop:
             ).fetchone()
             if row is None:
                 raise KeyError(f"Dream {dream_id} was not found.")
-            self._write_analysis(
-                db, dream_id, row["content"], analyzer, language, row["reflection_json"]
-            )
+        reflections = parse_json_object(row["reflection_json"])
+        normalized = normalize_analysis(
+            call_analyzer(analyzer, row["content"], language, reflections)
+        )
+        with self._connect() as db:
+            self._store_analysis(db, dream_id, normalized, language)
         return dream_id
 
     def delete_dream(self, dream_id: int) -> bool:
         self.init()
         with self._connect() as db:
+            image_rows = db.execute(
+                "SELECT image_path FROM dream_images WHERE dream_id = ? AND image_path != ''",
+                (dream_id,),
+            ).fetchall()
             db.execute("DELETE FROM user_feedback WHERE dream_id = ?", (dream_id,))
             db.execute("DELETE FROM dream_images WHERE dream_id = ?", (dream_id,))
             db.execute("DELETE FROM dream_analyses WHERE dream_id = ?", (dream_id,))
             cursor = db.execute("DELETE FROM dreams WHERE id = ?", (dream_id,))
-            return cursor.rowcount > 0
+            deleted = cursor.rowcount > 0
+
+        if deleted:
+            image_root = self.images_dir.resolve()
+            failures: list[str] = []
+            for row in image_rows:
+                image_path = (self.data_dir / row["image_path"]).resolve()
+                if not image_path.is_relative_to(image_root):
+                    continue
+                try:
+                    image_path.unlink(missing_ok=True)
+                except OSError as exc:
+                    failures.append(f"{image_path}: {exc}")
+            if failures:
+                raise RuntimeError("Dream deleted, but image cleanup failed: " + "; ".join(failures))
+        return deleted
 
     def add_feedback(
         self,
@@ -450,6 +485,11 @@ class DreamLoop:
         events = parse_ics(resolved.read_text(encoding="utf-8"))
         with self._connect() as db:
             for event in events:
+                if event.get("uid"):
+                    db.execute(
+                        "DELETE FROM calendar_events WHERE uid = ? AND starts_on = ?",
+                        (event["uid"], event["starts_on"]),
+                    )
                 db.execute(
                     """
                     INSERT INTO calendar_events (uid, starts_on, ends_on, summary, raw_json)
@@ -543,10 +583,13 @@ class DreamLoop:
             "weather": dict(weather) if weather else None,
         }
 
-    def similar_dreams(self, dream_id: int, limit: int = 5) -> list[dict[str, Any]]:
-        target = self.get_dream(dream_id)
+    def similar_dreams(
+        self, dream_id: int, limit: int = 5, *, language: str = "en"
+    ) -> list[dict[str, Any]]:
+        language = normalize_language(language)
+        target = self.get_dream(dream_id, language=language)
         matches: list[dict[str, Any]] = []
-        for dream in self.list_dreams():
+        for dream in self.list_dreams_with_analysis(language=language):
             if dream["id"] == dream_id:
                 continue
             score = dream_similarity(target, dream)
@@ -580,23 +623,8 @@ class DreamLoop:
     def symbol_graph(self, language: str = "en") -> dict[str, list[dict[str, Any]]]:
         return self.symbol_graph_from_dreams(self.list_dreams_with_analysis(language=language))
 
-    def _connect(self) -> sqlite3.Connection:
+    def _connect(self) -> AbstractContextManager[sqlite3.Connection]:
         return connect(self.db_path)
-
-    def _write_analysis(
-        self,
-        db: sqlite3.Connection,
-        dream_id: int,
-        content: str,
-        analyzer: Analyzer,
-        language: str,
-        reflection_json: str | None = None,
-    ) -> None:
-        reflections = parse_json_object(reflection_json)
-        normalized = normalize_analysis(
-            call_analyzer(analyzer, content, normalize_language(language), reflections)
-        )
-        self._store_analysis(db, dream_id, normalized, language)
 
     def _store_analysis(
         self,
@@ -740,16 +768,22 @@ def call_analyzer(
 def dream_terms(dream: dict[str, Any]) -> set[str]:
     stopwords = {"the", "was", "were", "and", "with", "through", "around"}
     terms = set(dream.get("tags", []))
+    content = dream.get("content", "").lower()
     terms.update(
         term
-        for term in re.findall(r"[a-zA-Z]{3,}", dream.get("content", "").lower())
+        for term in re.findall(r"[a-zA-Z]{3,}", content)
         if term not in stopwords
     )
+    for sequence in re.findall(r"[\u4e00-\u9fff]+", content):
+        if len(sequence) == 1:
+            terms.add(sequence)
+        else:
+            terms.update(sequence[index : index + 2] for index in range(len(sequence) - 1))
     analysis = dream.get("analysis")
     if analysis:
         terms.update(analysis.get("symbols", []))
         terms.update(analysis.get("themes", []))
-    return {term.lower() for term in terms}
+    return {str(term).lower() for term in terms if is_meaningful_term(term)}
 
 
 def dream_similarity(target: dict[str, Any], candidate: dict[str, Any]) -> float:

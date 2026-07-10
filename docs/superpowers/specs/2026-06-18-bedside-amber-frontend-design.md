@@ -95,7 +95,7 @@ Do not load Google Fonts by default.
 Use system-first stacks:
 
 - Display: Georgia, Times New Roman, or another local serif fallback.
-- Body: Aptos, Segoe UI, system sans-serif.
+- Body: Noto Sans SC, Segoe UI, system sans-serif.
 - Mono: Cascadia Mono, JetBrains Mono, Consolas, monospace.
 
 Lower the display weight where possible so titles feel less poster-like.

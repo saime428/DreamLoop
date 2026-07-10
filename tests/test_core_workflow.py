@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 from datetime import date
+
+import pytest
 
 from dreamloop.analysis import StaticAnalyzer
 from dreamloop.analysis import normalize_analysis
 from dreamloop.analysis import REFLECTION_LABELS
 from dreamloop.core import DreamLoop
+from dreamloop.database import connect
 from dreamloop.images import image_status, save_image_config, save_image_secret
 
 
@@ -122,10 +126,17 @@ def test_init_creates_local_store_and_gitignore(tmp_path):
 
     assert (tmp_path / ".dreamloop").is_dir()
     assert (tmp_path / ".dreamloop" / "dreamloop.sqlite3").exists()
-    assert (tmp_path / ".dreamloop" / "chroma").is_dir()
     assert (tmp_path / ".dreamloop" / "exports").is_dir()
     assert (tmp_path / ".dreamloop" / "imports").is_dir()
     assert ".dreamloop/" in (tmp_path / ".gitignore").read_text(encoding="utf-8")
+
+
+def test_database_context_closes_connection(tmp_path):
+    with connect(tmp_path / "close-check.sqlite3") as db:
+        db.execute("CREATE TABLE sample (id INTEGER PRIMARY KEY)")
+
+    with pytest.raises(sqlite3.ProgrammingError, match="closed"):
+        db.execute("SELECT 1")
 
 
 def test_add_dream_is_fast_local_and_pending(tmp_path):
@@ -191,6 +202,41 @@ def test_analyze_pending_writes_structured_result(tmp_path):
     assert dream["analysis"]["emotional_tone"] == "anxious"
     assert dream["analysis"]["symbols"] == ["water", "chase"]
     assert json.loads(dream["analysis"]["raw_json"])["themes"] == ["escape"]
+
+
+def test_analyze_pending_is_language_specific(tmp_path):
+    loop = DreamLoop(tmp_path)
+    dream_id = loop.add_dream("I crossed a moonlit station.")
+    analyzer = LanguageAnalyzer()
+
+    loop.analyze_dream(dream_id, analyzer, language="en")
+    analyzed = loop.analyze_pending(analyzer, language="zh")
+
+    assert analyzed == [dream_id]
+    assert loop.get_dream(dream_id, language="zh")["analysis"]["summary"] == "一场关于月光下抵达的梦。"
+
+
+def test_analyze_pending_does_not_hold_database_lock_during_provider_call(tmp_path):
+    loop = DreamLoop(tmp_path)
+    first_id = loop.add_dream("First pending dream.")
+    second_id = loop.add_dream("Second pending dream.")
+
+    class WritingAnalyzer:
+        calls = 0
+
+        def analyze(self, content: str, language: str = "en") -> dict[str, object]:
+            self.calls += 1
+            if self.calls == 2:
+                loop.add_dream("Write performed during provider call.")
+            return {
+                "emotional_tone": "calm",
+                "symbols": [],
+                "themes": [],
+                "summary": "ok",
+                "confidence": 1,
+            }
+
+    assert loop.analyze_pending(WritingAnalyzer()) == [first_id, second_id]
 
 
 def test_analyze_dream_writes_only_requested_dream(tmp_path):
@@ -345,6 +391,7 @@ def test_import_ics_and_weather_feed_heatmap_context(tmp_path):
     )
 
     imported = loop.import_ics(ics)
+    reimported = loop.import_ics(ics)
     weather = loop.sync_weather(
         31.2304,
         121.4737,
@@ -363,11 +410,13 @@ def test_import_ics_and_weather_feed_heatmap_context(tmp_path):
     context = loop.day_context(date(2026, 6, 10))
 
     assert imported == 1
+    assert reimported == 1
     assert weather == 1
     assert heatmap[0]["date"] == "2026-06-10"
     assert heatmap[0]["count"] == 1
     assert heatmap[0]["moods"] == {"calm": 1}
     assert context["events"][0]["summary"] == "Therapy session"
+    assert len(context["events"]) == 1
     assert context["weather"]["precipitation_sum"] == 4.2
 
 
@@ -389,7 +438,6 @@ def test_import_ics_rejects_path_outside_data_dir(tmp_path):
         ),
         encoding="utf-8",
     )
-    import pytest
     with pytest.raises(ValueError, match="must be under"):
         loop.import_ics(outside_file)
 
@@ -418,6 +466,18 @@ def test_pattern_tracking_finds_similar_dreams_and_symbol_trends(tmp_path):
     assert similar[0]["id"] == second
     assert similar[0]["score"] > 0
     assert trends["symbols"][0] == {"name": "water", "count": 3}
+
+
+def test_similar_dreams_supports_chinese_content(tmp_path):
+    loop = DreamLoop(tmp_path)
+    first = loop.add_dream("我在安静的车站等待最后一班列车。")
+    second = loop.add_dream("我又回到同一个车站寻找那班列车。")
+    loop.add_dream("我在海边看见一座白色灯塔。")
+
+    similar = loop.similar_dreams(first, language="zh")
+
+    assert similar[0]["id"] == second
+    assert similar[0]["score"] > 0
 
 
 def test_trends_filter_placeholder_terms_and_delete_dream(tmp_path):
@@ -802,12 +862,14 @@ def test_delete_dream_removes_image_records(tmp_path):
     loop.init()
     save_image_config(tmp_path, provider="local_comfyui", model="dream-model", base_url="http://127.0.0.1:8188")
     dream_id = loop.add_dream("A red tower grew from a lake.")
-    loop.generate_dream_image(dream_id, generator=FakeImageGenerator())
+    image = loop.generate_dream_image(dream_id, generator=FakeImageGenerator())
+    image_path = loop.data_dir / image["image_path"]
 
     assert loop.delete_dream(dream_id) is True
     with loop._connect() as db:
         rows = db.execute("SELECT * FROM dream_images WHERE dream_id = ?", (dream_id,)).fetchall()
     assert rows == []
+    assert not image_path.exists()
 
 
 def test_failed_image_retry_does_not_hide_existing_complete_image(tmp_path):

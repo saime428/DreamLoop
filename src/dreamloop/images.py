@@ -136,8 +136,6 @@ def build_image_generator(root: str | Path | None = None) -> ImageGenerator | No
             model=status.model or "",
             api_key=secrets[IMAGE_SECRET_NAME],
         )
-    if status.provider == "local_comfyui":
-        return ComfyUIImageGenerator(base_url=status.base_url or DEFAULT_COMFYUI_BASE_URL, model=status.model or "")
     return None
 
 
@@ -165,18 +163,6 @@ class OpenAICompatibleImageGenerator:
             image_response.raise_for_status()
             return image_response.content
         raise RuntimeError("Image provider returned no image data.")
-
-
-@dataclass(frozen=True)
-class ComfyUIImageGenerator:
-    base_url: str = DEFAULT_COMFYUI_BASE_URL
-    model: str = ""
-    provider: str = "local_comfyui"
-
-    def generate(self, prompt: str) -> bytes:
-        raise RuntimeError(
-            "ComfyUI is configured, but DreamLoop v0.1.2 needs a ComfyUI workflow before it can submit prompts."
-        )
 
 
 def default_image_config(provider: str) -> dict[str, str]:

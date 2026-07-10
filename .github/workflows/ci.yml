@@ -24,7 +24,12 @@ jobs:
           python-version: "3.11"
 
       - name: Install dependencies
-        run: uv sync --extra dev
+        run: uv sync --extra dev --locked
+
+      - name: Verify lockfile and dependencies
+        run: |
+          uv lock --check
+          uv audit --frozen
 
       - name: Verify console script
         run: uv run dreamloop --help

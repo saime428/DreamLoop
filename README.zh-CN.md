@@ -165,7 +165,6 @@ Dashboard -> Log -> Detail -> Patterns -> Gallery -> Settings。
   config.json
   secrets.env
   assets/images/
-  chroma/
   exports/
   imports/
 ```
@@ -188,7 +187,7 @@ DreamLoop v0.2 新增：
 
 - Obsidian vault 同步。
 - Obsidian community plugin。
-- ChromaDB 聚类。
+- 不依赖向量数据库的轻量本地聚类。
 - 备份和恢复流程。
 
 ## 贡献

@@ -120,7 +120,7 @@ Use these values:
   --line-strong: rgba(212, 165, 116, 0.3);
   --shadow: rgba(40, 30, 20, 0.5);
   --font-display: Georgia, "Times New Roman", serif;
-  --font-body: "Aptos", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Noto Sans SC", "Segoe UI", system-ui, sans-serif;
   --font-mono: "Cascadia Mono", "JetBrains Mono", Consolas, monospace;
 }
 ```

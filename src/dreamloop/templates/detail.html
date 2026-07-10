@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Dream #{{ dream.id }} / DreamLoop</title>
-    <link rel="stylesheet" href="{{ url_for('static', path='/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='/style.css') }}?v=20260710c">
   </head>
   <body>
     <div class="app-frame detail-frame">
@@ -15,7 +15,7 @@
         </a>
         <nav class="side-nav">
           <a href="/?lang={{ lang }}">{{ t.nav_dashboard }}</a>
-          <a href="/log?lang={{ lang }}" class="active">{{ t.nav_log }}</a>
+          <a href="/log?lang={{ lang }}" class="active" aria-current="page">{{ t.nav_log }}</a>
           <a href="/patterns?lang={{ lang }}">{{ t.nav_patterns }}</a>
           <a href="/gallery?lang={{ lang }}">{{ t.nav_gallery }}</a>
           <a href="/settings?lang={{ lang }}">{{ t.nav_settings }}</a>
@@ -29,33 +29,41 @@
       <main class="dashboard detail-dashboard page-detail">
         <a class="back-link" href="/?lang={{ lang }}">{{ t.back_dashboard }}</a>
 
-        <article class="detail-hero constellation-sky">
-          <p class="eyebrow">{{ dream.dreamed_on }} / {{ dream.analysis_status }}</p>
-          <h1>Dream #{{ dream.id }}</h1>
-          <p class="dream-text">{{ dream.content }}</p>
-          <div class="tag-shelf">
-            <span>{{ dream.manual_mood or t.no_mood }}</span>
-            {% for tag in dream.tags %}
-              <span>{{ tag }}</span>
-            {% else %}
-              <span>{{ t.no_tags }}</span>
-            {% endfor %}
+        <article class="detail-hero constellation-sky{% if not dream.visual_memory and not (dream.image and dream.image.status == 'complete') %} detail-hero-single{% endif %}">
+          <div class="detail-hero-copy">
+            <p class="eyebrow">{{ dream.dreamed_on }} / {{ dream.analysis_status }}</p>
+            <h1>Dream #{{ dream.id }}</h1>
+            <p class="dream-text">{{ dream.content }}</p>
+            <div class="tag-shelf">
+              <span>{{ dream.manual_mood or t.no_mood }}</span>
+              {% for tag in dream.tags %}
+                <span>{{ tag }}</span>
+              {% else %}
+                <span>{{ t.no_tags }}</span>
+              {% endfor %}
+            </div>
+            <a class="analysis-jump" href="#analysis">{{ t.ai_analysis }}</a>
           </div>
-          {% if dream.image and dream.image.status == "complete" %}
-            <section class="local-visual-card dream-image-card">
+
+          {% if (dream.image and dream.image.status == "complete") or dream.visual_memory %}
+          <div class="detail-visual">
+            {% if dream.image and dream.image.status == "complete" %}
+            <section class="local-visual-card dream-image-card detail-visual-card">
               <img class="dream-image" src="{{ dream.image.image_url }}" alt="{{ t.dream_image_title }}">
               <span>{{ t.dream_image_title }}</span>
               <strong>{{ dream.image.provider }}</strong>
               <small>{{ dream.image.created_at }}</small>
             </section>
-          {% endif %}
-          {% if dream.visual_memory %}
-            <section class="local-visual-card" style="--visual-a: {{ dream.visual_memory.accent_1 }}; --visual-b: {{ dream.visual_memory.accent_2 }}; --visual-c: {{ dream.visual_memory.accent_3 }};">
+            {% elif dream.visual_memory %}
+            <section class="local-visual-card detail-visual-card" style="--visual-a: {{ dream.visual_memory.accent_1 }}; --visual-b: {{ dream.visual_memory.accent_2 }}; --visual-c: {{ dream.visual_memory.accent_3 }};">
               <span>{{ t.visual_memory_title }}</span>
               <strong>{{ dream.visual_memory.title }}</strong>
               <small>{{ ", ".join(dream.visual_memory.symbols) or dream.dreamed_on }}</small>
             </section>
+            {% endif %}
+          </div>
           {% endif %}
+
           <div class="visual-memory-action">
             <form method="post" action="/dreams/{{ dream.id }}/visual?lang={{ lang }}">
               <button type="submit" class="secondary-button">{{ t.regenerate_visual_memory if dream.visual_memory else t.generate_local_card }}</button>
