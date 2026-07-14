@@ -43,6 +43,14 @@ INTERPRETATION_FIELDS = {
 }
 
 
+class AnalysisLanguageMismatch(ValueError):
+    pass
+
+
+class AnalysisIncomplete(ValueError):
+    pass
+
+
 class Analyzer(Protocol):
     def analyze(
         self,
@@ -90,6 +98,38 @@ class OpenAICompatibleAnalyzer:
         language: str = "en",
         reflections: dict[str, str] | None = None,
     ) -> dict[str, Any]:
+        if language not in {"en", "zh"}:
+            raise ValueError(f"Unsupported analysis language: {language}")
+        messages = [
+            {
+                "role": "system",
+                "content": analysis_system_prompt(language),
+            },
+            {
+                "role": "user",
+                "content": build_analysis_user_payload(
+                    content,
+                    reflections or {},
+                    language=language,
+                ),
+            },
+        ]
+        result = self._request(messages)
+        try:
+            require_analysis_language(result, language)
+        except AnalysisLanguageMismatch:
+            correction = (
+                "Correction: write every human-readable field value in English."
+                if language == "en"
+                else "请纠正：所有供人阅读的字段值都必须使用简体中文。"
+            )
+            retry_messages = [dict(message) for message in messages]
+            retry_messages[0]["content"] = f"{retry_messages[0]['content']} {correction}"
+            result = self._request(retry_messages)
+            require_analysis_language(result, language)
+        return result
+
+    def _request(self, messages: list[dict[str, str]]) -> dict[str, Any]:
         try:
             from openai import OpenAI
         except ImportError as exc:
@@ -98,17 +138,14 @@ class OpenAICompatibleAnalyzer:
         client = OpenAI(api_key=self.api_key, base_url=self.base_url)
         response = client.chat.completions.create(
             model=self.model,
-            messages=[
-                {
-                    "role": "system",
-                    "content": analysis_system_prompt(language),
-                },
-                {"role": "user", "content": build_analysis_user_payload(content, reflections or {})},
-            ],
+            messages=messages,
             response_format=self.response_format,
         )
         text = response.choices[0].message.content or "{}"
-        return json.loads(text)
+        payload = json.loads(text)
+        if not isinstance(payload, dict):
+            raise AnalysisIncomplete("Analysis response must be a JSON object.")
+        return payload
 
 
 class DeepSeekAnalyzer(OpenAICompatibleAnalyzer):
@@ -475,31 +512,93 @@ def normalize_report_payload(result: dict[str, Any]) -> dict[str, Any]:
     return report
 
 
-def build_analysis_user_payload(content: str, reflections: dict[str, Any] | None = None) -> str:
+def detect_analysis_language(payload: dict[str, Any]) -> str:
+    values: list[str] = []
+
+    def collect(value: Any) -> None:
+        if isinstance(value, str):
+            values.append(value)
+            return
+        if isinstance(value, dict):
+            for key, item in value.items():
+                if key != "raw_json":
+                    collect(item)
+            return
+        if isinstance(value, (list, tuple, set)):
+            for item in value:
+                collect(item)
+
+    collect(payload)
+    text = "".join(values)
+    cjk_count = len(re.findall(r"[\u3400-\u4dbf\u4e00-\u9fff]", text))
+    latin_count = len(re.findall(r"[A-Za-z]", text))
+    if cjk_count >= 8 and cjk_count > latin_count:
+        return "zh"
+    if latin_count >= 20 and latin_count >= 2 * cjk_count:
+        return "en"
+    return "unknown"
+
+
+def require_analysis_language(payload: dict[str, Any], language: str) -> None:
+    if language not in {"en", "zh"}:
+        raise ValueError(f"Unsupported analysis language: {language}")
+    if not isinstance(payload, dict):
+        raise AnalysisIncomplete("Analysis response must be a JSON object.")
+    detected = detect_analysis_language(payload)
+    if detected == "unknown":
+        raise AnalysisIncomplete("Analysis output is too incomplete to verify its language.")
+    if detected != language:
+        raise AnalysisLanguageMismatch(
+            f"Analysis output language is {detected}, not requested {language}."
+        )
+
+
+def build_analysis_user_payload(
+    content: str,
+    reflections: dict[str, Any] | None = None,
+    *,
+    language: str = "en",
+) -> str:
     cleaned = clean_reflections(reflections)
-    lines = ["梦境内容 / Dream content:", content.strip()]
+    if language == "zh":
+        content_heading = "梦境内容："
+        context_heading = "用户可选补充："
+    else:
+        content_heading = "Dream content:"
+        context_heading = "Optional dreamer context:"
+    lines = [content_heading, content.strip()]
     if cleaned:
         lines.append("")
-        lines.append("用户可选补充 / Optional dreamer context:")
+        lines.append(context_heading)
         for key, value in cleaned.items():
             lines.append(f"{key}: {value}")
     return "\n".join(lines)
 
 
 def analysis_system_prompt(language: str = "en") -> str:
-    output_language = "Simplified Chinese" if language == "zh" else "English"
-    length_hint = "800-1500 Chinese characters" if language == "zh" else "900-1600 English words"
-    zh_requirements = (
-        "不要把梦说死。不要用玄学断言。必须回到梦境具体细节，重视情绪多于物品符号，"
-        "并联系用户提供的现实处境。至少 2 个 possible_interpretations。"
-    )
+    if language == "zh":
+        return (
+            "你是 DreamLoop 的梦境分析引擎。只返回有效 JSON，并保持所有 JSON 键为英文。"
+            "所有供人阅读的字段值必须使用简体中文，写成约 800-1500 个汉字的细致、贴近现实的报告。"
+            "输入梦境可能使用另一种语言；无论输入语言是什么，输出字段值都必须使用简体中文。"
+            "不要把梦说死，不要用玄学断言。必须回到梦境具体细节，重视情绪多于物品符号，"
+            "并联系用户提供的现实处境。分析必须针对这段梦境，而不是套用通用模板。"
+            "提供多个可以由梦者自行验证的假设，不要宣称确定性、诊断、预测未来，或说一个梦能证明什么。"
+            "返回这些英文键：analysis_version, emotional_tone, symbols, themes, summary, confidence, "
+            "dream_details, core_emotion, waking_feeling, important_elements, real_life_links, "
+            "personal_associations, possible_interpretations, real_life_questions, verification_prompts。"
+            "possible_interpretations 至少 2 个对象，每个对象使用 title, interpretation, "
+            "dream_evidence, real_life_connection, verification_question 这些英文键。"
+            "real_life_questions 应聚焦这个梦可能帮助用户注意到的现实问题。"
+        )
     return (
         "You are DreamLoop's dream analysis engine. Return only valid JSON. "
-        "Keep JSON keys in English and write all field values in "
-        f"{output_language}. Produce a detailed, reality-grounded report of about {length_hint}. "
-        f"{zh_requirements} "
+        "Keep all JSON keys in English and write every human-readable field value in English. "
+        "Produce a detailed, reality-grounded report of about 900-1600 English words. "
+        "The source dream may be written in another language; preserve its meaning, but keep all output values in English. "
+        "Do not present one fixed meaning or make mystical claims. Ground the analysis in concrete dream details, "
+        "prioritize emotions over object symbolism, and connect it to context supplied by the dreamer. "
         "The analysis must be specific to the dream text, not a generic template. "
-        "Prefer emotional dynamics and recent life context over mystical symbolism. "
         "Offer multiple hypotheses and make each one verifiable by the dreamer. "
         "Never claim certainty, diagnose, predict the future, or say one dream proves something. "
         "Return this schema: analysis_version, emotional_tone, symbols, themes, summary, confidence, "

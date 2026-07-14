@@ -13,11 +13,13 @@ from .analysis import (
     Analyzer,
     build_analyzer,
     clean_reflections,
+    detect_analysis_language,
     ensure_gitignore,
     is_meaningful_term,
     normalize_analysis,
     normalize_report_payload,
     normalize_text_list,
+    require_analysis_language,
 )
 from .database import connect, migrate
 from .demo_data import demo_samples, visual_palette
@@ -27,6 +29,10 @@ from .images import ImageGenerator, build_image_generator, image_status
 from .visuals import build_dream_image_prompt, image_from_row, normalize_visual_memory
 
 FEEDBACK_RATINGS = {"resonates", "not_accurate", "unsure"}
+
+
+class AnalysisUnavailableError(RuntimeError):
+    pass
 
 
 class DreamLoop:
@@ -145,13 +151,33 @@ class DreamLoop:
         for row in dream_rows:
             dream = self._dream_from_row(row)
             dream_id = int(dream["id"])
-            dream["analysis"] = analysis_from_row(analyses.get(dream_id))
+            candidate = analysis_from_row(analyses.get(dream_id))
+            dream["analysis"] = candidate if candidate and candidate["language_valid"] else None
+            dream["invalid_analysis"] = (
+                candidate if candidate and not candidate["language_valid"] else None
+            )
+            dream["requested_analysis_language"] = language
+            dream["displayed_analysis_language"] = (
+                language if dream["analysis"] else None
+            )
+            dream["analysis_is_fallback"] = False
+            dream["analysis_language_mismatch"] = bool(
+                candidate and candidate["language_mismatch"]
+            )
+            dream["analysis_actions_enabled"] = bool(dream["analysis"])
             dream["image"] = image_from_row(images.get(dream_id))
             dreams.append(dream)
         return dreams
 
-    def get_dream(self, dream_id: int, language: str = "en") -> dict[str, Any]:
+    def get_dream(
+        self,
+        dream_id: int,
+        language: str = "en",
+        *,
+        allow_analysis_fallback: bool = False,
+    ) -> dict[str, Any]:
         self.init()
+        language = normalize_language(language)
         with self._connect() as db:
             row = db.execute(
                 "SELECT * FROM dreams WHERE id = ?", (dream_id,)
@@ -159,10 +185,40 @@ class DreamLoop:
             if row is None:
                 raise KeyError(f"Dream {dream_id} was not found.")
             dream = self._dream_from_row(row)
-            analysis = db.execute(
-                "SELECT * FROM dream_analyses WHERE dream_id = ? AND language = ?",
-                (dream_id, normalize_language(language)),
-            ).fetchone()
+            if allow_analysis_fallback:
+                analysis_rows = db.execute(
+                    "SELECT * FROM dream_analyses WHERE dream_id = ? AND language IN ('en', 'zh')",
+                    (dream_id,),
+                ).fetchall()
+            else:
+                analysis_rows = db.execute(
+                    "SELECT * FROM dream_analyses WHERE dream_id = ? AND language = ?",
+                    (dream_id, language),
+                ).fetchall()
+
+            candidates = {
+                str(analysis_row["language"]): analysis_from_row(analysis_row)
+                for analysis_row in analysis_rows
+            }
+            requested = candidates.get(language)
+            other_language = "zh" if language == "en" else "en"
+            other = candidates.get(other_language)
+            selected = requested if requested and requested["language_valid"] else None
+            is_fallback = False
+            if selected is None and allow_analysis_fallback and other and other["language_valid"]:
+                selected = other
+                is_fallback = True
+            if (
+                selected is None
+                and allow_analysis_fallback
+                and requested
+                and requested["language_mismatch"]
+            ):
+                selected = requested
+
+            actions_enabled = bool(selected and selected["language_valid"])
+            displayed_language = str(selected["language"]) if selected else None
+            image_language = displayed_language if actions_enabled else language
             image = db.execute(
                 """
                 SELECT * FROM dream_images
@@ -170,9 +226,19 @@ class DreamLoop:
                 ORDER BY CASE WHEN status = 'complete' THEN 0 ELSE 1 END, id DESC
                 LIMIT 1
                 """,
-                (dream_id, normalize_language(language)),
+                (dream_id, image_language),
             ).fetchone()
-        dream["analysis"] = analysis_from_row(analysis)
+        dream["analysis"] = selected
+        dream["invalid_analysis"] = (
+            requested if requested and not requested["language_valid"] else None
+        )
+        dream["requested_analysis_language"] = language
+        dream["displayed_analysis_language"] = displayed_language
+        dream["analysis_is_fallback"] = is_fallback
+        dream["analysis_language_mismatch"] = bool(
+            selected and selected["language_mismatch"]
+        ) or bool(not allow_analysis_fallback and requested and requested["language_mismatch"])
+        dream["analysis_actions_enabled"] = actions_enabled
         dream["image"] = image_from_row(image) if image else None
         return dream
 
@@ -283,6 +349,8 @@ class DreamLoop:
         reason: str = "",
     ) -> int:
         self.init()
+        if language not in {"en", "zh"}:
+            raise ValueError(f"Unsupported analysis language: {language}")
         rating = rating.strip()
         if rating not in FEEDBACK_RATINGS:
             raise ValueError(f"Unsupported feedback rating: {rating}")
@@ -292,6 +360,15 @@ class DreamLoop:
             ).fetchone()
             if dream is None:
                 raise KeyError(f"Dream {dream_id} was not found.")
+            analysis_row = db.execute(
+                "SELECT * FROM dream_analyses WHERE dream_id = ? AND language = ?",
+                (dream_id, language),
+            ).fetchone()
+            analysis = analysis_from_row(analysis_row)
+            if analysis is None or not analysis["language_valid"]:
+                raise AnalysisUnavailableError(
+                    f"Dream {dream_id} has no valid {language} analysis."
+                )
             cursor = db.execute(
                 """
                 INSERT INTO user_feedback (
@@ -300,7 +377,7 @@ class DreamLoop:
                 """,
                 (
                     dream_id,
-                    normalize_language(language),
+                    language,
                     interpretation_index,
                     rating,
                     reason.strip(),
@@ -336,14 +413,16 @@ class DreamLoop:
                 (normalize_language(language),),
             ).fetchall()
         for row in rows:
-            rating_counts[row["rating"]] += 1
-            if row["rating"] != "resonates":
-                continue
             try:
                 dream = self.get_dream(int(row["dream_id"]), language=language)
             except KeyError:
                 continue
             analysis = dream.get("analysis") or {}
+            if not analysis:
+                continue
+            rating_counts[row["rating"]] += 1
+            if row["rating"] != "resonates":
+                continue
             resonant_themes.update(analysis.get("themes", []))
         return {
             "ratings": counter_items(rating_counts),
@@ -633,7 +712,9 @@ class DreamLoop:
         normalized: dict[str, Any],
         language: str,
     ) -> None:
-        language = normalize_language(language)
+        if language not in {"en", "zh"}:
+            raise ValueError(f"Unsupported analysis language: {language}")
+        require_analysis_language(normalized.get("report") or {}, language)
         db.execute(
             """
             INSERT INTO dream_analyses (
@@ -716,7 +797,7 @@ def analysis_from_row(row: sqlite3.Row | None) -> dict[str, Any] | None:
         return None
     raw_report = parse_json_any(row["raw_json"])
     report = normalize_report_payload(raw_report) if isinstance(raw_report, dict) else {}
-    return {
+    analysis = {
         "language": row["language"],
         "emotional_tone": row["emotional_tone"],
         "symbols": normalize_text_list(json.loads(row["symbols_json"])),
@@ -726,6 +807,13 @@ def analysis_from_row(row: sqlite3.Row | None) -> dict[str, Any] | None:
         "report": report,
         "raw_json": json.dumps(report, ensure_ascii=False),
     }
+    detected_language = detect_analysis_language(report or analysis)
+    analysis["detected_language"] = detected_language
+    analysis["language_valid"] = detected_language == row["language"]
+    analysis["language_mismatch"] = (
+        detected_language in {"en", "zh"} and detected_language != row["language"]
+    )
+    return analysis
 
 
 def normalize_language(language: str | None) -> str:
@@ -761,8 +849,11 @@ def call_analyzer(
 
     parameters = inspect.signature(analyzer.analyze).parameters
     if "reflections" in parameters:
-        return analyzer.analyze(content, language=language, reflections=reflections)
-    return analyzer.analyze(content, language=language)
+        result = analyzer.analyze(content, language=language, reflections=reflections)
+    else:
+        result = analyzer.analyze(content, language=language)
+    require_analysis_language(result, language)
+    return result
 
 
 def dream_terms(dream: dict[str, Any]) -> set[str]:

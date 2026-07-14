@@ -71,16 +71,22 @@
           {% endif %}
 
           <div class="visual-memory-action">
+            {% if dream.analysis_actions_enabled %}
             <form method="post" action="/dreams/{{ dream.id }}/visual?lang={{ lang }}">
+              <input type="hidden" name="analysis_language" value="{{ dream.displayed_analysis_language }}">
               <button type="submit" class="secondary-button">{{ t.regenerate_visual_memory if dream.visual_memory else t.generate_local_card }}</button>
             </form>
             <form method="post" action="/dreams/{{ dream.id }}/image?lang={{ lang }}">
+              <input type="hidden" name="analysis_language" value="{{ dream.displayed_analysis_language }}">
               <button type="submit" class="secondary-button" {{ "disabled" if not image.ready else "" }}>{{ t.generate_dream_image }}</button>
             </form>
+            {% endif %}
             <form method="post" action="/dreams/{{ dream.id }}/delete?lang={{ lang }}" onsubmit="return confirm('{{ t.delete_confirm }}')">
               <button type="submit" class="danger-button">{{ t.delete_dream }}</button>
             </form>
+            {% if dream.analysis_actions_enabled %}
             <p>{{ t.visual_memory_local_note if dream.visual_memory else t.visual_memory_note }} {% if not image.ready %}{{ t.real_image_not_ready }}{% endif %}</p>
+            {% endif %}
           </div>
         </article>
 
@@ -90,7 +96,22 @@
               <span>{{ t.structured_output }}</span>
               <h2>{{ t.ai_analysis }}</h2>
             </div>
+            {% if analysis_error %}
+              <p class="status-message warning">{{ t["analysis_error_" ~ analysis_error] }}</p>
+            {% endif %}
             {% if dream.analysis %}
+              <p class="analysis-language-badge">{{ t["analysis_language_" ~ dream.displayed_analysis_language] }}</p>
+              {% if dream.analysis_is_fallback %}
+                <p class="status-message warning">{{ t["analysis_fallback_" ~ dream.displayed_analysis_language] }}</p>
+              {% elif dream.analysis_language_mismatch %}
+                <p class="status-message warning">{{ t.analysis_mismatch }} {{ t["analysis_detected_" ~ dream.analysis.detected_language] }}</p>
+              {% endif %}
+              {% if (dream.analysis_is_fallback or dream.analysis_language_mismatch) and ai.ready %}
+                <form method="post" action="/dreams/{{ dream.id }}/analyze?lang={{ lang }}" class="analyze-form" data-loading-form data-loading-text="{{ t.analyzing_dream }}">
+                  <button type="submit" data-loading-button>{{ t.generate_chinese_analysis if lang == "zh" else t.generate_english_analysis }}</button>
+                  <p class="loading-message" aria-live="polite">{{ t.analyzing_dream }}</p>
+                </form>
+              {% endif %}
               <div class="tag-shelf">
                 <span>{{ dream.analysis.emotional_tone }}</span>
                 {% for symbol in dream.analysis.symbols %}
@@ -151,13 +172,16 @@
                             <small>{{ item.dream_evidence }}</small>
                             <small>{{ item.real_life_connection }}</small>
                             <em>{{ item.verification_question }}</em>
+                            {% if dream.analysis_actions_enabled %}
                             <form method="post" action="/dreams/{{ dream.id }}/feedback?lang={{ lang }}" class="feedback-form">
+                              <input type="hidden" name="analysis_language" value="{{ dream.displayed_analysis_language }}">
                               <input type="hidden" name="interpretation_index" value="{{ loop.index0 }}">
                               <input name="reason" placeholder="{{ t.feedback_reason_placeholder }}">
                               <button type="submit" name="rating" value="resonates">{{ t.feedback_resonates }}</button>
                               <button type="submit" name="rating" value="not_accurate">{{ t.feedback_not_accurate }}</button>
                               <button type="submit" name="rating" value="unsure">{{ t.feedback_unsure }}</button>
                             </form>
+                            {% endif %}
                           </article>
                         {% endfor %}
                       </div>
@@ -191,6 +215,20 @@
               </details>
               {% if feedback %}
                 <p class="runtime-note">{{ t.feedback_saved }}</p>
+              {% endif %}
+            {% elif dream.invalid_analysis %}
+              <p class="status-message warning">
+                {% if dream.invalid_analysis.language_mismatch %}
+                  {{ t.analysis_mismatch }} {{ t["analysis_detected_" ~ dream.invalid_analysis.detected_language] }}
+                {% else %}
+                  {{ t.analysis_incomplete_stored }}
+                {% endif %}
+              </p>
+              {% if ai.ready %}
+                <form method="post" action="/dreams/{{ dream.id }}/analyze?lang={{ lang }}" class="analyze-form" data-loading-form data-loading-text="{{ t.analyzing_dream }}">
+                  <button type="submit" data-loading-button>{{ t.generate_chinese_analysis if lang == "zh" else t.generate_english_analysis }}</button>
+                  <p class="loading-message" aria-live="polite">{{ t.analyzing_dream }}</p>
+                </form>
               {% endif %}
             {% elif ai.ready %}
               <p class="empty-state">{{ t.pending_analysis }}: {{ ai.provider }} / {{ ai.model }}</p>

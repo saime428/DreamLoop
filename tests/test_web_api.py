@@ -5,9 +5,10 @@ import json
 import re
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 
-from dreamloop.analysis import StaticAnalyzer, load_ai_config
+from dreamloop.analysis import StaticAnalyzer, load_ai_config, normalize_analysis
 from dreamloop.images import save_image_config, save_image_secret
 from dreamloop.web import create_app
 
@@ -457,6 +458,21 @@ def test_api_analyze_returns_requested_language(tmp_path):
     assert client.get(f"/api/dreams/{dream_id}?lang=en").json()["analysis"] is None
 
 
+def test_api_analyze_returns_422_for_wrong_output_language_without_persisting(tmp_path):
+    app = create_app(tmp_path)
+    app.state.analyzer = StaticAnalyzer(
+        {"summary": "这个结果完全使用中文，因此不能作为英文分析写入本地数据库。"}
+    )
+    client = TestClient(app)
+    dream_id = client.post("/api/dreams", json={"content": "I found a bright doorway."}).json()["id"]
+
+    response = client.post(f"/api/dreams/{dream_id}/analyze?lang=en")
+
+    assert response.status_code == 422
+    assert "language" in response.json()["detail"].lower()
+    assert client.get(f"/api/dreams/{dream_id}?lang=en").json()["analysis"] is None
+
+
 def test_home_supports_english_and_chinese_language_toggle(tmp_path):
     app = create_app(tmp_path)
     client = TestClient(app)
@@ -489,7 +505,11 @@ def test_language_toggles_use_route_aware_paths(tmp_path):
     for source, target in pages.items():
         response = client.get(source)
         assert response.status_code == 200
-        assert f'href="{target}" data-lang="zh"' in response.text
+        if source.startswith("/log"):
+            assert 'action="/drafts/language"' in response.text
+            assert 'name="lang" value="zh" data-lang="zh"' in response.text
+        else:
+            assert f'href="{target}" data-lang="zh"' in response.text
         assert 'href="?lang=' not in response.text
 
 
@@ -549,6 +569,49 @@ def test_draft_language_switch_preserves_state_without_persisting_or_reanalyzing
     assert app.state.loop.list_dreams() == []
 
 
+def test_unanalyzed_draft_language_switch_preserves_current_input(tmp_path):
+    app = create_app(tmp_path)
+    client = TestClient(app)
+    content = "I found a door.\nThen the lights changed."
+
+    response = client.post(
+        "/drafts/language",
+        data={
+            "lang": "zh",
+            "content": content,
+            "analysis_json": "",
+            "analysis_language": "en",
+            "reflections_json": json.dumps({"strongest_emotion": "uncertain"}),
+        },
+    )
+
+    assert response.status_code == 200
+    assert '<html lang="zh">' in response.text
+    assert content in response.text
+    assert 'value="uncertain"' in response.text
+    assert app.state.loop.list_dreams() == []
+
+
+@pytest.mark.parametrize("reflections_json", ["not-json", "[]"])
+def test_draft_language_switch_rejects_corrupt_reflection_state(tmp_path, reflections_json):
+    app = create_app(tmp_path)
+    client = TestClient(app)
+
+    response = client.post(
+        "/drafts/language",
+        data={
+            "lang": "en",
+            "content": "I found a door.",
+            "analysis_json": "",
+            "analysis_language": "en",
+            "reflections_json": reflections_json,
+        },
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Invalid reflections JSON"
+
+
 def test_draft_post_languages_and_analysis_payload_are_strict(tmp_path):
     app = create_app(tmp_path)
     app.state.analyzer = LanguageAwareAnalyzer()
@@ -598,6 +661,58 @@ def test_draft_post_languages_and_analysis_payload_are_strict(tmp_path):
     assert invalid_saved_label.status_code == 400
     assert non_object_analysis.status_code == 400
     assert app.state.analyzer.calls == []
+    assert app.state.loop.list_dreams() == []
+
+
+def test_draft_language_switch_rejects_relabeling_and_preserves_user_input(tmp_path):
+    app = create_app(tmp_path)
+    client = TestClient(app)
+    content = "I found a bright doorway.\nThe room became quiet."
+    reflections = {"real_life_context": "I am deciding whether to change jobs."}
+
+    response = client.post(
+        "/drafts/language",
+        data={
+            "lang": "zh",
+            "content": content,
+            "analysis_json": json.dumps(
+                {"summary": "这份结果明显使用中文，却被隐藏字段错误标记成了英文分析。"},
+                ensure_ascii=False,
+            ),
+            "analysis_language": "en",
+            "reflections_json": json.dumps(reflections),
+        },
+    )
+
+    assert response.status_code == 422
+    assert '<html lang="zh">' in response.text
+    assert "分析内容与标记的英文不一致" in response.text
+    assert content in response.text
+    assert reflections["real_life_context"] in response.text
+    assert app.state.loop.list_dreams() == []
+
+
+def test_draft_save_revalidates_hidden_analysis_without_persisting(tmp_path):
+    app = create_app(tmp_path)
+    client = TestClient(app)
+
+    response = client.post(
+        "/drafts/save?lang=en",
+        data={
+            "content": "I found a bright doorway.",
+            "analysis_json": json.dumps(
+                {"summary": "这份结果明显使用中文，却被隐藏字段错误标记成了英文分析。"},
+                ensure_ascii=False,
+            ),
+            "analysis_language": "en",
+            "reflections_json": json.dumps({"strongest_emotion": "uncertain"}),
+        },
+    )
+
+    assert response.status_code == 422
+    assert "Analysis content does not match its English label" in response.text
+    assert "I found a bright doorway." in response.text
+    assert "uncertain" in response.text
     assert app.state.loop.list_dreams() == []
 
 
@@ -795,7 +910,7 @@ def test_detail_page_supports_chinese_language(tmp_path):
     assert response.status_code == 200
     assert "返回总览" in response.text
     assert "AI 分析" in response.text
-    assert "生成梦境画面" in response.text
+    assert "生成中文分析" in response.text
 
 
 def test_detail_page_renders_detailed_analysis_sections(tmp_path):
@@ -831,7 +946,11 @@ def test_detail_generates_local_visual_memory_and_gallery_shows_it(tmp_path):
     assert f'action="/dreams/{dream_id}/visual?lang=en"' in detail.text
     assert "Local visual memory" not in detail.text
 
-    generated = client.post(f"/dreams/{dream_id}/visual?lang=en", follow_redirects=False)
+    generated = client.post(
+        f"/dreams/{dream_id}/visual?lang=en",
+        data={"analysis_language": "en"},
+        follow_redirects=False,
+    )
     assert generated.status_code == 303
     assert generated.headers["location"] == f"/dreams/{dream_id}?lang=en"
 
@@ -886,6 +1005,157 @@ def test_detail_feedback_buttons_and_api_summary(tmp_path):
     assert "lost direction" in patterns.text
 
 
+def test_english_detail_uses_valid_chinese_analysis_as_labeled_fallback(tmp_path):
+    app = create_app(tmp_path)
+    client = TestClient(app)
+    dream_id = app.state.loop.add_dream_with_analysis(
+        "我在海底看到一扇发光的门。",
+        {"summary": "这份中文分析把发光的门与现实中的选择和犹豫联系起来。"},
+        language="zh",
+    )
+
+    response = client.get(f"/dreams/{dream_id}?lang=en")
+
+    assert response.status_code == 200
+    assert "Back to dashboard" in response.text
+    assert "Showing Chinese analysis" in response.text
+    assert "这份中文分析把发光的门与现实中的选择和犹豫联系起来。" in response.text
+    assert f'action="/dreams/{dream_id}/analyze?lang=en"' in response.text
+    assert f'action="/dreams/{dream_id}/feedback?lang=en"' not in response.text
+    assert 'name="analysis_language" value="zh"' in response.text
+
+
+def test_detail_fallback_actions_use_analysis_language_and_keep_interface_language(tmp_path):
+    app = create_app(tmp_path)
+    app.state.image_generator = FakeImageGenerator()
+    client = TestClient(app)
+    dream_id = app.state.loop.add_dream_with_analysis(
+        "我在海底看到一扇发光的门。",
+        {
+            "summary": "这份中文分析把发光的门与现实中的选择和犹豫联系起来。",
+            "themes": ["现实选择"],
+            "possible_interpretations": [
+                {
+                    "title": "靠近选择",
+                    "interpretation": "这扇门可能对应一个正在靠近的现实选择。",
+                    "dream_evidence": "门在海底发光。",
+                    "real_life_connection": "你可能正面对需要权衡的决定。",
+                    "verification_question": "最近哪个选择既吸引你又让你犹豫？",
+                }
+            ],
+        },
+        language="zh",
+    )
+
+    feedback = client.post(
+        f"/dreams/{dream_id}/feedback?lang=en",
+        data={"analysis_language": "zh", "interpretation_index": 0, "rating": "resonates"},
+        follow_redirects=False,
+    )
+    visual = client.post(
+        f"/dreams/{dream_id}/visual?lang=en",
+        data={"analysis_language": "zh"},
+        follow_redirects=False,
+    )
+    image = client.post(
+        f"/dreams/{dream_id}/image?lang=en",
+        data={"analysis_language": "zh"},
+        follow_redirects=False,
+    )
+
+    assert feedback.status_code == visual.status_code == image.status_code == 303
+    assert feedback.headers["location"] == f"/dreams/{dream_id}?lang=en"
+    assert app.state.loop.feedback_for_dream(dream_id, language="zh")
+    assert app.state.loop.feedback_for_dream(dream_id, language="en") == []
+    with app.state.loop._connect() as db:
+        image_row = db.execute(
+            "SELECT language FROM dream_images WHERE dream_id = ? ORDER BY id DESC LIMIT 1",
+            (dream_id,),
+        ).fetchone()
+    assert image_row["language"] == "zh"
+
+
+@pytest.mark.parametrize("action", ["visual", "image", "feedback"])
+def test_detail_analysis_language_tampering_returns_conflict_without_side_effect(tmp_path, action):
+    app = create_app(tmp_path)
+    app.state.image_generator = FakeImageGenerator()
+    client = TestClient(app)
+    dream_id = app.state.loop.add_dream_with_analysis(
+        "我在海底看到一扇发光的门。",
+        {"summary": "这份中文分析把发光的门与现实中的选择和犹豫联系起来。"},
+        language="zh",
+    )
+    data = {"analysis_language": "en"}
+    if action == "feedback":
+        data["rating"] = "resonates"
+
+    response = client.post(f"/dreams/{dream_id}/{action}?lang=en", data=data)
+
+    assert response.status_code == 409
+    assert app.state.loop.feedback_for_dream(dream_id, language="en") == []
+    assert app.state.loop.get_dream(dream_id, language="zh")["visual_memory"] is None
+    with app.state.loop._connect() as db:
+        assert db.execute("SELECT COUNT(*) FROM dream_images WHERE dream_id = ?", (dream_id,)).fetchone()[0] == 0
+
+
+def test_api_feedback_requires_valid_exact_language_analysis(tmp_path):
+    app = create_app(tmp_path)
+    client = TestClient(app)
+    dream_id = app.state.loop.add_dream_with_analysis(
+        "我在海底看到一扇发光的门。",
+        {"summary": "这份中文分析把发光的门与现实中的选择和犹豫联系起来。"},
+        language="zh",
+    )
+
+    response = client.post(
+        f"/api/dreams/{dream_id}/feedback?lang=en",
+        json={"interpretation_index": 0, "rating": "resonates"},
+    )
+
+    assert response.status_code == 409
+    assert app.state.loop.feedback_for_dream(dream_id, language="en") == []
+
+
+def test_mislabeled_detail_exposes_regeneration_without_analysis_actions(tmp_path):
+    app = create_app(tmp_path)
+    client = TestClient(app)
+    dream_id = app.state.loop.add_dream("I found a bright doorway.")
+    bad_english = normalize_analysis(
+        {"summary": "这条记录虽然标记为英文，但实际内容明显全部使用中文。"}
+    )
+    with app.state.loop._connect() as db:
+        db.execute(
+            """
+            INSERT INTO dream_analyses (
+                dream_id, language, emotional_tone, symbols_json, themes_json, summary, confidence, raw_json
+            ) VALUES (?, 'en', ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                dream_id,
+                bad_english["emotional_tone"],
+                json.dumps(bad_english["symbols"]),
+                json.dumps(bad_english["themes"]),
+                bad_english["summary"],
+                bad_english["confidence"],
+                bad_english["raw_json"],
+            ),
+        )
+
+    detail = client.get(f"/dreams/{dream_id}?lang=en")
+    api_read = client.get(f"/api/dreams/{dream_id}?lang=en")
+    visual = client.post(f"/api/dreams/{dream_id}/visual?lang=en")
+
+    assert detail.status_code == 200
+    assert "stored language label does not match" in detail.text
+    assert f'action="/dreams/{dream_id}/analyze?lang=en"' in detail.text
+    assert f'action="/dreams/{dream_id}/visual?lang=en"' not in detail.text
+    assert f'action="/dreams/{dream_id}/image?lang=en"' not in detail.text
+    assert f'action="/dreams/{dream_id}/feedback?lang=en"' not in detail.text
+    assert api_read.json()["analysis"] is None
+    assert visual.status_code == 200
+    assert visual.json()["title"] == "I found a bright doorway."
+
+
 def test_structured_symbol_objects_do_not_leak_to_web_pages(tmp_path):
     app = create_app(tmp_path)
     app.state.analyzer = StructuredTermAnalyzer()
@@ -895,7 +1165,11 @@ def test_structured_symbol_objects_do_not_leak_to_web_pages(tmp_path):
     ).json()["id"]
 
     client.post(f"/api/dreams/{dream_id}/analyze?lang=en")
-    client.post(f"/dreams/{dream_id}/visual?lang=en", follow_redirects=False)
+    client.post(
+        f"/dreams/{dream_id}/visual?lang=en",
+        data={"analysis_language": "en"},
+        follow_redirects=False,
+    )
 
     for path in ("/?lang=en", "/patterns?lang=en", "/gallery?lang=en", f"/dreams/{dream_id}?lang=en"):
         response = client.get(path)

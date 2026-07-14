@@ -6,10 +6,10 @@ from datetime import date
 
 import pytest
 
-from dreamloop.analysis import StaticAnalyzer
+from dreamloop.analysis import AnalysisIncomplete, AnalysisLanguageMismatch, StaticAnalyzer
 from dreamloop.analysis import normalize_analysis
 from dreamloop.analysis import REFLECTION_LABELS
-from dreamloop.core import DreamLoop
+from dreamloop.core import AnalysisUnavailableError, DreamLoop
 from dreamloop.database import connect
 from dreamloop.images import image_status, save_image_config, save_image_secret
 
@@ -232,7 +232,7 @@ def test_analyze_pending_does_not_hold_database_lock_during_provider_call(tmp_pa
                 "emotional_tone": "calm",
                 "symbols": [],
                 "themes": [],
-                "summary": "ok",
+                "summary": "A complete English analysis returned during the provider call.",
                 "confidence": 1,
             }
 
@@ -367,6 +367,149 @@ def test_add_dream_with_analysis_saves_selected_language(tmp_path):
     assert chinese["analysis_status"] == "analyzed"
     assert chinese["analysis"]["summary"] == "一场关于发现隐藏之门的梦。"
     assert english["analysis"] is None
+
+
+def test_custom_analyzer_language_mismatch_is_not_retried_or_persisted(tmp_path):
+    loop = DreamLoop(tmp_path)
+    dream_id = loop.add_dream("I found a bright doorway.")
+
+    class CountingAnalyzer:
+        calls = 0
+
+        def analyze(self, content: str, language: str = "en") -> dict[str, object]:
+            self.calls += 1
+            return {"summary": "这个结果完全使用中文，因此不能被标记成英文分析保存。"}
+
+    analyzer = CountingAnalyzer()
+
+    with pytest.raises(AnalysisLanguageMismatch):
+        loop.analyze_dream(dream_id, analyzer, language="en")
+
+    assert analyzer.calls == 1
+    assert loop.get_dream(dream_id, language="en")["analysis"] is None
+
+
+@pytest.mark.parametrize(
+    ("analysis_payload", "error_type"),
+    [
+        ({"summary": "这个结果使用中文，却试图保存成英文分析。"}, AnalysisLanguageMismatch),
+        ({"summary": "too short"}, AnalysisIncomplete),
+    ],
+)
+def test_invalid_analysis_rolls_back_dream_and_analysis_rows(tmp_path, analysis_payload, error_type):
+    loop = DreamLoop(tmp_path)
+
+    with pytest.raises(error_type):
+        loop.add_dream_with_analysis(
+            "I found a bright doorway.",
+            analysis_payload,
+            language="en",
+        )
+
+    assert loop.list_dreams() == []
+    with loop._connect() as db:
+        assert db.execute("SELECT COUNT(*) FROM dream_analyses").fetchone()[0] == 0
+
+
+def test_unsupported_analysis_language_rolls_back_write(tmp_path):
+    loop = DreamLoop(tmp_path)
+
+    with pytest.raises(ValueError, match="Unsupported analysis language"):
+        loop.add_dream_with_analysis(
+            "I found a bright doorway.",
+            {"summary": "This analysis is long enough to describe a present decision in clear English."},
+            language="fr",
+        )
+
+    assert loop.list_dreams() == []
+
+
+def test_detail_fallback_prefers_valid_other_language_over_mislabeled_requested_row(tmp_path):
+    loop = DreamLoop(tmp_path)
+    dream_id = loop.add_dream_with_analysis(
+        "I found a bright doorway.",
+        {"summary": "This English analysis connects the doorway with a current choice and uncertainty."},
+        language="en",
+    )
+    loop.analyze_dream(
+        dream_id,
+        StaticAnalyzer({"summary": "这份中文分析把发光的门与现实中的选择和犹豫联系起来。"}),
+        language="zh",
+    )
+    bad_english = normalize_analysis({"summary": "这条记录虽然标记为英文，但实际内容明显全部使用中文。"})
+    with loop._connect() as db:
+        db.execute(
+            """
+            UPDATE dream_analyses
+            SET emotional_tone = ?, symbols_json = ?, themes_json = ?, summary = ?, raw_json = ?
+            WHERE dream_id = ? AND language = 'en'
+            """,
+            (
+                bad_english["emotional_tone"],
+                json.dumps(bad_english["symbols"], ensure_ascii=False),
+                json.dumps(bad_english["themes"], ensure_ascii=False),
+                bad_english["summary"],
+                bad_english["raw_json"],
+                dream_id,
+            ),
+        )
+
+    exact = loop.get_dream(dream_id, language="en")
+    detail = loop.get_dream(dream_id, language="en", allow_analysis_fallback=True)
+
+    assert exact["analysis"] is None
+    assert exact["analysis_language_mismatch"] is True
+    assert detail["analysis"]["language"] == "zh"
+    assert detail["displayed_analysis_language"] == "zh"
+    assert detail["analysis_is_fallback"] is True
+    assert detail["analysis_actions_enabled"] is True
+
+
+def test_mismatch_only_detail_disables_analysis_bound_actions(tmp_path):
+    loop = DreamLoop(tmp_path)
+    dream_id = loop.add_dream("I found a bright doorway.")
+    bad_english = normalize_analysis({"summary": "这条记录虽然标记为英文，但实际内容明显全部使用中文。"})
+    with loop._connect() as db:
+        db.execute(
+            """
+            INSERT INTO dream_analyses (
+                dream_id, language, emotional_tone, symbols_json, themes_json, summary, confidence, raw_json
+            ) VALUES (?, 'en', ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                dream_id,
+                bad_english["emotional_tone"],
+                json.dumps(bad_english["symbols"], ensure_ascii=False),
+                json.dumps(bad_english["themes"], ensure_ascii=False),
+                bad_english["summary"],
+                bad_english["confidence"],
+                bad_english["raw_json"],
+            ),
+        )
+
+    detail = loop.get_dream(dream_id, language="en", allow_analysis_fallback=True)
+
+    assert detail["analysis"]["language_mismatch"] is True
+    assert detail["analysis_language_mismatch"] is True
+    assert detail["analysis_actions_enabled"] is False
+    with pytest.raises(AnalysisUnavailableError):
+        loop.add_feedback(dream_id, language="en", rating="resonates")
+
+    visual = loop.generate_visual_memory(dream_id, language="en")
+    assert visual["title"] == "I found a bright doorway."
+    assert visual["symbols"] == []
+    assert loop.trends(language="en")["themes"] == []
+
+    with loop._connect() as db:
+        db.execute(
+            """
+            INSERT INTO user_feedback (
+                dream_id, analysis_language, interpretation_index, rating, reason, created_at
+            ) VALUES (?, 'en', 0, 'resonates', '', '2026-07-14T00:00:00')
+            """,
+            (dream_id,),
+        )
+    assert loop.feedback_summary(language="en") == {"ratings": [], "resonant_themes": []}
 
 
 def test_import_ics_and_weather_feed_heatmap_context(tmp_path):

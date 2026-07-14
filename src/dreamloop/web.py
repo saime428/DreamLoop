@@ -14,8 +14,20 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from .analysis import Analyzer, ai_status, build_analyzer, clean_reflections, load_ai_config, normalize_analysis, save_ai_config, save_secret
-from .core import DreamLoop, call_analyzer
+from .analysis import (
+    AnalysisIncomplete,
+    AnalysisLanguageMismatch,
+    Analyzer,
+    ai_status,
+    build_analyzer,
+    clean_reflections,
+    load_ai_config,
+    normalize_analysis,
+    require_analysis_language,
+    save_ai_config,
+    save_secret,
+)
+from .core import AnalysisUnavailableError, DreamLoop, call_analyzer
 from .images import image_status, load_image_config, save_image_config, save_image_secret
 from .schema import DreamCreate, FeedbackCreate, WeatherSync
 
@@ -61,10 +73,11 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "personal_association": "What this dream makes me think of",
         "personal_association_placeholder": "Any memory, image, phrase, or current concern it brings up",
         "analyze_dream": "AI Analysis",
-        "analyzing_dream": "Analyzing...",
+        "analyzing_dream": "Analyzing and verifying English output...",
         "save_without_ai": "Save without AI",
         "draft_analysis": "Draft analysis",
         "draft_not_saved": "Not saved yet",
+        "draft_changed": "The dream changed. Analyze it again before saving this draft.",
         "save_analysis": "Save locally",
         "analysis_language_zh": "Analysis language: Chinese",
         "analysis_language_en": "Analysis language: English",
@@ -93,7 +106,16 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "analysis_ready": "Structured analysis",
         "analysis_unavailable": "AI analysis is optional. Configure Ollama, DeepSeek, OpenAI, or a custom endpoint when you want model output.",
         "analysis_unavailable_before_save": "AI is not ready. You can still save the dream locally without analysis.",
-        "analysis_failed": "Analysis failed. Nothing was saved yet.",
+        "analysis_error_provider": "Analysis failed. Nothing was saved yet.",
+        "analysis_error_language_en": "Analysis content does not match its English label. Regenerate it before saving.",
+        "analysis_error_language_zh": "Analysis content does not match its Chinese label. Regenerate it before saving.",
+        "analysis_error_incomplete": "The analysis is too incomplete to verify. Regenerate it before saving.",
+        "analysis_fallback_en": "Showing English analysis because no valid Chinese analysis is available.",
+        "analysis_fallback_zh": "Showing Chinese analysis because no valid English analysis is available.",
+        "analysis_mismatch": "The stored language label does not match the analysis content. Regenerate this analysis before using it.",
+        "analysis_detected_en": "The content appears to be English.",
+        "analysis_detected_zh": "The content appears to be Chinese.",
+        "analysis_incomplete_stored": "The stored analysis is too incomplete to verify. Regenerate it before using it.",
         "emotional_tone": "Emotional tone",
         "symbols": "Symbols",
         "themes": "Themes",
@@ -218,10 +240,11 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "personal_association": "这个梦让我想到什么",
         "personal_association_placeholder": "它让你想起的记忆、画面、词语或现实烦恼",
         "analyze_dream": "AI 分析",
-        "analyzing_dream": "正在分析...",
+        "analyzing_dream": "正在分析并核对中文输出……",
         "save_without_ai": "不分析，直接保存",
         "draft_analysis": "草稿分析",
         "draft_not_saved": "尚未保存到本地",
+        "draft_changed": "梦境内容已修改，请重新分析后再保存这份草稿。",
         "save_analysis": "保存到本地",
         "analysis_language_zh": "分析语言：中文",
         "analysis_language_en": "分析语言：英文",
@@ -250,7 +273,16 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "analysis_ready": "结构化分析",
         "analysis_unavailable": "AI 是可选项。想要模型分析时，再配置 Ollama、DeepSeek、OpenAI 或自定义端点。",
         "analysis_unavailable_before_save": "AI 暂不可用；你也可以先把梦境直接保存到本地。",
-        "analysis_failed": "分析失败。当前内容尚未保存。",
+        "analysis_error_provider": "分析失败。当前内容尚未保存。",
+        "analysis_error_language_en": "分析内容与标记的英文不一致，请重新生成后再保存。",
+        "analysis_error_language_zh": "分析内容与标记的中文不一致，请重新生成后再保存。",
+        "analysis_error_incomplete": "分析内容不足，无法核对语言，请重新生成后再保存。",
+        "analysis_fallback_en": "当前显示英文分析，因为没有可用的中文分析。",
+        "analysis_fallback_zh": "当前显示中文分析，因为没有可用的英文分析。",
+        "analysis_mismatch": "已保存的语言标签与分析内容不一致；重新生成前不能使用这份分析。",
+        "analysis_detected_en": "内容看起来是英文。",
+        "analysis_detected_zh": "内容看起来是中文。",
+        "analysis_incomplete_stored": "已保存的分析内容不足，无法核对语言；请重新生成。",
         "emotional_tone": "情绪基调",
         "symbols": "符号",
         "themes": "主题",
@@ -419,14 +451,9 @@ def _draft_from_form(
     if not isinstance(analysis_payload, dict):
         raise HTTPException(status_code=400, detail="Invalid analysis JSON")
 
-    try:
-        reflections_payload = json.loads(reflections_json)
-    except json.JSONDecodeError:
-        reflections_payload = {}
-    reflections = clean_reflections(
-        reflections_payload if isinstance(reflections_payload, dict) else {}
-    )
+    reflections = _reflections_from_json(reflections_json)
     normalized = normalize_analysis(analysis_payload)
+    require_analysis_language(normalized.get("report") or {}, analysis_language)
     return {
         "content": content.strip(),
         "reflections": reflections,
@@ -438,14 +465,33 @@ def _draft_from_form(
     }
 
 
+def _reflections_from_json(reflections_json: str) -> dict[str, str]:
+    try:
+        payload = json.loads(reflections_json)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=400, detail="Invalid reflections JSON") from exc
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail="Invalid reflections JSON")
+    return clean_reflections(payload)
+
+
+def _analysis_error_code(exc: Exception, language: str) -> str:
+    if isinstance(exc, AnalysisLanguageMismatch):
+        return f"language_{language}"
+    if isinstance(exc, AnalysisIncomplete):
+        return "incomplete"
+    return "provider"
+
+
 def _page_url(page: str, lang: str, **params: str) -> str:
     path = "/" if page in {"", "dashboard"} else f"/{page}"
     query = {"lang": _lang(lang), **{key: val for key, val in params.items() if val}}
     return path + "?" + urlencode(query)
 
 
-def _dream_url(dream_id: int, lang: str) -> str:
-    return f"/dreams/{dream_id}?" + urlencode({"lang": _lang(lang)})
+def _dream_url(dream_id: int, lang: str, **params: str) -> str:
+    query = {"lang": _lang(lang), **{key: val for key, val in params.items() if val}}
+    return f"/dreams/{dream_id}?" + urlencode(query)
 
 
 def _origin_tuple(value: str) -> tuple[str, str, int] | None:
@@ -610,21 +656,31 @@ def create_app(root: str | Path | None = None) -> FastAPI:
     app.mount("/static", StaticFiles(directory=str(PACKAGE_DIR / "static")), name="static")
     app.mount("/dreamloop-assets", StaticFiles(directory=str(loop.data_dir / "assets")), name="dreamloop_assets")
 
+    def require_exact_analysis(dream_id: int, language: str) -> None:
+        dream = loop.get_dream(dream_id, language=language)
+        if dream.get("analysis") is None:
+            raise AnalysisUnavailableError(
+                f"Dream {dream_id} has no valid {language} analysis."
+            )
+
     def render_home(
         request: Request,
         lang: str = "en",
         *,
         page: str = "dashboard",
-        analysis_error: bool = False,
+        analysis_error: str = "",
         draft: dict[str, Any] | None = None,
         draft_content: str = "",
         draft_reflections: dict[str, str] | None = None,
+        response_status: int = status.HTTP_200_OK,
         settings_saved: bool = False,
         date_filter: str = "",
         symbol_filter: str = "",
         theme_filter: str = "",
     ) -> Any:
         lang = _lang(lang)
+        if analysis_error not in {"", "provider", "language_en", "language_zh", "incomplete"}:
+            analysis_error = ""
         localized_dreams = loop.list_dreams_with_analysis(language=lang)
         trends = loop.trends_from_dreams(localized_dreams)
         symbol_graph = loop.symbol_graph_from_dreams(localized_dreams)
@@ -685,11 +741,12 @@ def create_app(root: str | Path | None = None) -> FastAPI:
                 "symbol_filter": symbol_filter,
                 "theme_filter": theme_filter,
             },
+            status_code=response_status,
         )
 
     @app.get("/", response_class=HTMLResponse)
     def dashboard(request: Request, lang: str = "en", analysis_error: str = "") -> Any:
-        return render_home(request, lang, page="dashboard", analysis_error=bool(analysis_error))
+        return render_home(request, lang, page="dashboard", analysis_error=analysis_error)
 
     @app.get("/patterns", response_class=HTMLResponse)
     def patterns(request: Request, lang: str = "en") -> Any:
@@ -710,6 +767,7 @@ def create_app(root: str | Path | None = None) -> FastAPI:
         date: str = "",
         symbol: str = "",
         theme: str = "",
+        analysis_error: str = "",
     ) -> Any:
         return render_home(
             request,
@@ -718,6 +776,7 @@ def create_app(root: str | Path | None = None) -> FastAPI:
             date_filter=date,
             symbol_filter=symbol,
             theme_filter=theme,
+            analysis_error=analysis_error,
         )
 
     @app.get("/settings", response_class=HTMLResponse)
@@ -813,19 +872,29 @@ def create_app(root: str | Path | None = None) -> FastAPI:
                 request,
                 lang,
                 page="log",
-                analysis_error=True,
+                analysis_error="provider",
                 draft_content=content,
                 draft_reflections=reflections,
             )
 
         try:
             normalized = normalize_analysis(call_analyzer(analyzer, content, lang, reflections))
+        except (AnalysisLanguageMismatch, AnalysisIncomplete) as exc:
+            return render_home(
+                request,
+                lang,
+                page="log",
+                analysis_error=_analysis_error_code(exc, lang),
+                draft_content=content,
+                draft_reflections=reflections,
+                response_status=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            )
         except Exception:
             return render_home(
                 request,
                 lang,
                 page="log",
-                analysis_error=True,
+                analysis_error="provider",
                 draft_content=content,
                 draft_reflections=reflections,
             )
@@ -848,43 +917,75 @@ def create_app(root: str | Path | None = None) -> FastAPI:
     def switch_draft_language(
         request: Request,
         lang: str = Form(...),
-        content: str = Form(...),
-        analysis_json: str = Form(...),
+        content: str = Form(""),
+        analysis_json: str = Form(""),
         analysis_language: str = Form(...),
         reflections_json: str = Form("{}"),
     ) -> Any:
         target_language = _form_lang(lang)
+        reflections = _reflections_from_json(reflections_json)
+        if not analysis_json.strip():
+            return render_home(
+                request,
+                target_language,
+                page="log",
+                draft_content=content,
+                draft_reflections=reflections,
+            )
         analysis_language = _form_lang(analysis_language)
-        draft = _draft_from_form(
-            content,
-            analysis_json,
-            analysis_language,
-            reflections_json,
-        )
+        try:
+            draft = _draft_from_form(
+                content,
+                analysis_json,
+                analysis_language,
+                reflections_json,
+            )
+        except (AnalysisLanguageMismatch, AnalysisIncomplete) as exc:
+            return render_home(
+                request,
+                target_language,
+                page="log",
+                analysis_error=_analysis_error_code(exc, analysis_language),
+                draft_content=content,
+                draft_reflections=reflections,
+                response_status=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            )
         return render_home(request, target_language, page="log", draft=draft)
 
     @app.post("/drafts/save")
     def save_draft(
+        request: Request,
         lang: str = "en",
         content: str = Form(...),
         analysis_json: str = Form(...),
         analysis_language: str = Form("en"),
         reflections_json: str = Form("{}"),
-    ) -> RedirectResponse:
+    ) -> Any:
         lang = _form_lang(lang)
         analysis_language = _form_lang(analysis_language)
-        draft = _draft_from_form(
-            content,
-            analysis_json,
-            analysis_language,
-            reflections_json,
-        )
-        dream_id = loop.add_dream_with_analysis(
-            draft["content"],
-            draft["analysis_payload"],
-            language=analysis_language,
-            reflections=draft["reflections"],
-        )
+        try:
+            draft = _draft_from_form(
+                content,
+                analysis_json,
+                analysis_language,
+                reflections_json,
+            )
+            dream_id = loop.add_dream_with_analysis(
+                draft["content"],
+                draft["analysis_payload"],
+                language=analysis_language,
+                reflections=draft["reflections"],
+            )
+        except (AnalysisLanguageMismatch, AnalysisIncomplete) as exc:
+            return render_home(
+                request,
+                lang,
+                page="log",
+                analysis_error=_analysis_error_code(exc, analysis_language),
+                draft_content=content,
+                draft_reflections=_reflections_from_json(reflections_json),
+                response_status=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            )
         return RedirectResponse(_dream_url(dream_id, lang), status_code=status.HTTP_303_SEE_OTHER)
 
     @app.post("/dreams/{dream_id}/analyze")
@@ -893,9 +994,18 @@ def create_app(root: str | Path | None = None) -> FastAPI:
         analyzer = _analyzer_override(request.app)
         try:
             loop.analyze_dream(dream_id, analyzer, language=lang)
+        except (AnalysisLanguageMismatch, AnalysisIncomplete) as exc:
+            return RedirectResponse(
+                _dream_url(
+                    dream_id,
+                    lang,
+                    analysis_error=_analysis_error_code(exc, lang),
+                ),
+                status_code=status.HTTP_303_SEE_OTHER,
+            )
         except Exception:
             return RedirectResponse(
-                _page_url("dashboard", lang, analysis_error="1"),
+                _dream_url(dream_id, lang, analysis_error="provider"),
                 status_code=status.HTTP_303_SEE_OTHER,
             )
         return RedirectResponse(_dream_url(dream_id, lang), status_code=status.HTTP_303_SEE_OTHER)
@@ -907,50 +1017,101 @@ def create_app(root: str | Path | None = None) -> FastAPI:
         return RedirectResponse(_page_url("log", lang), status_code=status.HTTP_303_SEE_OTHER)
 
     @app.post("/dreams/{dream_id}/visual")
-    def generate_visual_form(dream_id: int, lang: str = "en") -> RedirectResponse:
+    def generate_visual_form(
+        dream_id: int,
+        lang: str = "en",
+        analysis_language: str = Form(...),
+    ) -> RedirectResponse:
+        interface_language = _lang(lang)
+        analysis_language = _form_lang(analysis_language)
         try:
-            loop.generate_visual_memory(dream_id, language=_lang(lang))
+            require_exact_analysis(dream_id, analysis_language)
+            loop.generate_visual_memory(dream_id, language=analysis_language)
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="Dream not found") from exc
-        return RedirectResponse(_dream_url(dream_id, lang), status_code=status.HTTP_303_SEE_OTHER)
+        except AnalysisUnavailableError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        return RedirectResponse(
+            _dream_url(dream_id, interface_language),
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
 
     @app.post("/dreams/{dream_id}/image")
-    def generate_image_form(request: Request, dream_id: int, lang: str = "en") -> RedirectResponse:
+    def generate_image_form(
+        request: Request,
+        dream_id: int,
+        lang: str = "en",
+        analysis_language: str = Form(...),
+    ) -> RedirectResponse:
+        interface_language = _lang(lang)
+        analysis_language = _form_lang(analysis_language)
         try:
-            loop.generate_dream_image(dream_id, language=_lang(lang), generator=_image_generator_override(request.app))
+            require_exact_analysis(dream_id, analysis_language)
+            loop.generate_dream_image(
+                dream_id,
+                language=analysis_language,
+                generator=_image_generator_override(request.app),
+            )
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="Dream not found") from exc
+        except AnalysisUnavailableError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
         except Exception:
-            return RedirectResponse(_dream_url(dream_id, lang), status_code=status.HTTP_303_SEE_OTHER)
-        return RedirectResponse(_dream_url(dream_id, lang), status_code=status.HTTP_303_SEE_OTHER)
+            return RedirectResponse(
+                _dream_url(dream_id, interface_language),
+                status_code=status.HTTP_303_SEE_OTHER,
+            )
+        return RedirectResponse(
+            _dream_url(dream_id, interface_language),
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
 
     @app.post("/dreams/{dream_id}/feedback")
     def save_feedback_form(
         dream_id: int,
         lang: str = "en",
+        analysis_language: str = Form(...),
         interpretation_index: int = Form(0),
         rating: str = Form(...),
         reason: str = Form(""),
     ) -> RedirectResponse:
+        interface_language = _lang(lang)
+        analysis_language = _form_lang(analysis_language)
         try:
             loop.add_feedback(
                 dream_id,
-                language=_lang(lang),
+                language=analysis_language,
                 interpretation_index=interpretation_index,
                 rating=rating,
                 reason=reason,
             )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except AnalysisUnavailableError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="Dream not found") from exc
-        return RedirectResponse(_dream_url(dream_id, lang), status_code=status.HTTP_303_SEE_OTHER)
+        return RedirectResponse(
+            _dream_url(dream_id, interface_language),
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
 
     @app.get("/dreams/{dream_id}", response_class=HTMLResponse)
-    def dream_detail(request: Request, dream_id: int, lang: str = "en") -> Any:
+    def dream_detail(
+        request: Request,
+        dream_id: int,
+        lang: str = "en",
+        analysis_error: str = "",
+    ) -> Any:
         lang = _lang(lang)
+        if analysis_error not in {"", "provider", "language_en", "language_zh", "incomplete"}:
+            analysis_error = ""
         try:
-            dream = loop.get_dream(dream_id, language=lang)
+            dream = loop.get_dream(
+                dream_id,
+                language=lang,
+                allow_analysis_fallback=True,
+            )
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="Dream not found") from exc
         context = loop.day_context(date.fromisoformat(dream["dreamed_on"]))
@@ -959,12 +1120,16 @@ def create_app(root: str | Path | None = None) -> FastAPI:
             "detail.html",
             {
                 "dream": dream,
-                "feedback": loop.feedback_for_dream(dream_id, language=lang),
+                "feedback": loop.feedback_for_dream(
+                    dream_id,
+                    language=dream.get("displayed_analysis_language") or lang,
+                ),
                 "context": context,
                 "ai": ai_status(loop.root),
                 "image": image_status(loop.root),
                 "lang": lang,
                 "t": TRANSLATIONS[lang],
+                "analysis_error": analysis_error,
                 "language_urls": {
                     "zh": _dream_url(dream_id, "zh"),
                     "en": _dream_url(dream_id, "en"),
@@ -1032,6 +1197,8 @@ def create_app(root: str | Path | None = None) -> FastAPI:
             )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except AnalysisUnavailableError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="Dream not found") from exc
         return {
@@ -1058,6 +1225,8 @@ def create_app(root: str | Path | None = None) -> FastAPI:
             raise HTTPException(status_code=409, detail=status_payload.warning or "AI provider is not ready.")
         try:
             analyzed = loop.analyze_dream(dream_id, analyzer, language=lang)
+        except (AnalysisLanguageMismatch, AnalysisIncomplete) as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="Dream not found") from exc
         return {
@@ -1069,13 +1238,17 @@ def create_app(root: str | Path | None = None) -> FastAPI:
 
     @app.post("/api/analyze/pending")
     def api_analyze_pending(lang: str = "en") -> dict[str, Any]:
-        analyzed = loop.analyze_pending(language=_lang(lang))
+        language = _lang(lang)
+        try:
+            analyzed = loop.analyze_pending(language=language)
+        except (AnalysisLanguageMismatch, AnalysisIncomplete) as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
         status_payload = ai_status(loop.root)
         return {
             "analyzed": analyzed,
             "ai_configured": status_payload.ready,
             "provider": status_payload.provider,
-            "language": _lang(lang),
+            "language": language,
         }
 
     @app.post("/api/import/ics")
