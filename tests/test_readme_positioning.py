@@ -97,9 +97,22 @@ def test_release_assets_and_docs_exist():
 
 def test_dashboard_css_has_subtle_transitions_and_reduced_motion():
     css = Path("src/dreamloop/static/style.css").read_text(encoding="utf-8")
+    index = Path("src/dreamloop/templates/index.html").read_text(encoding="utf-8")
+    web = Path("src/dreamloop/web.py").read_text(encoding="utf-8")
 
     assert "@keyframes page-soft-enter" in css
+    assert "@keyframes dl-breathe" in css
     assert "prefers-reduced-motion: reduce" in css
+    assert "font-variant-numeric: tabular-nums" in css
+    assert "::-webkit-scrollbar-thumb" in css
+    assert "backdrop-filter" not in css
+    assert "translateY(-2px)" not in css
+    assert ".constellation-map > .empty-state" in css
+    assert "minmax(38px, 1fr)" not in css
+    assert "align-content: start" in css
+    assert 'class="empty-state empty-state-illustrated"' in index
+    assert index.count('class="empty-state-icon"') == 3
+    assert "v0.1" not in web
     assert ".dashboard-hero h2" in css
     assert "clamp(28px, 2.3vw, 34px)" in css
 

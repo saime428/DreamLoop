@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>DreamLoop</title>
-    <link rel="stylesheet" href="{{ url_for('static', path='/style.css') }}?v=20260710c">
+    <link rel="stylesheet" href="{{ url_for('static', path='/style.css') }}?v=20260712b">
   </head>
   <body>
     <div class="app-frame">
@@ -118,7 +118,13 @@
                   <strong>{{ dream.content }}</strong>
                 </a>
               {% else %}
-                <p class="empty-state">{{ t.first_dream_waiting }}</p>
+                <p class="empty-state empty-state-illustrated">
+                  <svg class="empty-state-icon" viewBox="0 0 40 40" aria-hidden="true" focusable="false">
+                    <path d="M31.5 25.2A13 13 0 0 1 14.8 8.5a13 13 0 1 0 16.7 16.7Z"/>
+                    <path d="m29 7.5.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8Z"/>
+                  </svg>
+                  <span>{{ t.first_dream_waiting }}</span>
+                </p>
               {% endfor %}
             </div>
           </article>
@@ -346,7 +352,13 @@
                 {{ symbol_graph_svg|safe }}
               </div>
             {% else %}
-              <p class="empty-state">{{ t.symbol_graph_empty }}</p>
+              <p class="empty-state empty-state-illustrated">
+                <svg class="empty-state-icon" viewBox="0 0 40 40" aria-hidden="true" focusable="false">
+                  <path d="M31.5 25.2A13 13 0 0 1 14.8 8.5a13 13 0 1 0 16.7 16.7Z"/>
+                  <path d="m29 7.5.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8Z"/>
+                </svg>
+                <span>{{ t.symbol_graph_empty }}</span>
+              </p>
             {% endif %}
           </article>
 
@@ -451,7 +463,13 @@
                 <span>{{ t.gallery_eyebrow }}</span>
                 <h2>{{ t.gallery_title }}</h2>
               </div>
-              <p class="empty-state">{{ t.gallery_empty }}</p>
+              <p class="empty-state empty-state-illustrated">
+                <svg class="empty-state-icon" viewBox="0 0 40 40" aria-hidden="true" focusable="false">
+                  <path d="M31.5 25.2A13 13 0 0 1 14.8 8.5a13 13 0 1 0 16.7 16.7Z"/>
+                  <path d="m29 7.5.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8Z"/>
+                </svg>
+                <span>{{ t.gallery_empty }}</span>
+              </p>
               <a class="primary-cta" href="/log?lang={{ lang }}">{{ t.dashboard_cta }}</a>
             </article>
           {% endfor %}

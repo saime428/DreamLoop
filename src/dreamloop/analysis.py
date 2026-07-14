@@ -219,7 +219,7 @@ def ai_status(root: str | Path | None = None) -> AIStatus:
     if provider == "none":
         return AIStatus("none", None, None, "local", False, "AI analysis disabled.")
     if provider == "ollama":
-        return AIStatus("ollama", model, base_url, "local", True, "Ollama optional; capture works if it is offline.")
+        return AIStatus("ollama", model, base_url, "local", True, None)
     if provider == "deepseek":
         ready = bool(secrets.get("DEEPSEEK_API_KEY"))
         warning = None if ready else "DEEPSEEK_API_KEY is not configured."

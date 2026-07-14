@@ -70,6 +70,7 @@ def test_ollama_provider_is_local_and_does_not_need_key(tmp_path):
     assert status.base_url == "http://localhost:11434/v1"
     assert status.mode == "local"
     assert status.ready is True
+    assert status.warning is None
     assert isinstance(analyzer, OllamaAnalyzer)
     assert analyzer.api_key == "ollama"
 
