@@ -6,11 +6,11 @@
 [![PyPI version](https://img.shields.io/pypi/v/dreamloop.svg)](https://pypi.org/project/dreamloop/)
 [![Python versions](https://img.shields.io/pypi/pyversions/dreamloop.svg)](https://pypi.org/project/dreamloop/)
 
-![DreamLoop AI interpretation screenshot](docs/assets/detail-analysis-screenshot.png)
+![DreamLoop AI analysis showing the selected language, evidence, and real-life links](docs/assets/detail-analysis-screenshot.jpg)
 
 > "The repeating platform may reflect revisiting the same choice from different angles. Which real choice keeps bringing you back to the same concern?"
 
-![DreamLoop dashboard screenshot](docs/assets/dashboard-screenshot.png)
+![DreamLoop dashboard with local dream counts, AI insight, calendar, and recent dreams](docs/assets/dashboard-screenshot.jpg)
 
 **Your dreams have patterns. DreamLoop finds them locally.**
 
@@ -44,7 +44,7 @@ uv run dreamloop web
 Dream entries, settings, secrets, generated images, and exports live under `.dreamloop/`. Nothing uploads by default.
 
 <p align="center">
-  <img src="docs/assets/readme-local-first-privacy.png" alt="DreamLoop local-first privacy review desk with settings drafts" width="100%">
+  <img src="docs/assets/settings-privacy-screenshot.jpg" alt="DreamLoop Settings with local AI and image-provider controls and hidden API keys" width="100%">
 </p>
 
 ### AI interpretation
@@ -56,7 +56,7 @@ DreamLoop can use Ollama locally or an explicit cloud/custom OpenAI-compatible p
 Every saved dream can create a local visual-memory card without any image API. Real image generation is opt-in.
 
 <p align="center">
-  <img src="docs/assets/readme-workflow-review.png" alt="DreamLoop six-page web app workflow review" width="100%">
+  <img src="docs/assets/gallery-screenshot.jpg" alt="DreamLoop Gallery showing local visual-memory cards created without an image API" width="100%">
 </p>
 
 ![DreamLoop CLI demo](docs/assets/cli-demo.gif)
