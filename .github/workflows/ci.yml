@@ -24,7 +24,12 @@ jobs:
           python-version: "3.11"
 
       - name: Install dependencies
-        run: uv sync --extra dev
+        run: uv sync --extra dev --locked
+
+      - name: Verify lockfile and dependencies
+        run: |
+          uv lock --check
+          uv audit --frozen
 
       - name: Verify console script
         run: uv run dreamloop --help
@@ -37,3 +42,18 @@ jobs:
 
       - name: Check package metadata
         run: uv run --extra dev twine check dist/*
+
+      - name: Smoke test installed wheel
+        run: |
+          python -m venv /tmp/dreamloop-wheel-smoke
+          /tmp/dreamloop-wheel-smoke/bin/pip install dist/*.whl
+          /tmp/dreamloop-wheel-smoke/bin/dreamloop --help
+          /tmp/dreamloop-wheel-smoke/bin/python - <<'PY'
+          from importlib.resources import files
+          from dreamloop.web import create_app
+
+          assert (files("dreamloop") / "templates" / "index.html").is_file()
+          assert (files("dreamloop") / "templates" / "detail.html").is_file()
+          assert (files("dreamloop") / "static" / "style.css").is_file()
+          assert create_app().title == "DreamLoop"
+          PY

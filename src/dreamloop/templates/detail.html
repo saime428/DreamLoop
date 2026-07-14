@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Dream #{{ dream.id }} / DreamLoop</title>
-    <link rel="stylesheet" href="{{ url_for('static', path='/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='/style.css') }}?v=20260714-type">
   </head>
   <body>
     <div class="app-frame detail-frame">
@@ -15,7 +15,7 @@
         </a>
         <nav class="side-nav">
           <a href="/?lang={{ lang }}">{{ t.nav_dashboard }}</a>
-          <a href="/log?lang={{ lang }}" class="active">{{ t.nav_log }}</a>
+          <a href="/log?lang={{ lang }}" class="active" aria-current="page">{{ t.nav_log }}</a>
           <a href="/patterns?lang={{ lang }}">{{ t.nav_patterns }}</a>
           <a href="/gallery?lang={{ lang }}">{{ t.nav_gallery }}</a>
           <a href="/settings?lang={{ lang }}">{{ t.nav_settings }}</a>
@@ -27,46 +27,66 @@
       </aside>
 
       <main class="dashboard detail-dashboard page-detail">
-        <a class="back-link" href="/?lang={{ lang }}">{{ t.back_dashboard }}</a>
+        <div class="detail-toolbar">
+          <a class="back-link" href="/?lang={{ lang }}">{{ t.back_dashboard }}</a>
+          <nav class="language-toggle" aria-label="Language">
+            <a href="{{ language_urls.zh }}" data-lang="zh" class="{{ 'active' if lang == 'zh' else '' }}" {% if lang == "zh" %}aria-current="true"{% endif %}>中文</a>
+            <a href="{{ language_urls.en }}" data-lang="en" class="{{ 'active' if lang == 'en' else '' }}" {% if lang == "en" %}aria-current="true"{% endif %}>English</a>
+          </nav>
+        </div>
 
-        <article class="detail-hero constellation-sky">
-          <p class="eyebrow">{{ dream.dreamed_on }} / {{ dream.analysis_status }}</p>
-          <h1>Dream #{{ dream.id }}</h1>
-          <p class="dream-text">{{ dream.content }}</p>
-          <div class="tag-shelf">
-            <span>{{ dream.manual_mood or t.no_mood }}</span>
-            {% for tag in dream.tags %}
-              <span>{{ tag }}</span>
-            {% else %}
-              <span>{{ t.no_tags }}</span>
-            {% endfor %}
+        <article class="detail-hero constellation-sky{% if not dream.visual_memory and not (dream.image and dream.image.status == 'complete') %} detail-hero-single{% endif %}">
+          <div class="detail-hero-copy">
+            <p class="eyebrow">{{ dream.dreamed_on }} / {{ dream.analysis_status }}</p>
+            <h1>Dream #{{ dream.id }}</h1>
+            <p class="dream-text">{{ dream.content }}</p>
+            <div class="tag-shelf">
+              <span>{{ dream.manual_mood or t.no_mood }}</span>
+              {% for tag in dream.tags %}
+                <span>{{ tag }}</span>
+              {% else %}
+                <span>{{ t.no_tags }}</span>
+              {% endfor %}
+            </div>
+            <a class="analysis-jump" href="#analysis">{{ t.ai_analysis }}</a>
           </div>
-          {% if dream.image and dream.image.status == "complete" %}
-            <section class="local-visual-card dream-image-card">
+
+          {% if (dream.image and dream.image.status == "complete") or dream.visual_memory %}
+          <div class="detail-visual">
+            {% if dream.image and dream.image.status == "complete" %}
+            <section class="local-visual-card dream-image-card detail-visual-card">
               <img class="dream-image" src="{{ dream.image.image_url }}" alt="{{ t.dream_image_title }}">
               <span>{{ t.dream_image_title }}</span>
               <strong>{{ dream.image.provider }}</strong>
               <small>{{ dream.image.created_at }}</small>
             </section>
-          {% endif %}
-          {% if dream.visual_memory %}
-            <section class="local-visual-card" style="--visual-a: {{ dream.visual_memory.accent_1 }}; --visual-b: {{ dream.visual_memory.accent_2 }}; --visual-c: {{ dream.visual_memory.accent_3 }};">
+            {% elif dream.visual_memory %}
+            <section class="local-visual-card detail-visual-card" style="--visual-a: {{ dream.visual_memory.accent_1 }}; --visual-b: {{ dream.visual_memory.accent_2 }}; --visual-c: {{ dream.visual_memory.accent_3 }};">
               <span>{{ t.visual_memory_title }}</span>
               <strong>{{ dream.visual_memory.title }}</strong>
               <small>{{ ", ".join(dream.visual_memory.symbols) or dream.dreamed_on }}</small>
             </section>
+            {% endif %}
+          </div>
           {% endif %}
+
           <div class="visual-memory-action">
+            {% if dream.analysis_actions_enabled %}
             <form method="post" action="/dreams/{{ dream.id }}/visual?lang={{ lang }}">
+              <input type="hidden" name="analysis_language" value="{{ dream.displayed_analysis_language }}">
               <button type="submit" class="secondary-button">{{ t.regenerate_visual_memory if dream.visual_memory else t.generate_local_card }}</button>
             </form>
             <form method="post" action="/dreams/{{ dream.id }}/image?lang={{ lang }}">
+              <input type="hidden" name="analysis_language" value="{{ dream.displayed_analysis_language }}">
               <button type="submit" class="secondary-button" {{ "disabled" if not image.ready else "" }}>{{ t.generate_dream_image }}</button>
             </form>
+            {% endif %}
             <form method="post" action="/dreams/{{ dream.id }}/delete?lang={{ lang }}" onsubmit="return confirm('{{ t.delete_confirm }}')">
               <button type="submit" class="danger-button">{{ t.delete_dream }}</button>
             </form>
+            {% if dream.analysis_actions_enabled %}
             <p>{{ t.visual_memory_local_note if dream.visual_memory else t.visual_memory_note }} {% if not image.ready %}{{ t.real_image_not_ready }}{% endif %}</p>
+            {% endif %}
           </div>
         </article>
 
@@ -76,7 +96,22 @@
               <span>{{ t.structured_output }}</span>
               <h2>{{ t.ai_analysis }}</h2>
             </div>
+            {% if analysis_error %}
+              <p class="status-message warning">{{ t["analysis_error_" ~ analysis_error] }}</p>
+            {% endif %}
             {% if dream.analysis %}
+              <p class="analysis-language-badge">{{ t["analysis_language_" ~ dream.displayed_analysis_language] }}</p>
+              {% if dream.analysis_is_fallback %}
+                <p class="status-message warning">{{ t["analysis_fallback_" ~ dream.displayed_analysis_language] }}</p>
+              {% elif dream.analysis_language_mismatch %}
+                <p class="status-message warning">{{ t.analysis_mismatch }} {{ t["analysis_detected_" ~ dream.analysis.detected_language] }}</p>
+              {% endif %}
+              {% if (dream.analysis_is_fallback or dream.analysis_language_mismatch) and ai.ready %}
+                <form method="post" action="/dreams/{{ dream.id }}/analyze?lang={{ lang }}" class="analyze-form" data-loading-form data-loading-text="{{ t.analyzing_dream }}">
+                  <button type="submit" data-loading-button>{{ t.generate_chinese_analysis if lang == "zh" else t.generate_english_analysis }}</button>
+                  <p class="loading-message" aria-live="polite">{{ t.analyzing_dream }}</p>
+                </form>
+              {% endif %}
               <div class="tag-shelf">
                 <span>{{ dream.analysis.emotional_tone }}</span>
                 {% for symbol in dream.analysis.symbols %}
@@ -137,13 +172,16 @@
                             <small>{{ item.dream_evidence }}</small>
                             <small>{{ item.real_life_connection }}</small>
                             <em>{{ item.verification_question }}</em>
+                            {% if dream.analysis_actions_enabled %}
                             <form method="post" action="/dreams/{{ dream.id }}/feedback?lang={{ lang }}" class="feedback-form">
+                              <input type="hidden" name="analysis_language" value="{{ dream.displayed_analysis_language }}">
                               <input type="hidden" name="interpretation_index" value="{{ loop.index0 }}">
                               <input name="reason" placeholder="{{ t.feedback_reason_placeholder }}">
                               <button type="submit" name="rating" value="resonates">{{ t.feedback_resonates }}</button>
                               <button type="submit" name="rating" value="not_accurate">{{ t.feedback_not_accurate }}</button>
                               <button type="submit" name="rating" value="unsure">{{ t.feedback_unsure }}</button>
                             </form>
+                            {% endif %}
                           </article>
                         {% endfor %}
                       </div>
@@ -177,6 +215,20 @@
               </details>
               {% if feedback %}
                 <p class="runtime-note">{{ t.feedback_saved }}</p>
+              {% endif %}
+            {% elif dream.invalid_analysis %}
+              <p class="status-message warning">
+                {% if dream.invalid_analysis.language_mismatch %}
+                  {{ t.analysis_mismatch }} {{ t["analysis_detected_" ~ dream.invalid_analysis.detected_language] }}
+                {% else %}
+                  {{ t.analysis_incomplete_stored }}
+                {% endif %}
+              </p>
+              {% if ai.ready %}
+                <form method="post" action="/dreams/{{ dream.id }}/analyze?lang={{ lang }}" class="analyze-form" data-loading-form data-loading-text="{{ t.analyzing_dream }}">
+                  <button type="submit" data-loading-button>{{ t.generate_chinese_analysis if lang == "zh" else t.generate_english_analysis }}</button>
+                  <p class="loading-message" aria-live="polite">{{ t.analyzing_dream }}</p>
+                </form>
               {% endif %}
             {% elif ai.ready %}
               <p class="empty-state">{{ t.pending_analysis }}: {{ ai.provider }} / {{ ai.model }}</p>
@@ -212,6 +264,11 @@
     </div>
     <script>
       (() => {
+        document.querySelectorAll("[data-lang]").forEach((control) => {
+          control.addEventListener("click", () => {
+            window.localStorage.setItem("dreamloop.lang", control.dataset.lang);
+          });
+        });
         document.querySelectorAll("[data-loading-form]").forEach((form) => {
           form.addEventListener("submit", () => {
             form.classList.add("is-loading");

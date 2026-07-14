@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>DreamLoop</title>
-    <link rel="stylesheet" href="{{ url_for('static', path='/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='/style.css') }}?v=20260714-type">
   </head>
   <body>
     <div class="app-frame">
@@ -14,11 +14,11 @@
           <strong>DreamLoop</strong>
         </a>
         <nav class="side-nav">
-          <a href="/?lang={{ lang }}" class="{{ 'active' if page == 'dashboard' else '' }}">{{ t.nav_dashboard }}</a>
-          <a href="/log?lang={{ lang }}" class="{{ 'active' if page == 'log' else '' }}">{{ t.nav_log }}</a>
-          <a href="/patterns?lang={{ lang }}" class="{{ 'active' if page == 'patterns' else '' }}">{{ t.nav_patterns }}</a>
-          <a href="/gallery?lang={{ lang }}" class="{{ 'active' if page == 'gallery' else '' }}">{{ t.nav_gallery }}</a>
-          <a href="/settings?lang={{ lang }}" class="{{ 'active' if page == 'settings' else '' }}">{{ t.nav_settings }}</a>
+          <a href="/?lang={{ lang }}" class="{{ 'active' if page == 'dashboard' else '' }}" {% if page == "dashboard" %}aria-current="page"{% endif %}>{{ t.nav_dashboard }}</a>
+          <a href="/log?lang={{ lang }}" class="{{ 'active' if page == 'log' else '' }}" {% if page == "log" %}aria-current="page"{% endif %}>{{ t.nav_log }}</a>
+          <a href="/patterns?lang={{ lang }}" class="{{ 'active' if page == 'patterns' else '' }}" {% if page == "patterns" %}aria-current="page"{% endif %}>{{ t.nav_patterns }}</a>
+          <a href="/gallery?lang={{ lang }}" class="{{ 'active' if page == 'gallery' else '' }}" {% if page == "gallery" %}aria-current="page"{% endif %}>{{ t.nav_gallery }}</a>
+          <a href="/settings?lang={{ lang }}" class="{{ 'active' if page == 'settings' else '' }}" {% if page == "settings" %}aria-current="page"{% endif %}>{{ t.nav_settings }}</a>
         </nav>
         <div class="side-note">
           <span>{{ dreams|length }}</span>
@@ -47,14 +47,27 @@
               <p class="tagline">{{ t.gallery_note }}</p>
             {% else %}
               <p class="eyebrow">{{ t.settings_eyebrow }}</p>
-              <h1>{{ t.settings_title }}</h1>
+              <h1>{{ t.nav_settings }}</h1>
               <p class="tagline">{{ t.settings_copy }}</p>
             {% endif %}
           </div>
+          {% if page == "log" %}
+          <form method="post" action="/drafts/language" class="language-toggle" aria-label="Language" data-draft-language-form data-has-draft-state="{{ 'true' if draft or draft_content or draft_reflections else 'false' }}">
+            <textarea name="content" hidden>{{ draft.content if draft else draft_content }}</textarea>
+            <textarea name="reflections_json" hidden>{{ draft.reflections_json if draft else '{}' }}</textarea>
+            <textarea name="analysis_json" hidden>{{ draft.analysis_json if draft else '' }}</textarea>
+            <input type="hidden" name="analysis_language" value="{{ draft.language if draft else lang }}">
+            <textarea data-draft-original-content hidden>{{ draft.content if draft else draft_content }}</textarea>
+            <textarea data-draft-original-reflections hidden>{{ draft.reflections_json if draft else '{}' }}</textarea>
+            <button type="submit" name="lang" value="zh" data-lang="zh" class="{{ 'active' if lang == 'zh' else '' }}" {% if lang == "zh" %}aria-current="true"{% endif %}>中文</button>
+            <button type="submit" name="lang" value="en" data-lang="en" class="{{ 'active' if lang == 'en' else '' }}" {% if lang == "en" %}aria-current="true"{% endif %}>English</button>
+          </form>
+          {% else %}
           <nav class="language-toggle" aria-label="Language">
-            <a href="?lang=zh" data-lang="zh" class="{{ 'active' if lang == 'zh' else '' }}">中文</a>
-            <a href="?lang=en" data-lang="en" class="{{ 'active' if lang == 'en' else '' }}">English</a>
+            <a href="{{ language_urls.zh }}" data-lang="zh" class="{{ 'active' if lang == 'zh' else '' }}" {% if lang == "zh" %}aria-current="true"{% endif %}>中文</a>
+            <a href="{{ language_urls.en }}" data-lang="en" class="{{ 'active' if lang == 'en' else '' }}" {% if lang == "en" %}aria-current="true"{% endif %}>English</a>
           </nav>
+          {% endif %}
         </header>
 
         {% if page == "dashboard" %}
@@ -118,7 +131,13 @@
                   <strong>{{ dream.content }}</strong>
                 </a>
               {% else %}
-                <p class="empty-state">{{ t.first_dream_waiting }}</p>
+                <p class="empty-state empty-state-illustrated">
+                  <svg class="empty-state-icon" viewBox="0 0 40 40" aria-hidden="true" focusable="false">
+                    <path d="M31.5 25.2A13 13 0 0 1 14.8 8.5a13 13 0 1 0 16.7 16.7Z"/>
+                    <path d="m29 7.5.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8Z"/>
+                  </svg>
+                  <span>{{ t.first_dream_waiting }}</span>
+                </p>
               {% endfor %}
             </div>
           </article>
@@ -131,20 +150,10 @@
               <span>{{ t.local_write }}</span>
               <h2>{{ t.log_title }}</h2>
             </div>
-            <p class="lede">{{ t.log_lede }}</p>
-            <form method="post" action="/drafts/analyze?lang={{ lang }}" class="quick-capture hero-quick-capture" data-loading-form data-loading-text="{{ t.analyzing_dream }}">
-              <textarea name="content" placeholder="{{ t.content_placeholder }}" required autofocus>{{ draft.content if draft else draft_content }}</textarea>
-              <div class="reflection-fields" aria-label="{{ t.reflection_prompt }}">
-                <p class="reflection-heading">{{ t.reflection_prompt }}</p>
-                {% for field in reflection_fields %}
-                  <label>
-                    <span>{{ field.label }}</span>
-                    <input name="{{ field.name }}" value="{{ field.value }}" placeholder="{{ field.placeholder }}">
-                  </label>
-                {% endfor %}
-              </div>
+            <form method="post" action="/drafts/analyze?lang={{ lang }}" class="quick-capture hero-quick-capture" data-draft-input-form data-loading-form data-loading-text="{{ t.analyzing_dream }}">
+              <textarea name="content" placeholder="{{ t.content_placeholder }}" required>{{ draft.content if draft else draft_content }}</textarea>
               {% if analysis_error %}
-                <p class="status-message warning">{{ t.analysis_failed }}</p>
+                <p class="status-message warning">{{ t["analysis_error_" ~ analysis_error] }}</p>
               {% elif not ai.ready %}
                 <p class="status-message warning">{{ t.analysis_unavailable_before_save }}</p>
               {% endif %}
@@ -156,6 +165,17 @@
               </div>
               <p class="loading-message" aria-live="polite">{{ t.analyzing_dream }}</p>
               <p class="privacy-line">{{ t.data_never_leaves }}</p>
+              <details class="reflection-disclosure">
+                <summary>{{ t.reflection_prompt }}</summary>
+                <div class="reflection-fields" aria-label="{{ t.reflection_prompt }}">
+                  {% for field in reflection_fields %}
+                    <label>
+                      <span>{{ field.label }}</span>
+                      <input name="{{ field.name }}" value="{{ field.value }}" placeholder="{{ field.placeholder }}">
+                    </label>
+                  {% endfor %}
+                </div>
+              </details>
             </form>
           </article>
 
@@ -167,9 +187,10 @@
 
             {% if draft %}
               <div class="latest-dream-preview">
-                <span>{{ t.draft_analysis }} / {{ draft.language }} / {{ t.draft_not_saved }}</span>
+                <span>{{ t.draft_analysis }} / {{ t.draft_not_saved }}</span>
                 <p>{{ draft.content }}</p>
               </div>
+              <p class="analysis-language-badge">{{ t["analysis_language_" ~ draft.language] }}</p>
               <div class="analysis-status ready">{{ t.analysis_ready }}</div>
               <dl class="analysis-list">
                 <div><dt>{{ t.emotional_tone }}</dt><dd>{{ draft.analysis.emotional_tone }}</dd></div>
@@ -245,13 +266,14 @@
                   {% endif %}
                 </div>
               {% endif %}
-              <form method="post" action="/drafts/save?lang={{ lang }}" class="draft-actions">
-                <input type="hidden" name="content" value="{{ draft.content }}">
+              <form method="post" action="/drafts/save?lang={{ lang }}" class="draft-actions" data-draft-save-form>
+                <textarea name="content" hidden>{{ draft.content }}</textarea>
                 <input type="hidden" name="analysis_language" value="{{ draft.language }}">
                 <textarea name="reflections_json" hidden>{{ draft.reflections_json }}</textarea>
                 <textarea name="analysis_json" hidden>{{ draft.analysis_json }}</textarea>
-                <button type="submit">{{ t.save_analysis }}</button>
+                <button type="submit">{{ t["save_analysis_" ~ draft.language] if draft.language != lang else t.save_analysis }}</button>
                 <a href="/log?lang={{ lang }}" class="secondary-link">{{ t.discard }}</a>
+                <p class="status-message warning" data-draft-changed-message hidden>{{ t.draft_changed }}</p>
               </form>
               <details>
                 <summary>{{ t.raw_json }}</summary>
@@ -272,6 +294,24 @@
                 <div><dt>{{ t.confidence }}</dt><dd>{{ "%.0f"|format(latest_dream.analysis.confidence * 100) }}%</dd></div>
               </dl>
               <p class="analysis-summary">{{ latest_dream.analysis.summary }}</p>
+            {% elif latest_dream.invalid_analysis %}
+              <div class="latest-dream-preview">
+                <span>{{ t.latest_dream }} / #{{ latest_dream.id }} / {{ latest_dream.dreamed_on }}</span>
+                <p>{{ latest_dream.content }}</p>
+              </div>
+              <p class="status-message warning">
+                {% if latest_dream.invalid_analysis.language_mismatch %}
+                  {{ t.analysis_mismatch }} {{ t["analysis_detected_" ~ latest_dream.invalid_analysis.detected_language] }}
+                {% else %}
+                  {{ t.analysis_incomplete_stored }}
+                {% endif %}
+              </p>
+              {% if ai.ready %}
+                <form method="post" action="/dreams/{{ latest_dream.id }}/analyze?lang={{ lang }}" class="analyze-form" data-loading-form data-loading-text="{{ t.analyzing_dream }}">
+                  <button type="submit" data-loading-button>{{ t.generate_chinese_analysis if lang == "zh" else t.generate_english_analysis }}</button>
+                  <p class="loading-message" aria-live="polite">{{ t.analyzing_dream }}</p>
+                </form>
+              {% endif %}
             {% elif ai.ready %}
               <div class="latest-dream-preview">
                 <span>{{ t.latest_dream }} / #{{ latest_dream.id }} / {{ latest_dream.dreamed_on }}</span>
@@ -317,7 +357,7 @@
 
         {% elif page == "patterns" %}
         <section class="pattern-grid">
-          <article class="panel panel-wide">
+          <article class="panel pattern-calendar">
             <div class="section-title">
               <span>{{ t.pattern_map }}</span>
               <h2>{{ t.dream_calendar }}</h2>
@@ -335,7 +375,27 @@
             <p class="runtime-note">{{ t.open_dream_day }}</p>
           </article>
 
-          <article class="panel">
+          <article class="panel pattern-network">
+            <div class="section-title">
+              <span>{{ t.structured_output }}</span>
+              <h2>{{ t.symbol_graph }}</h2>
+            </div>
+            {% if symbol_graph.nodes %}
+              <div class="symbol-network-wrap">
+                {{ symbol_graph_svg|safe }}
+              </div>
+            {% else %}
+              <p class="empty-state empty-state-illustrated">
+                <svg class="empty-state-icon" viewBox="0 0 40 40" aria-hidden="true" focusable="false">
+                  <path d="M31.5 25.2A13 13 0 0 1 14.8 8.5a13 13 0 1 0 16.7 16.7Z"/>
+                  <path d="m29 7.5.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8Z"/>
+                </svg>
+                <span>{{ t.symbol_graph_empty }}</span>
+              </p>
+            {% endif %}
+          </article>
+
+          <article class="panel pattern-moods">
             <div class="section-title">
               <span>{{ t.signals }}</span>
               <h2>{{ t.mood_spectrum }}</h2>
@@ -353,7 +413,7 @@
             </div>
           </article>
 
-          <article class="panel">
+          <article class="panel pattern-symbols">
             <div class="section-title">
               <span>{{ t.structured_output }}</span>
               <h2>{{ t.symbols }}</h2>
@@ -369,7 +429,7 @@
             </div>
           </article>
 
-          <article class="panel">
+          <article class="panel pattern-themes">
             <div class="section-title">
               <span>{{ t.theme_trends }}</span>
               <h2>{{ t.themes }}</h2>
@@ -385,7 +445,7 @@
             </div>
           </article>
 
-          <article class="panel">
+          <article class="panel pattern-summary">
             <div class="section-title">
               <span>{{ t.ai_insight }}</span>
               <h2>{{ t.pattern_summary }}</h2>
@@ -396,7 +456,7 @@
             </div>
           </article>
 
-          <article class="panel">
+          <article class="panel pattern-feedback">
             <div class="section-title">
               <span>{{ t.feedback_title }}</span>
               <h2>{{ t.resonant_themes }}</h2>
@@ -436,7 +496,13 @@
                 <span>{{ t.gallery_eyebrow }}</span>
                 <h2>{{ t.gallery_title }}</h2>
               </div>
-              <p class="empty-state">{{ t.gallery_empty }}</p>
+              <p class="empty-state empty-state-illustrated">
+                <svg class="empty-state-icon" viewBox="0 0 40 40" aria-hidden="true" focusable="false">
+                  <path d="M31.5 25.2A13 13 0 0 1 14.8 8.5a13 13 0 1 0 16.7 16.7Z"/>
+                  <path d="m29 7.5.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8Z"/>
+                </svg>
+                <span>{{ t.gallery_empty }}</span>
+              </p>
               <a class="primary-cta" href="/log?lang={{ lang }}">{{ t.dashboard_cta }}</a>
             </article>
           {% endfor %}
@@ -449,7 +515,6 @@
               <span>{{ t.settings_eyebrow }}</span>
               <h2>{{ t.settings_title }}</h2>
             </div>
-            <p class="lede">{{ t.settings_copy }}</p>
             {% if settings_saved %}
               <p class="status-message ready-message">{{ t.settings_saved }}</p>
             {% endif %}
@@ -513,7 +578,7 @@
             </form>
           </article>
 
-          <article class="panel">
+          <article class="panel settings-runtime">
             <div class="section-title">
               <span>{{ t.provider_status }}</span>
               <h2>{{ t.local_runtime }}</h2>
@@ -547,9 +612,81 @@
 
     <script>
       (() => {
+        if (window.location.pathname === "/drafts/language") {
+          window.history.replaceState(
+            null,
+            "",
+            `/log?lang=${document.documentElement.lang}${window.location.hash}`,
+          );
+        }
         const params = new URLSearchParams(window.location.search);
-        const current = params.get("lang");
+        let current = params.get("lang");
         const saved = window.localStorage.getItem("dreamloop.lang");
+        const draftLanguageForm = document.querySelector("[data-draft-language-form]");
+        const draftInputForm = document.querySelector("[data-draft-input-form]");
+        const draftSaveForm = document.querySelector("[data-draft-save-form]");
+        const draftState = () => {
+          if (!draftInputForm) return { content: "", reflections: {} };
+          const reflections = {};
+          draftInputForm.querySelectorAll(".reflection-fields input[name]").forEach((input) => {
+            const value = input.value.trim();
+            if (value) reflections[input.name] = value;
+          });
+          return {
+            content: draftInputForm.querySelector("textarea[name='content']")?.value || "",
+            reflections,
+          };
+        };
+        const syncDraftState = () => {
+          if (!draftLanguageForm || !draftInputForm) return false;
+          const state = draftState();
+          const reflectionsJson = JSON.stringify(state.reflections);
+          draftLanguageForm.querySelector("[name='content']").value = state.content;
+          draftLanguageForm.querySelector("[name='reflections_json']").value = reflectionsJson;
+          if (draftSaveForm) {
+            draftSaveForm.querySelector("[name='content']").value = state.content;
+            draftSaveForm.querySelector("[name='reflections_json']").value = reflectionsJson;
+          }
+          const originalContent = draftLanguageForm.querySelector("[data-draft-original-content]").value;
+          let originalReflections = {};
+          try {
+            originalReflections = JSON.parse(
+              draftLanguageForm.querySelector("[data-draft-original-reflections]").value || "{}",
+            );
+          } catch (_error) {
+            originalReflections = {};
+          }
+          const changed = Boolean(
+            draftLanguageForm.querySelector("[name='analysis_json']").value &&
+            (state.content !== originalContent || reflectionsJson !== JSON.stringify(originalReflections)),
+          );
+          if (draftSaveForm) {
+            const saveButton = draftSaveForm.querySelector("button[type='submit']");
+            const message = draftSaveForm.querySelector("[data-draft-changed-message]");
+            if (saveButton) saveButton.disabled = changed;
+            if (message) message.hidden = !changed;
+          }
+          return changed;
+        };
+        if (draftInputForm) {
+          draftInputForm.addEventListener("input", syncDraftState);
+          syncDraftState();
+        }
+        if (draftLanguageForm) {
+          draftLanguageForm.addEventListener("submit", () => {
+            if (syncDraftState()) {
+              draftLanguageForm.querySelector("[name='analysis_json']").value = "";
+            }
+          });
+        }
+        if (draftSaveForm) {
+          draftSaveForm.addEventListener("submit", (event) => {
+            if (syncDraftState()) event.preventDefault();
+          });
+        }
+        if (!current && draftLanguageForm?.dataset.hasDraftState === "true") {
+          current = document.documentElement.lang;
+        }
         if (!current && saved && ["zh", "en"].includes(saved)) {
           params.set("lang", saved);
           window.location.replace(`${window.location.pathname}?${params.toString()}${window.location.hash}`);
@@ -558,9 +695,9 @@
         if (current && ["zh", "en"].includes(current)) {
           window.localStorage.setItem("dreamloop.lang", current);
         }
-        document.querySelectorAll("[data-lang]").forEach((link) => {
-          link.addEventListener("click", () => {
-            window.localStorage.setItem("dreamloop.lang", link.dataset.lang);
+        document.querySelectorAll("[data-lang]").forEach((control) => {
+          control.addEventListener("click", () => {
+            window.localStorage.setItem("dreamloop.lang", control.dataset.lang);
           });
         });
         document.querySelectorAll("[data-loading-form]").forEach((form) => {
