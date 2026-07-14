@@ -37,24 +37,24 @@ assets.
 
 **Files:** None.
 
-- [ ] Run:
+- [x] Run:
 
 ```powershell
 git status --short --branch
 git diff --cached --name-only
 ```
 
-- [ ] If the index contains work outside the phase being implemented, stop
+- [x] If the index contains work outside the phase being implemented, stop
   before committing. Commit the existing baseline with user approval or use a
   clean worktree; do not unstage or fold unrelated changes into these commits.
 
-- [ ] Run the current suite:
+- [x] Run the current suite:
 
 ```powershell
 uv run --extra dev pytest -q
 ```
 
-- [ ] Record the baseline result. Do not reinterpret a pre-existing failure as
+- [x] Record the baseline result. Do not reinterpret a pre-existing failure as
   a regression from this plan.
 
 ---
@@ -73,13 +73,13 @@ fix: preserve drafts across language changes
 
 - Modify: `tests/test_web_api.py`
 
-- [ ] Add `test_language_toggles_use_route_aware_paths`.
+- [x] Add `test_language_toggles_use_route_aware_paths`.
 
 The test visits Dashboard, Log, Patterns, Gallery, Settings, and a Detail page
 and verifies that each `data-lang` destination is a root-relative path for the
 current route, not a bare `?lang=...` URL.
 
-- [ ] Add
+- [x] Add
   `test_draft_language_switch_preserves_state_without_persisting_or_reanalyzing`.
 
 Test sequence:
@@ -100,7 +100,7 @@ Test sequence:
 9. Assert the POST-rendered response marks the draft language form so client
    preference code cannot redirect it to `GET /drafts/language`.
 
-- [ ] Run the focused tests and confirm they fail for the expected missing
+- [x] Run the focused tests and confirm they fail for the expected missing
   behavior:
 
 ```powershell
@@ -115,7 +115,7 @@ uv run --extra dev pytest tests/test_web_api.py -q -k "language_toggle or draft_
 - Modify: `src/dreamloop/templates/index.html`
 - Modify: `src/dreamloop/templates/detail.html`
 
-- [ ] In `render_home`, add:
+- [x] In `render_home`, add:
 
 ```python
 "language_urls": {
@@ -126,7 +126,7 @@ uv run --extra dev pytest tests/test_web_api.py -q -k "language_toggle or draft_
 
 Use the existing `_page_url`; do not create a generic URL builder.
 
-- [ ] In `dream_detail`, add:
+- [x] In `dream_detail`, add:
 
 ```python
 "language_urls": {
@@ -135,14 +135,14 @@ Use the existing `_page_url`; do not create a generic URL builder.
 },
 ```
 
-- [ ] Replace the bare `?lang=...` links in both templates with these
+- [x] Replace the bare `?lang=...` links in both templates with these
   explicit URLs.
 
-- [ ] Add the same compact two-option language control to Detail beside its
+- [x] Add the same compact two-option language control to Detail beside its
   back link; the current Detail template has no language control, so do not
   leave `language_urls` unused.
 
-- [ ] Preserve `data-lang` and `aria-current`, and make Detail clicks update
+- [x] Preserve `data-lang` and `aria-current`, and make Detail clicks update
   the same `dreamloop.lang` localStorage preference used by the primary-page
   template.
 
@@ -154,7 +154,7 @@ Use the existing `_page_url`; do not create a generic URL builder.
 - Modify: `src/dreamloop/templates/index.html`
 - Modify: `src/dreamloop/static/style.css`
 
-- [ ] Add one small parser in `web.py` for the existing hidden payload:
+- [x] Add one small parser in `web.py` for the existing hidden payload:
 
 ```python
 def _draft_from_form(
@@ -177,13 +177,13 @@ It must:
 - treat malformed reflection JSON as an empty object, matching current save
   behavior.
 
-- [ ] Add one strict form-language helper in `web.py` that accepts only `en`
+- [x] Add one strict form-language helper in `web.py` that accepts only `en`
   or `zh` and raises HTTP 400 otherwise. Use it for every language value on the
   draft POST flow: `analyze_draft.lang`, `save_draft.lang`, the
   `/drafts/language` target `lang`, and submitted `analysis_language`. Keep
   `_lang` for forgiving GET query handling.
 
-- [ ] Add:
+- [x] Add:
 
 ```text
 POST /drafts/language
@@ -195,7 +195,7 @@ The route receives `lang: str = Form(...)`, `content`, `analysis_json`,
 target language is not taken from a query string. The route performs no
 analyzer call and no database write.
 
-- [ ] When `draft` exists, render the language toggle as one POST form with
+- [x] When `draft` exists, render the language toggle as one POST form with
 two submit buttons:
 
 ```html
@@ -208,29 +208,29 @@ JSON values in hidden textareas so multiline dream text is preserved exactly.
 Carry `analysis_language` in a hidden input. Do not duplicate the analysis in a
 query string or localStorage.
 
-- [ ] Mark the form with `data-draft-language-form`. In the existing language
+- [x] Mark the form with `data-draft-language-form`. In the existing language
   preference script, preserve the automatic saved-language redirect only for
   ordinary GET pages without `lang`. When this marker is present and the POST
   result URL has no query language, use `document.documentElement.lang` as the
   current language, update localStorage, and do not navigate. This prevents a
   client-side `GET /drafts/language` 405 and preserves the posted draft.
 
-- [ ] Expand the existing `.language-toggle a` styles to cover buttons
+- [x] Expand the existing `.language-toggle a` styles to cover buttons
 without changing control dimensions or focus visibility.
 
-- [ ] Keep the analysis panel in its original language and add a localized
+- [x] Keep the analysis panel in its original language and add a localized
 analysis-language badge when `draft.language != lang`.
 
-- [ ] Add explicit English and Chinese translation keys for the analysis
+- [x] Add explicit English and Chinese translation keys for the analysis
   language label; do not assemble a mixed-language sentence in the template.
 
-- [ ] Add localized save-button copy that names the retained analysis language
+- [x] Add localized save-button copy that names the retained analysis language
   when it differs from the interface language. Keep regeneration explicitly
   targeted at the interface language.
 
 ### Task 4: Verify and commit Phase 1
 
-- [ ] Run:
+- [x] Run:
 
 ```powershell
 uv run --extra dev pytest tests/test_web_api.py -q -k "language or draft"
@@ -238,7 +238,7 @@ uv run --extra dev pytest -q
 git diff --check
 ```
 
-- [ ] Inspect the staged paths before committing:
+- [x] Inspect the staged paths before committing:
 
 ```powershell
 git add src/dreamloop/web.py src/dreamloop/templates/index.html src/dreamloop/templates/detail.html src/dreamloop/static/style.css tests/test_web_api.py
@@ -246,7 +246,7 @@ git diff --cached --name-only
 git diff --cached --check
 ```
 
-- [ ] Commit only the Phase 1 files:
+- [x] Commit only the Phase 1 files:
 
 ```powershell
 git commit -m "fix: preserve drafts across language changes"
@@ -270,7 +270,7 @@ fix: enforce analysis output language
 - Modify: `tests/test_core_workflow.py`
 - Modify: `tests/test_web_api.py`
 
-- [ ] Add prompt tests:
+- [x] Add prompt tests:
 
 - `analysis_system_prompt("en")` contains no CJK characters.
 - `build_analysis_user_payload` in English mode adds no CJK scaffolding when
@@ -281,7 +281,7 @@ fix: enforce analysis output language
   language.
 - Both language prompts keep JSON keys in English.
 
-- [ ] Add detector tests for:
+- [x] Add detector tests for:
 
 - predominantly Chinese values;
 - predominantly English values;
@@ -290,7 +290,7 @@ fix: enforce analysis output language
 - mixed output without a dominant language;
 - too little human-readable output.
 
-- [ ] Add provider retry tests by monkeypatching one private request method on
+- [x] Add provider retry tests by monkeypatching one private request method on
   `OpenAICompatibleAnalyzer`; do not call a network service.
 
 Cover:
@@ -301,22 +301,22 @@ Cover:
 3. Two Chinese responses for an English request: exactly two calls and
    `AnalysisLanguageMismatch`.
 
-- [ ] Add a custom counting analyzer test proving that shared validation does
+- [x] Add a custom counting analyzer test proving that shared validation does
   not blindly call a non-provider analyzer twice.
 
-- [ ] Add persistence tests proving that mismatched and insufficient analyses
+- [x] Add persistence tests proving that mismatched and insufficient analyses
   create no `dream_analyses` row.
 
-- [ ] Add a draft-language POST test proving that a tampered analysis payload
+- [x] Add a draft-language POST test proving that a tampered analysis payload
   cannot be relabeled during an interface switch and that content/reflections
   survive the localized error response.
 
-- [ ] If existing short test analyzers become incomplete under the contract,
+- [x] If existing short test analyzers become incomplete under the contract,
   lengthen their summaries with meaningful target-language text. Do not add a
   test-only bypass or weaken production thresholds to preserve synthetic
   fixtures.
 
-- [ ] Run and confirm the new tests fail for the expected missing behavior:
+- [x] Run and confirm the new tests fail for the expected missing behavior:
 
 ```powershell
 uv run --extra dev pytest tests/test_ai_config.py tests/test_core_workflow.py tests/test_web_api.py -q -k "language or incomplete or retry"
@@ -328,7 +328,7 @@ uv run --extra dev pytest tests/test_ai_config.py tests/test_core_workflow.py te
 
 - Modify: `src/dreamloop/analysis.py`
 
-- [ ] Add two specific exceptions:
+- [x] Add two specific exceptions:
 
 ```python
 class AnalysisLanguageMismatch(ValueError):
@@ -339,7 +339,7 @@ class AnalysisIncomplete(ValueError):
     pass
 ```
 
-- [ ] Add a small shared classifier:
+- [x] Add a small shared classifier:
 
 ```python
 def detect_analysis_language(payload: dict[str, Any]) -> str:
@@ -367,12 +367,12 @@ Classifier contract:
 These thresholds intentionally validate a two-language product contract, not
 arbitrary natural-language detection.
 
-- [ ] Split the Chinese-only requirements paragraph in
+- [x] Split the Chinese-only requirements paragraph in
   `analysis_system_prompt` into English and Chinese variants.
 
-- [ ] Add the explicit cross-language-input instruction in the target language.
+- [x] Add the explicit cross-language-input instruction in the target language.
 
-- [ ] Add a `language` argument to `build_analysis_user_payload` and localize
+- [x] Add a `language` argument to `build_analysis_user_payload` and localize
   only its application-authored headings. Pass the requested language from
   `OpenAICompatibleAnalyzer`; never translate or rewrite the user's dream or
   reflections.
@@ -384,11 +384,11 @@ arbitrary natural-language detection.
 - Modify: `src/dreamloop/analysis.py`
 - Modify: `src/dreamloop/core.py`
 
-- [ ] Extract the existing OpenAI-compatible request into one private method on
+- [x] Extract the existing OpenAI-compatible request into one private method on
   `OpenAICompatibleAnalyzer`. The method accepts the message list and returns
   parsed JSON.
 
-- [ ] In `OpenAICompatibleAnalyzer.analyze`:
+- [x] In `OpenAICompatibleAnalyzer.analyze`:
 
 1. Send the normal request.
 2. If the result language matches, return it.
@@ -398,7 +398,7 @@ arbitrary natural-language detection.
 4. Validate and return the second result.
 5. Do not retry malformed JSON or incomplete output as a language correction.
 
-- [ ] In the existing shared `call_analyzer`, call the analyzer once and then
+- [x] In the existing shared `call_analyzer`, call the analyzer once and then
   run `require_analysis_language` on the returned payload.
 
 This gives web, API, CLI, and pending-analysis paths one final guard while
@@ -415,45 +415,45 @@ keeping corrective prompt construction inside the provider implementation.
 - Modify: `tests/test_core_workflow.py`
 - Modify: `tests/test_web_api.py`
 
-- [ ] In `DreamLoop._store_analysis`, reject a language outside `en` and `zh`
+- [x] In `DreamLoop._store_analysis`, reject a language outside `en` and `zh`
   instead of passing it through forgiving `normalize_language`, then validate
   normalized data before executing the insert/upsert. This shared persistence
   boundary protects direct core calls as well as hidden draft form submissions.
 
-- [ ] After the shared validator exists, have `_draft_from_form` validate the
+- [x] After the shared validator exists, have `_draft_from_form` validate the
   normalized payload against its strict `analysis_language`. Catch mismatch and
   incomplete errors in `/drafts/language`, render the Log page with the specific
   localized error, and preserve content/reflections without an analyzer call or
   database write.
 
-- [ ] Ensure validation ignores the normalized `raw_json` string so JSON keys
+- [x] Ensure validation ignores the normalized `raw_json` string so JSON keys
   are not counted as English content.
 
-- [ ] Replace the boolean draft analysis error with a small error code or
+- [x] Replace the boolean draft analysis error with a small error code or
   pre-localized message. Add distinct translations for:
 
 - provider/general failure;
 - wrong output language;
 - incomplete output.
 
-- [ ] Catch `AnalysisLanguageMismatch` and `AnalysisIncomplete` explicitly in
+- [x] Catch `AnalysisLanguageMismatch` and `AnalysisIncomplete` explicitly in
   draft analyze, draft language switch, draft save, saved-dream analyze, and API
   analyze routes.
 
-- [ ] Add `request: Request` to draft save so a rejected hidden payload can be
+- [x] Add `request: Request` to draft save so a rejected hidden payload can be
   rendered back on Log with its content and reflections intact. Confirm the
   exception from `_store_analysis` rolls back the surrounding dream insert.
 
-- [ ] Add a direct-core regression test proving
+- [x] Add a direct-core regression test proving
   `add_dream_with_analysis(..., language="fr")` raises and rolls back both the
   dream and analysis inserts.
 
-- [ ] Preserve draft content and reflections on draft errors.
+- [x] Preserve draft content and reflections on draft errors.
 
-- [ ] Return HTTP 422 from API analyze routes for language/incomplete output,
+- [x] Return HTTP 422 from API analyze routes for language/incomplete output,
   while retaining existing 404 and 409 behavior.
 
-- [ ] Use loading copy such as “Analyzing and verifying English output...” /
+- [x] Use loading copy such as “Analyzing and verifying English output...” /
   “正在分析并核对中文输出……” so one possible corrective retry is disclosed
   without adding streaming or polling.
 
@@ -468,7 +468,7 @@ keeping corrective prompt construction inside the provider implementation.
 - Modify: `tests/test_core_workflow.py`
 - Modify: `tests/test_web_api.py`
 
-- [ ] Extend `analysis_from_row` with:
+- [x] Extend `analysis_from_row` with:
 
 - `detected_language`;
 - `language_valid`, true only when detected and stored languages agree;
@@ -476,17 +476,17 @@ keeping corrective prompt construction inside the provider implementation.
 
 Do not mutate the row.
 
-- [ ] In `list_dreams_with_analysis(language)`, treat a requested-language row
+- [x] In `list_dreams_with_analysis(language)`, treat a requested-language row
 whose detected content is invalid for that label as unavailable for trends,
 symbols, themes, dashboard insight, and graph calculations. Preserve separate
 invalid/mismatch metadata on the dream so Log can show a specific regenerate
 warning.
 
-- [ ] Extend `get_dream` with an explicit keyword-only
+- [x] Extend `get_dream` with an explicit keyword-only
   `allow_analysis_fallback: bool = False`. Preserve exact-language behavior for
   every existing caller. Only the Detail route passes `True`.
 
-- [ ] When `allow_analysis_fallback=True`, query both supported analysis rows
+- [x] When `allow_analysis_fallback=True`, query both supported analysis rows
   and select:
 
 1. valid requested-language row;
@@ -494,7 +494,7 @@ warning.
 3. mismatched requested-language row with a warning;
 4. no analysis.
 
-- [ ] Set explicit dream context fields:
+- [x] Set explicit dream context fields:
 
 - `requested_analysis_language`;
 - `displayed_analysis_language`;
@@ -502,27 +502,27 @@ warning.
 - `analysis_language_mismatch`.
 - `analysis_actions_enabled`, true only for a valid exact or fallback row.
 
-- [ ] Query the Detail image using `displayed_analysis_language`, not interface
+- [x] Query the Detail image using `displayed_analysis_language`, not interface
   language, when a valid analysis fallback is displayed.
 
-- [ ] Add a regression test proving API reads and core generation calls retain
+- [x] Add a regression test proving API reads and core generation calls retain
   exact-language behavior and do not acquire Detail fallback implicitly.
 
-- [ ] Audit analysis consumers outside the main list: `feedback_summary`,
+- [x] Audit analysis consumers outside the main list: `feedback_summary`,
   similarity calculations, local visual generation, and dream-image prompt
   construction. Aggregate/similarity paths skip invalid rows. Generation paths
   that already support dream-only operation treat an invalid row as absent, so
   they never consume mislabeled analysis while preserving their independent API
   behavior.
 
-- [ ] Show a language badge and mismatch/fallback warning above the Detail and
+- [x] Show a language badge and mismatch/fallback warning above the Detail and
   Log analysis content.
 
-- [ ] When only a mismatched row is available, render its warning and
+- [x] When only a mismatched row is available, render its warning and
   regeneration action but hide feedback, local visual generation, and
   dream-image generation.
 
-- [ ] Keep explicit regeneration targeted at interface `lang`.
+- [x] Keep explicit regeneration targeted at interface `lang`.
 
 ### Task 10: Keep analysis-bound actions on the displayed language
 
@@ -534,31 +534,31 @@ warning.
 - Modify: `tests/test_core_workflow.py`
 - Modify: `tests/test_web_api.py`
 
-- [ ] Add a hidden `analysis_language` field to Detail feedback, local visual,
+- [x] Add a hidden `analysis_language` field to Detail feedback, local visual,
   and dream-image forms.
 
-- [ ] Keep query `lang` as interface language and redirect language.
+- [x] Keep query `lang` as interface language and redirect language.
 
-- [ ] Reuse the strict form-language helper from Phase 1 for submitted
+- [x] Reuse the strict form-language helper from Phase 1 for submitted
   `analysis_language`. Do not use `_lang` here because it silently turns invalid
   input into English.
 
-- [ ] In the three Detail form routes, require a valid exact analysis row for
+- [x] In the three Detail form routes, require a valid exact analysis row for
   the submitted `analysis_language` before feedback, local visual, or image
   generation. Return HTTP 409 before any side effect when it is absent or
   mismatched. Do not let these write paths invoke Detail fallback. This guard
   does not change the independent API generation contract.
 
-- [ ] Add a focused `AnalysisUnavailableError(RuntimeError)` in `core.py`. In
+- [x] Add a focused `AnalysisUnavailableError(RuntimeError)` in `core.py`. In
   `DreamLoop.add_feedback`, require that the exact
   `(dream_id, analysis_language)` row exists and passes stored-language
   validation before inserting feedback; otherwise raise that error. Map it to
   HTTP 409 in both HTML and API feedback routes, while unsupported ratings stay
   HTTP 400. This keeps feedback truthful at the persistence boundary.
 
-- [ ] Load feedback using `displayed_analysis_language`.
+- [x] Load feedback using `displayed_analysis_language`.
 
-- [ ] Add end-to-end tests:
+- [x] Add end-to-end tests:
 
 1. English Detail with only valid Chinese analysis displays the Chinese
    fallback and English UI.
@@ -580,7 +580,7 @@ warning.
 
 ### Task 11: Verify and commit Phase 2
 
-- [ ] Run:
+- [x] Run:
 
 ```powershell
 uv run --extra dev pytest tests/test_ai_config.py tests/test_core_workflow.py tests/test_web_api.py -q
@@ -588,7 +588,7 @@ uv run --extra dev pytest -q
 git diff --check
 ```
 
-- [ ] Inspect the staged Phase 2 paths:
+- [x] Inspect the staged Phase 2 paths:
 
 ```powershell
 git add src/dreamloop/analysis.py src/dreamloop/core.py src/dreamloop/web.py src/dreamloop/templates/index.html src/dreamloop/templates/detail.html tests/test_ai_config.py tests/test_core_workflow.py tests/test_web_api.py
@@ -596,10 +596,11 @@ git diff --cached --name-only
 git diff --cached --check
 ```
 
-- [ ] Commit:
+- [x] Commit:
 
 ```powershell
 git commit -m "fix: enforce analysis output language"
+git commit -m "fix: address analysis language review"
 ```
 
 ---
@@ -609,7 +610,7 @@ git commit -m "fix: enforce analysis output language"
 Target commit:
 
 ```text
-style: unify offline typography
+feat: complete offline typography refinement
 ```
 
 ### Task 12: Pin font sources and add failing asset tests
@@ -644,13 +645,13 @@ https://raw.githubusercontent.com/google/fonts/03781cf7a714af8431d14b6f337f923c7
 https://raw.githubusercontent.com/google/fonts/03781cf7a714af8431d14b6f337f923c774429d7/ofl/notoserifsc/OFL.txt
 ```
 
-- [ ] Add binary hash assertions for the two final WOFF2 files.
+- [x] Add binary hash assertions for the two final WOFF2 files.
 
-- [ ] Replace the old `> 100_000` subset-size assertions.
+- [x] Replace the old `> 100_000` subset-size assertions.
 
-- [ ] Assert both pinned OFL files are present.
+- [x] Assert both pinned OFL files are present.
 
-- [ ] Add CSS contract assertions:
+- [x] Add CSS contract assertions:
 
 - display stack starts with `"Noto Serif SC"`;
 - both replaced Noto `@font-face` URLs carry the new asset version token;
@@ -658,7 +659,7 @@ https://raw.githubusercontent.com/google/fonts/03781cf7a714af8431d14b6f337f923c7
 - no `font-size: clamp(...vw...)` remains;
 - the local visual title uses the fixed Research Atlas scale.
 
-- [ ] Update `design-qa.md` to replace the stale product-copy-subset statement
+- [x] Update `design-qa.md` to replace the stale product-copy-subset statement
   with pinned source, conversion, cmap, and final hash evidence.
 
 ### Task 13: Generate full-cmap WOFF2 files reproducibly
@@ -677,7 +678,7 @@ fonttools[woff] == 4.63.0
 brotli == 1.2.0
 ```
 
-- [ ] Create and verify a scratch root:
+- [x] Create and verify a scratch root:
 
 ```powershell
 $root = [System.IO.Path]::GetFullPath('D:\CodexScratch\DreamLoop-font-build')
@@ -685,7 +686,7 @@ if ($root -ne 'D:\CodexScratch\DreamLoop-font-build') { throw 'Unexpected scratc
 New-Item -ItemType Directory -Force -Path $root | Out-Null
 ```
 
-- [ ] Set `UV_CACHE_DIR`, `UV_PYTHON_INSTALL_DIR`, `TEMP`, and `TMP`
+- [x] Set `UV_CACHE_DIR`, `UV_PYTHON_INSTALL_DIR`, `TEMP`, and `TMP`
 under that scratch root before running `uv`:
 
 ```powershell
@@ -696,7 +697,7 @@ $env:TMP = $env:TEMP
 New-Item -ItemType Directory -Force -Path $env:UV_CACHE_DIR, $env:UV_PYTHON_INSTALL_DIR, $env:TEMP | Out-Null
 ```
 
-- [ ] Download the four pinned source files into the scratch root and verify
+- [x] Download the four pinned source files into the scratch root and verify
 their SHA-256 values before conversion.
 
 Use these local names so conversion and license copying are deterministic:
@@ -708,7 +709,7 @@ Use these local names so conversion and license copying are deterministic:
 | Noto Sans SC `OFL.txt` | `OFL-NotoSansSC.txt` | `OFL.txt` |
 | Noto Serif SC `OFL.txt` | `OFL-NotoSerifSC.txt` | `OFL-NotoSerifSC.txt` |
 
-- [ ] Convert without subsetting:
+- [x] Convert without subsetting:
 
 ```python
 from pathlib import Path
@@ -719,7 +720,7 @@ for source_name, output_name in [
     ("NotoSansSC.ttf", "NotoSansSC-DreamLoop.woff2"),
     ("NotoSerifSC.ttf", "NotoSerifSC-DreamLoop.woff2"),
 ]:
-    font = TTFont(root / source_name)
+    font = TTFont(root / source_name, recalcTimestamp=False)
     font.flavor = "woff2"
     font.save(root / output_name, reorderTables=False)
 ```
@@ -734,17 +735,21 @@ uv run --with 'fonttools[woff]==4.63.0' --with 'brotli==1.2.0' python $fontBuild
 The temporary `font-build-script.py` belongs in the scratch root, not the
 repository.
 
+`recalcTimestamp=False` is required for byte-for-byte reproducibility. The
+FontTools default rewrites the OpenType modification timestamp on every save,
+which changes WOFF2 compression output and therefore its byte size and hash.
+
 Expected output:
 
 | Output | Bytes | cmap entries | SHA-256 |
 | --- | ---: | ---: | --- |
-| `NotoSansSC-DreamLoop.woff2` | 7,782,008 | 30,890 | `F7562D807E6CA894A8200A7C09A46A51389180ABA1998FB4B9FED8707CF8087F` |
-| `NotoSerifSC-DreamLoop.woff2` | 11,032,408 | 30,928 | `DE3790AA483D8DB6E8B9C916DC76F2FCBC57D84FF7D21D98F6D2BD905D352666` |
+| `NotoSansSC-DreamLoop.woff2` | 7,782,072 | 30,890 | `AEF8C34277AFAD81ECD0227138A830263C0CAEA65B7AEA66D1195395F097B55A` |
+| `NotoSerifSC-DreamLoop.woff2` | 11,032,420 | 30,928 | `4EE9B0921EC9BD3F8B04587C7BC66C62731045E89D74EEC054F37FC7A2D26383` |
 
-- [ ] Copy only the verified WOFF2 and license outputs into the project font
+- [x] Copy only the verified WOFF2 and license outputs into the project font
 directory.
 
-- [ ] Delete `D:\CodexScratch\DreamLoop-font-build` after verification using
+- [x] Delete `D:\CodexScratch\DreamLoop-font-build` after verification using
 a checked absolute path.
 
 ### Task 14: Apply the fixed Research Atlas type system
@@ -755,9 +760,9 @@ a checked absolute path.
 - Modify: `src/dreamloop/templates/index.html`
 - Modify: `src/dreamloop/templates/detail.html`
 
-- [ ] Remove the product-copy subset comment.
+- [x] Remove the product-copy subset comment.
 
-- [ ] Change font roles to:
+- [x] Change font roles to:
 
 ```css
 --font-display: "Noto Serif SC", serif;
@@ -765,11 +770,11 @@ a checked absolute path.
 --font-mono: "Cascadia Mono", "Noto Sans SC", monospace;
 ```
 
-- [ ] Add `?v=20260714-full-cmap` directly to both replaced Noto font `src`
+- [x] Add `?v=20260714-full-cmap` directly to both replaced Noto font `src`
   URLs. Updating only the template's stylesheet query does not invalidate an
   already cached nested WOFF2 URL.
 
-- [ ] Replace every viewport-based font clamp with fixed desktop sizes and
+- [x] Replace every viewport-based font clamp with fixed desktop sizes and
 existing responsive media-query overrides:
 
 | Selector/role | Desktop | Mobile |
@@ -783,17 +788,17 @@ existing responsive media-query overrides:
 | local visual title | 24px | 21px |
 | navigation/metadata | 12px minimum | 12px minimum |
 
-- [ ] Raise all current 10px and 11px metadata rules to 12px. If a heatmap
+- [x] Raise all current 10px and 11px metadata rules to 12px. If a heatmap
 cell no longer fits, increase its stable cell dimensions rather than shrinking
 the label.
 
-- [ ] Keep Chinese labels and navigation on `var(--font-body)`; reserve mono
+- [x] Keep Chinese labels and navigation on `var(--font-body)`; reserve mono
 for numeric/date/provider values.
 
-- [ ] Give local visual-memory titles a 1.25 minimum line height,
+- [x] Give local visual-memory titles a 1.25 minimum line height,
   `overflow-wrap: anywhere`, and a stable four-line maximum at both breakpoints.
 
-- [ ] Update the stylesheet cache query in both templates after CSS and font
+- [x] Update the stylesheet cache query in both templates after CSS and font
 changes.
 
 ### Task 15: Compact visual-memory titles at the normalization boundary
@@ -805,25 +810,28 @@ changes.
 - Modify: `tests/test_core_workflow.py`
 - Modify: `tests/test_web_api.py`
 
-- [ ] In `normalize_visual_memory`, trim the candidate title, take the first
+- [x] In `normalize_visual_memory`, trim the candidate title, take the first
   non-empty segment before a newline or `。！？.!?` sentence terminator, and fall
   back to the trimmed candidate when no segment is found. Cap it at 48 Unicode
-  code points by using the first 47 plus `…` when truncation is required.
+  code points, using up to 47 plus `…` without splitting a combining sequence,
+  regional-indicator flag, emoji modifier, ZWJ sequence, decomposed Hangul
+  syllable, or same-script virama conjunct.
 
-- [ ] Have `generate_visual_memory` normalize the payload before storing and
+- [x] Have `generate_visual_memory` normalize the payload before storing and
 returning it. Remove its current 90-character truncation and do not duplicate
 title shortening in the generator or template.
 
-- [ ] Add tests for:
+- [x] Add tests for:
 
 - newly generated long Chinese summary;
 - newly generated long English summary;
 - existing stored legacy visual with a long title;
-- Detail and Gallery rendering without the long untrimmed title.
+- Detail and Gallery rendering without the long untrimmed title;
+- flag, combining-mark, ZWJ, Hangul, and virama cluster boundaries.
 
 ### Task 16: Verify font coverage and visual behavior
 
-- [ ] Run focused and full tests:
+- [x] Run focused and full tests:
 
 ```powershell
 uv run --extra dev pytest tests/test_readme_positioning.py tests/test_core_workflow.py tests/test_web_api.py -q
@@ -831,7 +839,7 @@ uv run --extra dev pytest -q
 git diff --check
 ```
 
-- [ ] Run an ephemeral font cmap check with
+- [x] Run an ephemeral font cmap check with
   `fonttools[woff]==4.63.0` from a D-drive scratch cache. Verify:
 
 - the two output cmap counts match Task 13;
@@ -839,7 +847,7 @@ git diff --check
 - both fonts cover every CJK code point used by Dream #4;
 - no runtime/project dependency was added.
 
-- [ ] Start the local server on the first free port:
+- [x] Start the local server on the first free port:
 
 ```powershell
 uv run dreamloop web --port 8766
@@ -847,7 +855,7 @@ uv run dreamloop web --port 8766
 
 Use another port if 8766 is occupied.
 
-- [ ] Check Dashboard, Log, Detail, Patterns, Gallery, and Settings in Chinese
+- [x] Check Dashboard, Log, Detail, Patterns, Gallery, and Settings in Chinese
 and English at:
 
 - 1440 x 900
@@ -856,13 +864,16 @@ and English at:
 - 390 x 844
 - 360 x 800
 
-- [ ] Verify:
+- [x] Verify:
 
 - no overlap, clipping, horizontal overflow, or incoherent wrapping;
 - no raw 405/422 framework page during the intended UI flow;
 - Dream #4 uses packaged CJK glyphs;
-- after `document.fonts.ready`, both Noto faces pass `document.fonts.check` and
-  the versioned full-cmap WOFF2 requests return 200 with the Task 13 sizes;
+- after `document.fonts.ready`, verify both Noto faces through the strongest
+  browser surface available: `document.fonts.check` when the runtime exposes a
+  complete FontFaceSet, otherwise observed font resource entries plus computed
+  families; in both cases the versioned full-cmap WOFF2 requests must return
+  200 with the Task 13 sizes;
 - local visual title remains at most four lines;
 - interface and analysis language badges are truthful;
 - language switching, regeneration, save, feedback, visual generation, and
@@ -870,58 +881,71 @@ and English at:
 - no remote font request;
 - no browser console error.
 
-- [ ] Store temporary screenshots under
+- [x] Store temporary screenshots under
   `D:\CodexScratch\DreamLoop-frontend-qa-2026-07-14`. Add no screenshot to
   the repository unless the user explicitly approves it as a versioned
   reference.
 
-- [ ] Keep those screenshots only through user review, then delete the checked
+- [x] Keep those screenshots only through user review, then delete the checked
   D-drive QA directory unless the user asks to retain it.
 
-- [ ] Reuse an existing DreamLoop server when possible. If a QA-only server is
+- [x] Reuse an existing DreamLoop server when possible. If a QA-only server is
   started, stop it after capture unless it is intentionally left as the single
   user-facing preview; in that case report its URL.
 
 ### Task 17: Commit Phase 3
 
-- [ ] Inspect and stage only Phase 3 paths:
+- [x] Inspect and stage only Phase 3 paths:
 
 ```powershell
-git add design-qa.md src/dreamloop/static/style.css src/dreamloop/static/fonts/noto src/dreamloop/templates/index.html src/dreamloop/templates/detail.html src/dreamloop/visuals.py src/dreamloop/core.py tests/test_readme_positioning.py tests/test_core_workflow.py tests/test_web_api.py
+git add src/dreamloop/static/style.css src/dreamloop/static/fonts/noto src/dreamloop/templates/index.html src/dreamloop/templates/detail.html src/dreamloop/visuals.py src/dreamloop/core.py tests/test_readme_positioning.py tests/test_core_workflow.py tests/test_web_api.py
 git diff --cached --name-only
 git diff --cached --check
 ```
 
-- [ ] Confirm the font file sizes and hashes from Task 13.
+- [x] Confirm the font file sizes and hashes from Task 13.
 
-- [ ] Commit:
+- [x] Commit:
 
 ```powershell
-git commit -m "style: unify offline typography"
+git commit -m "feat: complete offline typography refinement"
 ```
 
 ---
 
 ## Final Integrated Verification
 
-- [ ] Run:
+- [x] Run:
 
 ```powershell
 uv run --extra dev pytest -q
 git status --short
-git log -3 --oneline
+git log -6 --oneline
 ```
 
-- [ ] Confirm the three commits are independently understandable and no
+- [x] Confirm the baseline refinement, Phase 1, two Phase 2, Phase 3, and final
+review-remediation commits are independently understandable and no
 temporary source fonts, conversion scripts, caches, browser captures, database
 files, or secrets are tracked.
 
-- [ ] Compare final behavior against every acceptance criterion in the spec.
+- [x] Compare final behavior against every acceptance criterion in the spec.
+
+### Task 18: Commit the execution record
+
+- [x] Update `design-qa.md` and this plan with actual test counts, commit history,
+browser evidence, resolved review findings, and residual coverage boundaries.
+
+- [x] Stage only the two documentation files and verify the staged diff.
+
+- [x] Commit:
+
+```powershell
+git commit -m "docs: record frontend verification"
+```
 
 ## Plan Review Record
 
-Five implementation-readiness reviews were applied before this plan was marked
-ready:
+Eleven implementation and execution reviews were applied:
 
 1. Corrected retry ownership, blocked unknown-language persistence, pinned font
    provenance, and made stored-analysis fallback deterministic.
@@ -939,9 +963,39 @@ ready:
    rejected unsupported persistence labels, blocked invalid rows from secondary
    consumers, and corrected the executable D-drive font-build command and cache
    setup.
+6. Made WOFF2 output reproducible by disabling FontTools timestamp
+   recalculation; two consecutive builds now produce identical bytes and hashes.
+7. Canonicalized successful stateless draft-language POST results to the Log GET
+   URL, preventing refresh from revisiting a POST-only endpoint without adding
+   persistent server-side drafts.
+8. Used two independent 60-case browser matrices and screenshot review to find
+   and fix the 1024px Patterns track overflow, then repeated the full matrix with
+   zero failures.
+9. Added grapheme-safe visual-title truncation and pinned both license hashes
+   after the independent final code review identified those remaining gaps.
+10. Reconciled all task states with the executed work, replaced planned
+    commit labels with actual history, and checked the verification record for
+    stale counts, temporary-artifact claims, and browser-matrix precision.
+11. Re-ran the independent reviewer after remediation, added decomposed Hangul
+    and same-script virama cluster handling from its remaining P3 finding, and
+    documented that browser evidence is not a committed replayable test suite.
 
-Review verdict: ready to execute after the Preflight index check. No unresolved
-architecture or data-integrity blocker remains.
+Review verdict: executed and independently validated. No unresolved architecture,
+data-integrity, typography, or responsive-layout blocker remains.
+
+Execution commits:
+
+- `2791a54` `feat: refine frontend baseline and document follow-up`
+- `59ebf0a` `fix: preserve drafts across language changes`
+- `67bbb7a` `fix: enforce analysis output language`
+- `5e3e32c` `fix: address analysis language review`
+- `d7135aa` `feat: complete offline typography refinement`
+- `6aecc6e` `fix: preserve additional grapheme clusters`
+
+Final evidence: 156 tests passed, both distribution artifacts built, the exact
+Chrome and independent in-app 60-case responsive matrices passed, all temporary
+D-drive artifacts were removed, and the QA server was stopped with port 8767
+released.
 
 ## Explicitly Skipped
 
