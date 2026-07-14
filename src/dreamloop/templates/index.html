@@ -51,10 +51,21 @@
               <p class="tagline">{{ t.settings_copy }}</p>
             {% endif %}
           </div>
+          {% if draft %}
+          <form method="post" action="/drafts/language" class="language-toggle" aria-label="Language" data-draft-language-form>
+            <textarea name="content" hidden>{{ draft.content }}</textarea>
+            <textarea name="reflections_json" hidden>{{ draft.reflections_json }}</textarea>
+            <textarea name="analysis_json" hidden>{{ draft.analysis_json }}</textarea>
+            <input type="hidden" name="analysis_language" value="{{ draft.language }}">
+            <button type="submit" name="lang" value="zh" data-lang="zh" class="{{ 'active' if lang == 'zh' else '' }}" {% if lang == "zh" %}aria-current="true"{% endif %}>中文</button>
+            <button type="submit" name="lang" value="en" data-lang="en" class="{{ 'active' if lang == 'en' else '' }}" {% if lang == "en" %}aria-current="true"{% endif %}>English</button>
+          </form>
+          {% else %}
           <nav class="language-toggle" aria-label="Language">
-            <a href="?lang=zh" data-lang="zh" class="{{ 'active' if lang == 'zh' else '' }}" {% if lang == "zh" %}aria-current="true"{% endif %}>中文</a>
-            <a href="?lang=en" data-lang="en" class="{{ 'active' if lang == 'en' else '' }}" {% if lang == "en" %}aria-current="true"{% endif %}>English</a>
+            <a href="{{ language_urls.zh }}" data-lang="zh" class="{{ 'active' if lang == 'zh' else '' }}" {% if lang == "zh" %}aria-current="true"{% endif %}>中文</a>
+            <a href="{{ language_urls.en }}" data-lang="en" class="{{ 'active' if lang == 'en' else '' }}" {% if lang == "en" %}aria-current="true"{% endif %}>English</a>
           </nav>
+          {% endif %}
         </header>
 
         {% if page == "dashboard" %}
@@ -174,9 +185,12 @@
 
             {% if draft %}
               <div class="latest-dream-preview">
-                <span>{{ t.draft_analysis }} / {{ draft.language }} / {{ t.draft_not_saved }}</span>
+                <span>{{ t.draft_analysis }} / {{ t.draft_not_saved }}</span>
                 <p>{{ draft.content }}</p>
               </div>
+              {% if draft.language != lang %}
+                <p class="analysis-language-badge">{{ t["analysis_language_" ~ draft.language] }}</p>
+              {% endif %}
               <div class="analysis-status ready">{{ t.analysis_ready }}</div>
               <dl class="analysis-list">
                 <div><dt>{{ t.emotional_tone }}</dt><dd>{{ draft.analysis.emotional_tone }}</dd></div>
@@ -253,11 +267,11 @@
                 </div>
               {% endif %}
               <form method="post" action="/drafts/save?lang={{ lang }}" class="draft-actions">
-                <input type="hidden" name="content" value="{{ draft.content }}">
+                <textarea name="content" hidden>{{ draft.content }}</textarea>
                 <input type="hidden" name="analysis_language" value="{{ draft.language }}">
                 <textarea name="reflections_json" hidden>{{ draft.reflections_json }}</textarea>
                 <textarea name="analysis_json" hidden>{{ draft.analysis_json }}</textarea>
-                <button type="submit">{{ t.save_analysis }}</button>
+                <button type="submit">{{ t["save_analysis_" ~ draft.language] if draft.language != lang else t.save_analysis }}</button>
                 <a href="/log?lang={{ lang }}" class="secondary-link">{{ t.discard }}</a>
               </form>
               <details>
@@ -580,8 +594,12 @@
     <script>
       (() => {
         const params = new URLSearchParams(window.location.search);
-        const current = params.get("lang");
+        let current = params.get("lang");
         const saved = window.localStorage.getItem("dreamloop.lang");
+        const draftLanguageForm = document.querySelector("[data-draft-language-form]");
+        if (!current && draftLanguageForm) {
+          current = document.documentElement.lang;
+        }
         if (!current && saved && ["zh", "en"].includes(saved)) {
           params.set("lang", saved);
           window.location.replace(`${window.location.pathname}?${params.toString()}${window.location.hash}`);
@@ -590,9 +608,9 @@
         if (current && ["zh", "en"].includes(current)) {
           window.localStorage.setItem("dreamloop.lang", current);
         }
-        document.querySelectorAll("[data-lang]").forEach((link) => {
-          link.addEventListener("click", () => {
-            window.localStorage.setItem("dreamloop.lang", link.dataset.lang);
+        document.querySelectorAll("[data-lang]").forEach((control) => {
+          control.addEventListener("click", () => {
+            window.localStorage.setItem("dreamloop.lang", control.dataset.lang);
           });
         });
         document.querySelectorAll("[data-loading-form]").forEach((form) => {

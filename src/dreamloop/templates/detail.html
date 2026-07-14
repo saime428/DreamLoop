@@ -27,7 +27,13 @@
       </aside>
 
       <main class="dashboard detail-dashboard page-detail">
-        <a class="back-link" href="/?lang={{ lang }}">{{ t.back_dashboard }}</a>
+        <div class="detail-toolbar">
+          <a class="back-link" href="/?lang={{ lang }}">{{ t.back_dashboard }}</a>
+          <nav class="language-toggle" aria-label="Language">
+            <a href="{{ language_urls.zh }}" data-lang="zh" class="{{ 'active' if lang == 'zh' else '' }}" {% if lang == "zh" %}aria-current="true"{% endif %}>中文</a>
+            <a href="{{ language_urls.en }}" data-lang="en" class="{{ 'active' if lang == 'en' else '' }}" {% if lang == "en" %}aria-current="true"{% endif %}>English</a>
+          </nav>
+        </div>
 
         <article class="detail-hero constellation-sky{% if not dream.visual_memory and not (dream.image and dream.image.status == 'complete') %} detail-hero-single{% endif %}">
           <div class="detail-hero-copy">
@@ -220,6 +226,11 @@
     </div>
     <script>
       (() => {
+        document.querySelectorAll("[data-lang]").forEach((control) => {
+          control.addEventListener("click", () => {
+            window.localStorage.setItem("dreamloop.lang", control.dataset.lang);
+          });
+        });
         document.querySelectorAll("[data-loading-form]").forEach((form) => {
           form.addEventListener("submit", () => {
             form.classList.add("is-loading");

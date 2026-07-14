@@ -66,6 +66,10 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "draft_analysis": "Draft analysis",
         "draft_not_saved": "Not saved yet",
         "save_analysis": "Save locally",
+        "analysis_language_zh": "Analysis language: Chinese",
+        "analysis_language_en": "Analysis language: English",
+        "save_analysis_zh": "Save Chinese analysis",
+        "save_analysis_en": "Save English analysis",
         "discard": "Discard",
         "delete_dream": "Delete dream",
         "delete_confirm": "Delete this dream from local storage?",
@@ -219,6 +223,10 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "draft_analysis": "草稿分析",
         "draft_not_saved": "尚未保存到本地",
         "save_analysis": "保存到本地",
+        "analysis_language_zh": "分析语言：中文",
+        "analysis_language_en": "分析语言：英文",
+        "save_analysis_zh": "保存中文分析",
+        "save_analysis_en": "保存英文分析",
         "discard": "放弃",
         "delete_dream": "删除记录",
         "delete_confirm": "确定要从本地删除这条梦境记录吗？",
@@ -360,6 +368,12 @@ def _lang(value: str | None) -> str:
     return value if value in TRANSLATIONS else "en"
 
 
+def _form_lang(value: str) -> str:
+    if value not in TRANSLATIONS:
+        raise HTTPException(status_code=400, detail="Unsupported language")
+    return value
+
+
 def _collect_reflections(
     strongest_emotion: str = "",
     waking_feeling: str = "",
@@ -390,6 +404,38 @@ def _reflection_fields(lang: str, values: dict[str, str] | None = None) -> list[
         }
         for key in REFLECTION_FIELD_KEYS
     ]
+
+
+def _draft_from_form(
+    content: str,
+    analysis_json: str,
+    analysis_language: str,
+    reflections_json: str,
+) -> dict[str, Any]:
+    try:
+        analysis_payload = json.loads(analysis_json)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=400, detail="Invalid analysis JSON") from exc
+    if not isinstance(analysis_payload, dict):
+        raise HTTPException(status_code=400, detail="Invalid analysis JSON")
+
+    try:
+        reflections_payload = json.loads(reflections_json)
+    except json.JSONDecodeError:
+        reflections_payload = {}
+    reflections = clean_reflections(
+        reflections_payload if isinstance(reflections_payload, dict) else {}
+    )
+    normalized = normalize_analysis(analysis_payload)
+    return {
+        "content": content.strip(),
+        "reflections": reflections,
+        "reflections_json": json.dumps(reflections, ensure_ascii=False),
+        "analysis": normalized,
+        "analysis_payload": analysis_payload,
+        "analysis_json": normalized["raw_json"],
+        "language": analysis_language,
+    }
 
 
 def _page_url(page: str, lang: str, **params: str) -> str:
@@ -626,6 +672,10 @@ def create_app(root: str | Path | None = None) -> FastAPI:
                 "lang": lang,
                 "page": page,
                 "t": TRANSLATIONS[lang],
+                "language_urls": {
+                    "zh": _page_url(page, "zh"),
+                    "en": _page_url(page, "en"),
+                },
                 "analysis_error": analysis_error,
                 "draft": draft,
                 "draft_content": draft_content,
@@ -749,7 +799,7 @@ def create_app(root: str | Path | None = None) -> FastAPI:
         real_life_context: str = Form(""),
         personal_association: str = Form(""),
     ) -> Any:
-        lang = _lang(lang)
+        lang = _form_lang(lang)
         reflections = _collect_reflections(
             strongest_emotion,
             waking_feeling,
@@ -794,6 +844,25 @@ def create_app(root: str | Path | None = None) -> FastAPI:
             },
         )
 
+    @app.post("/drafts/language", response_class=HTMLResponse)
+    def switch_draft_language(
+        request: Request,
+        lang: str = Form(...),
+        content: str = Form(...),
+        analysis_json: str = Form(...),
+        analysis_language: str = Form(...),
+        reflections_json: str = Form("{}"),
+    ) -> Any:
+        target_language = _form_lang(lang)
+        analysis_language = _form_lang(analysis_language)
+        draft = _draft_from_form(
+            content,
+            analysis_json,
+            analysis_language,
+            reflections_json,
+        )
+        return render_home(request, target_language, page="log", draft=draft)
+
     @app.post("/drafts/save")
     def save_draft(
         lang: str = "en",
@@ -802,19 +871,19 @@ def create_app(root: str | Path | None = None) -> FastAPI:
         analysis_language: str = Form("en"),
         reflections_json: str = Form("{}"),
     ) -> RedirectResponse:
-        try:
-            analysis = json.loads(analysis_json)
-        except json.JSONDecodeError as exc:
-            raise HTTPException(status_code=400, detail="Invalid analysis JSON") from exc
-        try:
-            reflections_payload = json.loads(reflections_json)
-        except json.JSONDecodeError:
-            reflections_payload = {}
-        dream_id = loop.add_dream_with_analysis(
+        lang = _form_lang(lang)
+        analysis_language = _form_lang(analysis_language)
+        draft = _draft_from_form(
             content,
-            analysis,
-            language=_lang(analysis_language),
-            reflections=reflections_payload if isinstance(reflections_payload, dict) else {},
+            analysis_json,
+            analysis_language,
+            reflections_json,
+        )
+        dream_id = loop.add_dream_with_analysis(
+            draft["content"],
+            draft["analysis_payload"],
+            language=analysis_language,
+            reflections=draft["reflections"],
         )
         return RedirectResponse(_dream_url(dream_id, lang), status_code=status.HTTP_303_SEE_OTHER)
 
@@ -896,6 +965,10 @@ def create_app(root: str | Path | None = None) -> FastAPI:
                 "image": image_status(loop.root),
                 "lang": lang,
                 "t": TRANSLATIONS[lang],
+                "language_urls": {
+                    "zh": _dream_url(dream_id, "zh"),
+                    "en": _dream_url(dream_id, "en"),
+                },
             },
         )
 
