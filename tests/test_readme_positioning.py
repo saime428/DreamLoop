@@ -9,8 +9,10 @@ def test_readme_leads_with_local_first_positioning_and_fast_start():
     text = Path("README.md").read_text(encoding="utf-8")
     first_screen = text[:2400]
 
-    assert "docs/assets/detail-analysis-screenshot.png" in first_screen
-    assert "docs/assets/dashboard-screenshot.png" in first_screen
+    assert "docs/assets/detail-analysis-screenshot.jpg" in first_screen
+    assert "docs/assets/dashboard-screenshot.jpg" in first_screen
+    assert "docs/assets/settings-privacy-screenshot.jpg" in text
+    assert "docs/assets/gallery-screenshot.jpg" in text
     assert "docs/assets/cli-demo.gif" in text
     assert "actions/workflows/ci.yml/badge.svg" in first_screen
     assert "img.shields.io/pypi/v/dreamloop" in first_screen
@@ -53,7 +55,10 @@ def test_chinese_readme_covers_local_first_loop_and_providers():
     first_screen = text[:2400]
 
     assert "DreamLoop" in text
-    assert "docs/assets/detail-analysis-screenshot.png" in first_screen
+    assert "docs/assets/detail-analysis-screenshot-zh.jpg" in first_screen
+    assert "docs/assets/dashboard-screenshot-zh.jpg" in first_screen
+    assert "docs/assets/settings-privacy-screenshot-zh.jpg" in text
+    assert "docs/assets/gallery-screenshot-zh.jpg" in text
     assert "你能得到什么" in text
     assert "本地优先" in text
     assert "六页闭环" in text
@@ -76,18 +81,26 @@ def test_chinese_readme_covers_local_first_loop_and_providers():
 
 
 def test_release_assets_and_docs_exist():
-    dashboard = Path("docs/assets/dashboard-screenshot.png")
-    detail = Path("docs/assets/detail-analysis-screenshot.png")
+    screenshots = [
+        Path("docs/assets/dashboard-screenshot.jpg"),
+        Path("docs/assets/detail-analysis-screenshot.jpg"),
+        Path("docs/assets/gallery-screenshot.jpg"),
+        Path("docs/assets/settings-privacy-screenshot.jpg"),
+        Path("docs/assets/dashboard-screenshot-zh.jpg"),
+        Path("docs/assets/detail-analysis-screenshot-zh.jpg"),
+        Path("docs/assets/gallery-screenshot-zh.jpg"),
+        Path("docs/assets/settings-privacy-screenshot-zh.jpg"),
+    ]
     cli_demo = Path("docs/assets/cli-demo.gif")
     social = Path("docs/assets/social-preview.png")
     demo_script = Path("docs/demo-recording.md")
     changelog = Path("CHANGELOG.md")
     workflow = Path(".github/workflows/ci.yml")
 
-    assert dashboard.exists()
-    assert dashboard.stat().st_size > 10_000
-    assert detail.exists()
-    assert detail.stat().st_size > 10_000
+    for screenshot in screenshots:
+        assert screenshot.exists()
+        assert screenshot.stat().st_size > 30_000
+        assert screenshot.read_bytes().startswith(b"\xff\xd8")
     assert cli_demo.exists()
     assert cli_demo.stat().st_size > 5_000
     assert social.exists()

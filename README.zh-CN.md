@@ -6,11 +6,11 @@
 [![PyPI version](https://img.shields.io/pypi/v/dreamloop.svg)](https://pypi.org/project/dreamloop/)
 [![Python versions](https://img.shields.io/pypi/pyversions/dreamloop.svg)](https://pypi.org/project/dreamloop/)
 
-![DreamLoop AI 解读截图](docs/assets/detail-analysis-screenshot.png)
+![DreamLoop 中文 AI 分析，展示分析语言、梦境证据和现实关联](docs/assets/detail-analysis-screenshot-zh.jpg)
 
 > “空站台可能反映一种没有控制权的等待。最近哪个等待让你既期待又无法安排下一步？”
 
-![DreamLoop dashboard screenshot](docs/assets/dashboard-screenshot.png)
+![DreamLoop 中文总览，展示本地梦境统计、AI 洞察、日历和最近梦境](docs/assets/dashboard-screenshot-zh.jpg)
 
 **梦会重复说话，DreamLoop 帮你在本地听见。**
 
@@ -44,7 +44,7 @@ uv run dreamloop web
 梦境、设置、密钥、生成图片和导出文件都在 `.dreamloop/`。默认不上传。
 
 <p align="center">
-  <img src="docs/assets/readme-local-first-privacy.png" alt="DreamLoop 本地优先隐私说明" width="100%">
+  <img src="docs/assets/settings-privacy-screenshot-zh.jpg" alt="DreamLoop 中文设置页，展示本地 AI、图像提供方和隐藏密钥说明" width="100%">
 </p>
 
 ### AI 解读
@@ -56,7 +56,7 @@ DreamLoop 可以用本地 Ollama，或你显式配置的云端/自定义 OpenAI-
 每条梦境都能生成本地视觉记忆卡片，不调用图片 API。真实图片生成是可选功能。
 
 <p align="center">
-  <img src="docs/assets/readme-workflow-review.png" alt="DreamLoop 六页闭环" width="100%">
+  <img src="docs/assets/gallery-screenshot-zh.jpg" alt="DreamLoop 中文梦境画廊，展示无需图片 API 的本地视觉记忆卡片" width="100%">
 </p>
 
 ![DreamLoop CLI demo](docs/assets/cli-demo.gif)
