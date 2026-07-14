@@ -17,7 +17,8 @@
 - Runs fully local. Your data never leaves your machine.
 - Free with Ollama. Optional DeepSeek/OpenAI or custom OpenAI-compatible endpoints.
 - CLI-first, forkable, and built for Obsidian-minded knowledge workers.
-- Detailed dream analysis favors emotions, real-life context, and verifiable interpretations.
+- English and Chinese analysis is language-checked before saving; switching the UI preserves unsaved analyzed drafts without relabeling results.
+- Full CJK fonts and responsive layouts are bundled locally with no remote font requests.
 - PyPI and source checkout keep data in `.dreamloop/`; Docker uses a named volume by default.
 
 ```bash
@@ -48,7 +49,7 @@ Dream entries, settings, secrets, generated images, and exports live under `.dre
 
 ### AI interpretation
 
-DreamLoop can use Ollama locally or an explicit cloud/custom OpenAI-compatible provider to produce structured analysis: emotions, symbols, themes, multiple interpretations, and reality-check questions.
+DreamLoop can use Ollama locally or an explicit cloud/custom OpenAI-compatible provider to produce structured analysis: emotions, symbols, themes, multiple interpretations, and reality-check questions. Output language is validated before analysis is stored.
 
 ### Visual memory
 
@@ -142,8 +143,8 @@ The default path is zero-cost Ollama. DeepSeek, OpenAI, and custom OpenAI-compat
 Dashboard -> Log -> Detail -> Patterns -> Gallery -> Settings.
 
 - Dashboard: AI Insight, heatmap, stats, and recent dreams.
-- Log: draft-first capture with optional reflection prompts.
-- Detail: original dream text, detailed interpretation, feedback, local cards, and opt-in images.
+- Log: draft-first capture with optional reflection prompts; language switching preserves unsaved content and analyzed results.
+- Detail: original dream text, truthful analysis-language labels, explicit regeneration, feedback, local cards, and opt-in images.
 - Patterns: calendar, recurring symbols, themes, resonant feedback, and a symbol network.
 - Gallery: real generated images when configured, otherwise local visual cards.
 - Settings: AI provider, image provider, launch notes, data directory, and privacy status.
@@ -182,8 +183,13 @@ DreamLoop v0.2 adds:
 - Symbol co-occurrence graph on Patterns for shareable screenshots.
 - Chinese demo data via `dreamloop demo --language zh`.
 - GHCR image publishing on GitHub releases.
+- Stateless English/Chinese interface switching that preserves unsaved analyzed drafts.
+- Analysis-language validation and explicit mismatch handling before persistence.
+- Full offline Noto Sans SC and Noto Serif SC coverage with a fixed responsive type scale.
 
 The source-based Docker demo builds locally today. Release images publish as `ghcr.io/saime428/dreamloop` when a GitHub release is published.
+
+Current source verification: 156 automated tests pass. Browser QA covers all six pages in both languages across five desktop, tablet, and mobile viewports.
 
 ### Next
 

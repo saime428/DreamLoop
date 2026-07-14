@@ -17,7 +17,8 @@
 - 本地优先。梦境数据默认不离开你的机器。
 - Ollama 零成本运行；需要云模型时再显式配置 DeepSeek、OpenAI 或 Custom OpenAI-compatible。
 - CLI-first，容易 fork，适合开发者和 Obsidian 式知识工作流。
-- AI 解读会关注情绪、现实处境、多种可验证解释，而不是只给玄学摘要。
+- 中英文分析会在保存前校验输出语言；切换界面语言会保留未保存的梦境和分析，不会偷偷改写分析语言。
+- 完整中文字体和响应式布局均在本地打包，不请求远程字体。
 - Docker 默认使用 named volume；PyPI 和源码运行会把数据放在 `.dreamloop/`。
 
 ```bash
@@ -48,7 +49,7 @@ uv run dreamloop web
 
 ### AI 解读
 
-DreamLoop 可以用本地 Ollama，或你显式配置的云端/自定义 OpenAI-compatible provider，生成情绪、符号、主题、多种解释和现实验证问题。
+DreamLoop 可以用本地 Ollama，或你显式配置的云端/自定义 OpenAI-compatible provider，生成情绪、符号、主题、多种解释和现实验证问题。分析保存前会校验输出语言。
 
 ### 视觉记忆
 
@@ -142,8 +143,8 @@ dreamloop web --port 18080
 Dashboard -> Log -> Detail -> Patterns -> Gallery -> Settings。
 
 - Dashboard：AI 洞察、热力图、统计和最近梦境。
-- Log：先写梦境，可补充 reflection prompts，再保存。
-- Detail：原文、详细解释、反馈、本地卡片和可选图片。
+- Log：先写梦境，可补充 reflection prompts；切换语言时保留未保存内容和已有分析。
+- Detail：原文、真实的分析语言标记、显式重新生成、反馈、本地卡片和可选图片。
 - Patterns：日历、反复出现的符号、主题、反馈共鸣和符号网络图。
 - Gallery：优先展示真实生成图像，否则展示本地视觉卡片。
 - Settings：AI provider、图片 provider、本地数据目录和隐私状态。
@@ -180,8 +181,13 @@ DreamLoop v0.2 新增：
 - Patterns 页符号共现图，适合截图传播。
 - `dreamloop demo --language zh` 中文 demo 数据。
 - GitHub release 发布时推送 GHCR 镜像。
+- 中英文界面可无状态切换，并保留未保存的已分析草稿。
+- 保存前校验分析语言，错配结果会明确提示而不是静默入库。
+- 完整离线 Noto Sans SC / Noto Serif SC 字体和固定响应式字号体系。
 
 源码 Docker demo 现在会本地构建。发布 GitHub release 后，会推送 `ghcr.io/saime428/dreamloop` 镜像。
+
+当前源码验证：156 项自动化测试通过；浏览器验收覆盖中英文全部六个页面，以及五组桌面、平板和手机视口。
 
 ### 下一步
 
