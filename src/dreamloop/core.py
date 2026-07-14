@@ -452,8 +452,6 @@ class DreamLoop:
         symbols = normalize_text_list(analysis.get("symbols"))
         themes = normalize_text_list(analysis.get("themes"))
         title = str(analysis.get("summary") or dream["content"]).strip()
-        if len(title) > 90:
-            title = title[:87].rstrip() + "..."
         palette = visual_palette(dream_id)
         prompt_parts = [
             "Local visual memory card for a dream.",
@@ -463,7 +461,7 @@ class DreamLoop:
             prompt_parts.append(f"Symbols: {', '.join(symbols[:5])}")
         if themes:
             prompt_parts.append(f"Themes: {', '.join(themes[:5])}")
-        visual = {
+        visual = normalize_visual_memory({
             "kind": "local_card",
             "title": title,
             "prompt": " ".join(prompt_parts),
@@ -473,7 +471,7 @@ class DreamLoop:
             "accent_2": palette[1],
             "accent_3": palette[2],
             "created_at": datetime.now().isoformat(timespec="seconds"),
-        }
+        })
         with self._connect() as db:
             db.execute(
                 "UPDATE dreams SET visual_json = ? WHERE id = ?",

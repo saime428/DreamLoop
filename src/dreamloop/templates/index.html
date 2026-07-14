@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>DreamLoop</title>
-    <link rel="stylesheet" href="{{ url_for('static', path='/style.css') }}?v=20260712b">
+    <link rel="stylesheet" href="{{ url_for('static', path='/style.css') }}?v=20260714-type">
   </head>
   <body>
     <div class="app-frame">
@@ -612,6 +612,13 @@
 
     <script>
       (() => {
+        if (window.location.pathname === "/drafts/language") {
+          window.history.replaceState(
+            null,
+            "",
+            `/log?lang=${document.documentElement.lang}${window.location.hash}`,
+          );
+        }
         const params = new URLSearchParams(window.location.search);
         let current = params.get("lang");
         const saved = window.localStorage.getItem("dreamloop.lang");

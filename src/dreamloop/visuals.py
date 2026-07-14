@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import re
 import sqlite3
+import unicodedata
 from typing import Any
 
 from .analysis import normalize_text_list
@@ -30,7 +32,8 @@ def normalize_visual_memory(payload: dict[str, Any]) -> dict[str, Any]:
     symbols = normalize_text_list(visual.get("symbols"))
     themes = normalize_text_list(visual.get("themes"))
     title_values = normalize_text_list(visual.get("title"))
-    title = title_values[0] if title_values else (symbols[0] if symbols else "Local visual memory")
+    title_candidate = title_values[0] if title_values else (symbols[0] if symbols else "Local visual memory")
+    title = compact_visual_title(title_candidate)
     prompt = str(visual.get("prompt") or "").strip()
     if '"name"' in prompt or '"meaning"' in prompt or "{'name'" in prompt or "{'meaning'" in prompt:
         prompt_parts = ["Local visual memory card."]
@@ -48,6 +51,56 @@ def normalize_visual_memory(payload: dict[str, Any]) -> dict[str, Any]:
     visual["accent_2"] = normalize_visual_accent(visual.get("accent_2"), "#d4a574")
     visual["accent_3"] = normalize_visual_accent(visual.get("accent_3"), "#c47a5a")
     return visual
+
+
+def compact_visual_title(value: Any) -> str:
+    candidate = str(value or "").strip()
+    segments = [segment.strip() for segment in re.split(r"[\n。！？.!?]", candidate)]
+    title = next((segment for segment in segments if segment), candidate)
+    if len(title) <= 48:
+        return title
+
+    # Keep common extended grapheme sequences intact without a runtime dependency.
+    clusters: list[str] = []
+    for char in title:
+        previous = clusters[-1] if clusters else ""
+        if previous and (
+            _extends_grapheme(char)
+            or previous.endswith("\u200d")
+            or (
+                _is_regional_indicator(char)
+                and len(previous) == 1
+                and _is_regional_indicator(previous)
+            )
+        ):
+            clusters[-1] += char
+        else:
+            clusters.append(char)
+
+    compact: list[str] = []
+    code_points = 0
+    for cluster in clusters:
+        if code_points + len(cluster) > 47:
+            break
+        compact.append(cluster)
+        code_points += len(cluster)
+    return "".join(compact).rstrip() + "…"
+
+
+def _extends_grapheme(char: str) -> bool:
+    code_point = ord(char)
+    return (
+        unicodedata.category(char).startswith("M")
+        or char == "\u200d"
+        or 0xFE00 <= code_point <= 0xFE0F
+        or 0x1F3FB <= code_point <= 0x1F3FF
+        or 0xE0100 <= code_point <= 0xE01EF
+        or 0xE0020 <= code_point <= 0xE007F
+    )
+
+
+def _is_regional_indicator(char: str) -> bool:
+    return 0x1F1E6 <= ord(char) <= 0x1F1FF
 
 
 def image_from_row(row: sqlite3.Row | None) -> dict[str, Any] | None:

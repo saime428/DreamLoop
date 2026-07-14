@@ -555,6 +555,9 @@ def test_draft_language_switch_preserves_state_without_persisting_or_reanalyzing
     assert "Save Chinese analysis" in switched.text
     assert 'action="/drafts/language"' in switched.text
     assert "data-draft-language-form" in switched.text
+    assert 'window.location.pathname === "/drafts/language"' in switched.text
+    assert "window.history.replaceState(" in switched.text
+    assert '`/log?lang=${document.documentElement.lang}${window.location.hash}`' in switched.text
     assert 'href="?lang=' not in switched.text
     assert app.state.analyzer.calls == [
         (
@@ -986,7 +989,35 @@ def test_detail_generates_local_visual_memory_and_gallery_shows_it(tmp_path):
     gallery = client.get("/gallery?lang=en")
     assert "Dream Gallery" in gallery.text
     assert "Local visual memory" in gallery.text
-    assert "A dream about finding a hidden door." in gallery.text
+    assert "A dream about finding a hidden door" in gallery.text
+
+
+def test_detail_and_gallery_render_compact_legacy_visual_title(tmp_path):
+    app = create_app(tmp_path)
+    client = TestClient(app)
+    dream_id = app.state.loop.add_dream("I crossed a quiet station.")
+    with app.state.loop._connect() as db:
+        db.execute(
+            "UPDATE dreams SET visual_json = ? WHERE id = ?",
+            (
+                json.dumps(
+                    {
+                        "title": "First visual sentence. Second visual sentence must not render.",
+                        "symbols": ["station"],
+                        "themes": ["transition"],
+                    }
+                ),
+                dream_id,
+            ),
+        )
+
+    detail = client.get(f"/dreams/{dream_id}?lang=en")
+    gallery = client.get("/gallery?lang=en")
+
+    for response in (detail, gallery):
+        assert response.status_code == 200
+        assert "First visual sentence" in response.text
+        assert "Second visual sentence" not in response.text
 
 
 def test_detail_feedback_buttons_and_api_summary(tmp_path):
@@ -1176,7 +1207,7 @@ def test_mislabeled_detail_exposes_regeneration_without_analysis_actions(tmp_pat
     assert f'action="/dreams/{dream_id}/feedback?lang=en"' not in detail.text
     assert api_read.json()["analysis"] is None
     assert visual.status_code == 200
-    assert visual.json()["title"] == "I found a bright doorway."
+    assert visual.json()["title"] == "I found a bright doorway"
 
 
 def test_structured_symbol_objects_do_not_leak_to_web_pages(tmp_path):

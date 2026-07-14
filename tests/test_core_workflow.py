@@ -12,6 +12,7 @@ from dreamloop.analysis import REFLECTION_LABELS
 from dreamloop.core import AnalysisUnavailableError, DreamLoop
 from dreamloop.database import connect
 from dreamloop.images import image_status, save_image_config, save_image_secret
+from dreamloop.visuals import compact_visual_title
 
 
 class LanguageAnalyzer:
@@ -496,7 +497,7 @@ def test_mismatch_only_detail_disables_analysis_bound_actions(tmp_path):
         loop.add_feedback(dream_id, language="en", rating="resonates")
 
     visual = loop.generate_visual_memory(dream_id, language="en")
-    assert visual["title"] == "I found a bright doorway."
+    assert visual["title"] == "I found a bright doorway"
     assert visual["symbols"] == []
     assert loop.trends(language="en")["themes"] == []
 
@@ -782,13 +783,91 @@ def test_generate_visual_memory_creates_local_card_without_external_api(tmp_path
     dream = loop.get_dream(dream_id, language="en")
 
     assert visual["kind"] == "local_card"
-    assert visual["title"] == "A threshold dream under water."
+    assert visual["title"] == "A threshold dream under water"
     assert "blue door" in visual["prompt"]
     assert "sea" in visual["symbols"]
     assert visual["accent_1"] in {"#8ba87a", "#9a7b56", "#a67c6a", "#c47a5a"}
     assert visual["accent_2"] in {"#d4a574", "#e8c089", "#b89164", "#c49a6c"}
     assert visual["accent_3"] in {"#c47a5a", "#8ba87a", "#a67c6a", "#6f7f64"}
     assert dream["visual_memory"] == visual
+
+
+@pytest.mark.parametrize(
+    ("language", "summary", "expected"),
+    [
+        (
+            "zh",
+            "这是一段用于视觉卡片的第一句标题，它应该在句号处停止并保持紧凑。后面的解释不应进入标题。",
+            "这是一段用于视觉卡片的第一句标题，它应该在句号处停止并保持紧凑",
+        ),
+        (
+            "en",
+            "A compact first sentence for the visual card. The later explanation should not appear.",
+            "A compact first sentence for the visual card",
+        ),
+    ],
+)
+def test_generate_visual_memory_compacts_summary_to_first_segment(
+    tmp_path, language, summary, expected
+):
+    loop = DreamLoop(tmp_path)
+    dream_id = loop.add_dream_with_analysis(
+        "我看到一扇门。" if language == "zh" else "I saw a doorway.",
+        {"summary": summary},
+        language=language,
+    )
+
+    visual = loop.generate_visual_memory(dream_id, language=language)
+
+    assert visual["title"] == expected
+
+
+def test_visual_memory_title_is_capped_for_new_and_legacy_records(tmp_path):
+    loop = DreamLoop(tmp_path)
+    dream_id = loop.add_dream_with_analysis(
+        "我看到一条很长的走廊。",
+        {"summary": "长" * 70},
+        language="zh",
+    )
+
+    generated = loop.generate_visual_memory(dream_id, language="zh")
+    assert generated["title"] == "长" * 47 + "…"
+    assert len(generated["title"]) == 48
+
+    with loop._connect() as db:
+        db.execute(
+            "UPDATE dreams SET visual_json = ? WHERE id = ?",
+            (
+                json.dumps(
+                    {
+                        "title": "Legacy first sentence. Legacy second sentence should be hidden.",
+                        "symbols": [],
+                        "themes": [],
+                    }
+                ),
+                dream_id,
+            ),
+        )
+
+    legacy = loop.get_dream(dream_id, language="zh")["visual_memory"]
+    assert legacy["title"] == "Legacy first sentence"
+
+
+@pytest.mark.parametrize(
+    ("summary", "expected"),
+    [
+        ("🇺🇸" * 25, "🇺🇸" * 23 + "…"),
+        ("e\u0301" * 25, "e\u0301" * 23 + "…"),
+        ("👩‍💻" * 17, "👩‍💻" * 15 + "…"),
+    ],
+)
+def test_visual_memory_title_truncation_preserves_grapheme_clusters(
+    summary, expected
+):
+    title = compact_visual_title(summary)
+
+    assert title == expected
+    assert len(title) <= 48
 
 
 def test_generate_visual_memory_raises_for_missing_dream(tmp_path):
