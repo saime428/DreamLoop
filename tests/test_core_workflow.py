@@ -859,6 +859,8 @@ def test_visual_memory_title_is_capped_for_new_and_legacy_records(tmp_path):
         ("🇺🇸" * 25, "🇺🇸" * 23 + "…"),
         ("e\u0301" * 25, "e\u0301" * 23 + "…"),
         ("👩‍💻" * 17, "👩‍💻" * 15 + "…"),
+        ("가" * 25, "가" * 23 + "…"),
+        ("क्ष" * 17, "क्ष" * 15 + "…"),
     ],
 )
 def test_visual_memory_title_truncation_preserves_grapheme_clusters(

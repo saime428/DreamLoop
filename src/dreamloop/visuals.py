@@ -67,6 +67,8 @@ def compact_visual_title(value: Any) -> str:
         if previous and (
             _extends_grapheme(char)
             or previous.endswith("\u200d")
+            or _continues_hangul_cluster(previous, char)
+            or _continues_indic_cluster(previous, char)
             or (
                 _is_regional_indicator(char)
                 and len(previous) == 1
@@ -101,6 +103,47 @@ def _extends_grapheme(char: str) -> bool:
 
 def _is_regional_indicator(char: str) -> bool:
     return 0x1F1E6 <= ord(char) <= 0x1F1FF
+
+
+def _continues_hangul_cluster(cluster: str, char: str) -> bool:
+    previous = next(
+        (item for item in reversed(cluster) if not _extends_grapheme(item)),
+        cluster[-1],
+    )
+    previous_type = _hangul_type(previous)
+    current_type = _hangul_type(char)
+    return (
+        (previous_type == "L" and current_type in {"L", "V", "LV", "LVT"})
+        or (previous_type in {"LV", "V"} and current_type in {"V", "T"})
+        or (previous_type in {"LVT", "T"} and current_type == "T")
+    )
+
+
+def _hangul_type(char: str) -> str:
+    code_point = ord(char)
+    if 0x1100 <= code_point <= 0x115F or 0xA960 <= code_point <= 0xA97C:
+        return "L"
+    if 0x1160 <= code_point <= 0x11A7 or 0xD7B0 <= code_point <= 0xD7C6:
+        return "V"
+    if 0x11A8 <= code_point <= 0x11FF or 0xD7CB <= code_point <= 0xD7FB:
+        return "T"
+    if 0xAC00 <= code_point <= 0xD7A3:
+        return "LV" if (code_point - 0xAC00) % 28 == 0 else "LVT"
+    return ""
+
+
+def _continues_indic_cluster(cluster: str, char: str) -> bool:
+    if not unicodedata.category(char).startswith("L"):
+        return False
+    char_name = unicodedata.name(char, "")
+    for item in reversed(cluster):
+        item_name = unicodedata.name(item, "")
+        if "VIRAMA" in item_name or "HALANT" in item_name:
+            script = item_name.split(" ", 1)[0]
+            return char_name.startswith(f"{script} ")
+        if not _extends_grapheme(item):
+            break
+    return False
 
 
 def image_from_row(row: sqlite3.Row | None) -> dict[str, Any] | None:
