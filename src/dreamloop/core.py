@@ -807,7 +807,20 @@ def analysis_from_row(row: sqlite3.Row | None) -> dict[str, Any] | None:
         "report": report,
         "raw_json": json.dumps(report, ensure_ascii=False),
     }
-    detected_language = detect_analysis_language(report or analysis)
+    report_only_fields = {
+        key: value
+        for key, value in report.items()
+        if key not in {"emotional_tone", "symbols", "themes", "summary", "confidence"}
+    }
+    detected_language = detect_analysis_language(
+        {
+            "emotional_tone": analysis["emotional_tone"],
+            "symbols": analysis["symbols"],
+            "themes": analysis["themes"],
+            "summary": analysis["summary"],
+            "report": report_only_fields,
+        }
+    )
     analysis["detected_language"] = detected_language
     analysis["language_valid"] = detected_language == row["language"]
     analysis["language_mismatch"] = (

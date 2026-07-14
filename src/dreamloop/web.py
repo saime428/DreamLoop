@@ -925,6 +925,11 @@ def create_app(root: str | Path | None = None) -> FastAPI:
         target_language = _form_lang(lang)
         reflections = _reflections_from_json(reflections_json)
         if not analysis_json.strip():
+            if not content.strip() and not reflections:
+                return RedirectResponse(
+                    _page_url("log", target_language),
+                    status_code=status.HTTP_303_SEE_OTHER,
+                )
             return render_home(
                 request,
                 target_language,

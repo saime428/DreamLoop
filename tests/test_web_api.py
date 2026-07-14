@@ -592,6 +592,29 @@ def test_unanalyzed_draft_language_switch_preserves_current_input(tmp_path):
     assert app.state.loop.list_dreams() == []
 
 
+def test_blank_log_language_switch_redirects_to_get_route(tmp_path):
+    app = create_app(tmp_path)
+    client = TestClient(app)
+
+    response = client.post(
+        "/drafts/language",
+        data={
+            "lang": "zh",
+            "content": "",
+            "analysis_json": "",
+            "analysis_language": "en",
+            "reflections_json": "{}",
+        },
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/log?lang=zh"
+    rendered = client.get(response.headers["location"])
+    assert rendered.status_code == 200
+    assert '<html lang="zh">' in rendered.text
+
+
 @pytest.mark.parametrize("reflections_json", ["not-json", "[]"])
 def test_draft_language_switch_rejects_corrupt_reflection_state(tmp_path, reflections_json):
     app = create_app(tmp_path)

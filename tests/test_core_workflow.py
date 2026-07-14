@@ -512,6 +512,39 @@ def test_mismatch_only_detail_disables_analysis_bound_actions(tmp_path):
     assert loop.feedback_summary(language="en") == {"ratings": [], "resonant_themes": []}
 
 
+def test_stored_analysis_validates_display_columns_when_raw_report_is_stale(tmp_path):
+    loop = DreamLoop(tmp_path)
+    dream_id = loop.add_dream_with_analysis(
+        "I found a bright doorway.",
+        {"summary": "This English analysis connects the doorway with a present decision and uncertainty."},
+        language="en",
+    )
+    with loop._connect() as db:
+        db.execute(
+            """
+            UPDATE dream_analyses
+            SET emotional_tone = ?, symbols_json = ?, themes_json = ?, summary = ?
+            WHERE dream_id = ? AND language = 'en'
+            """,
+            (
+                "犹豫而期待",
+                json.dumps(["发光的门"], ensure_ascii=False),
+                json.dumps(["现实选择"], ensure_ascii=False),
+                "这份中文摘要已经替换了显示列，但旧的英文原始报告仍然留在数据库中。",
+                dream_id,
+            ),
+        )
+
+    exact = loop.get_dream(dream_id, language="en")
+    listed = loop.list_dreams_with_analysis(language="en")[0]
+
+    assert exact["analysis"] is None
+    assert exact["invalid_analysis"]["detected_language"] == "zh"
+    assert exact["analysis_language_mismatch"] is True
+    assert listed["analysis"] is None
+    assert loop.trends(language="en")["themes"] == []
+
+
 def test_import_ics_and_weather_feed_heatmap_context(tmp_path):
     loop = DreamLoop(tmp_path)
     loop.init()
